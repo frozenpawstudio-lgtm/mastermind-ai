@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MasterMind AI</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#0b1020;
+  color:white;
+}
+.app{
+  max-width:900px;
+  margin:auto;
+  min-height:100vh;
+  padding:20px;
+}
+.header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:25px;
+}
+.logo{
+  font-size:25px;
+  font-weight:bold;
+}
+.status{
+  color:#61ff9b;
+  font-size:13px;
+}
+.card{
+  background:#151c31;
+  border:1px solid #293452;
+  border-radius:18px;
+  padding:20px;
+  margin-bottom:18px;
+}
+h1{margin:0 0 8px;font-size:30px}
+.subtitle{color:#aab4ce}
+.modules{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  margin-top:20px;
+}
+.module{
+  background:#202943;
+  padding:16px;
+  border-radius:14px;
+}
+.module b{display:block;margin-bottom:6px}
+.module span{color:#9eabc7;font-size:13px}
+.chat{
+  min-height:330px;
+  display:flex;
+  flex-direction:column;
+}
+.messages{
+  flex:1;
+  overflow:auto;
+  margin-bottom:15px;
+}
+.msg{
+  padding:12px 15px;
+  border-radius:14px;
+  margin:8px 0;
+  max-width:90%;
+  line-height:1.5;
+}
+.ai{
+  background:#202943;
+}
+.user{
+  background:#3157d5;
+  margin-left:auto;
+}
+.input{
+  display:flex;
+  gap:8px;
+}
+input{
+  flex:1;
+  padding:15px;
+  border-radius:12px;
+  border:1px solid #394563;
+  background:#0d1426;
+  color:white;
+  font-size:16px;
+}
+button{
+  border:0;
+  border-radius:12px;
+  padding:0 20px;
+  background:#4d6fff;
+  color:white;
+  font-weight:bold;
+}
+@media(max-width:600px){
+  .modules{grid-template-columns:1fr}
+  .app{padding:14px}
+  h1{font-size:25px}
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="logo">🧠 MasterMind AI</div>
+    <div class="status">● Online</div>
+  </div>
+
+  <div class="card">
+    <h1>आपका Personal AI Agent</h1>
+    <div class="subtitle">
+      मुझे आदेश दो। मैं आपके काम को समझकर अगले कदम तैयार करूँगा।
+    </div>
+
+    <div class="modules">
+      <div class="module">
+        <b>🔎 Research</b>
+        <span>जानकारी और रिसर्च</span>
+      </div>
+      <div class="module">
+        <b>💰 Earning</b>
+        <span>कमाई के अवसर</span>
+      </div>
+      <div class="module">
+        <b>🎬 Content</b>
+        <span>वीडियो और कंटेंट</span>
+      </div>
+      <div class="module">
+        <b>⚙️ Tasks</b>
+        <span>काम और योजनाएँ</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card chat">
+    <div class="messages" id="messages">
+      <div class="msg ai">
+        नमस्ते! मैं आपका MasterMind हूँ।<br>
+        अपना आदेश लिखिए।
+      </div>
+    </div>
+
+    <div class="input">
+      <input id="command"
+        placeholder="उदाहरण: मेरे लिए आज का काम तय करो">
+      <button onclick="sendCommand()">Send</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function sendCommand(){
+  const input=document.getElementById("command");
+  const text=input.value.trim();
+  if(!text)return;
+
+  const messages=document.getElementById("messages");
+
+  messages.innerHTML +=
+    '<div class="msg user">'+escapeHtml(text)+'</div>';
+
+  input.value="";
+
+  setTimeout(()=>{
+    messages.innerHTML +=
+      '<div class="msg ai">आदेश मिल गया ✅<br>अभी मेरा AI backend connect नहीं हुआ है। अगला चरण OpenAI API को सुरक्षित तरीके से जोड़ना है।</div>';
+    messages.scrollTop=messages.scrollHeight;
+  },500);
+}
+
+function escapeHtml(text){
+  const div=document.createElement("div");
+  div.textContent=text;
+  return div.innerHTML;
+}
+
+document.getElementById("command").addEventListener("keydown",function(e){
+  if(e.key==="Enter")sendCommand();
+});
+</script>
+
+</body>
+</html>
