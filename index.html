@@ -3,397 +3,453 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>MasterMind AI</title>
 
 <style>
-*{box-sizing:border-box}
+*{
+  box-sizing:border-box;
+}
 
 body{
   margin:0;
-  font-family:Arial,sans-serif;
+  font-family:Arial, sans-serif;
   background:#0b1020;
   color:white;
 }
 
-.app{
-  max-width:900px;
+.container{
+  max-width:850px;
   margin:auto;
-  min-height:100vh;
   padding:20px;
 }
 
 .header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  margin-bottom:25px;
+  text-align:center;
+  padding:25px 10px;
 }
 
 .logo{
-  font-size:25px;
-  font-weight:bold;
-}
-
-.status{
-  color:#61ff9b;
-  font-size:13px;
-}
-
-.card{
-  background:#151c31;
-  border:1px solid #293452;
-  border-radius:18px;
-  padding:20px;
-  margin-bottom:18px;
+  font-size:42px;
 }
 
 h1{
-  margin:0 0 8px;
+  margin:8px 0;
   font-size:30px;
 }
 
 .subtitle{
-  color:#aab4ce;
+  color:#aeb8d0;
 }
 
-.modules{
-  display:grid;
-  grid-template-columns:repeat(2,1fr);
-  gap:12px;
+.card{
+  background:#151d36;
+  border:1px solid #293556;
+  border-radius:22px;
+  padding:20px;
   margin-top:20px;
 }
 
-.module{
-  background:#202943;
-  padding:16px;
-  border-radius:14px;
-  cursor:pointer;
-  transition:0.2s;
-  border:1px solid transparent;
-}
-
-.module:hover{
-  border-color:#4d6fff;
-  transform:translateY(-2px);
-}
-
-.module:active{
-  transform:scale(0.98);
-}
-
-.module b{
-  display:block;
-  margin-bottom:6px;
-}
-
-.module span{
-  color:#9eabc7;
-  font-size:13px;
-}
-
-.chat{
-  min-height:330px;
+.status{
   display:flex;
-  flex-direction:column;
-}
-
-.messages{
-  flex:1;
-  overflow:auto;
+  align-items:center;
+  gap:8px;
+  color:#79f2a6;
   margin-bottom:15px;
 }
 
-.msg{
-  padding:12px 15px;
-  border-radius:14px;
-  margin:8px 0;
-  max-width:90%;
-  line-height:1.5;
+.status-dot{
+  width:10px;
+  height:10px;
+  background:#32e875;
+  border-radius:50%;
 }
 
-.ai{
-  background:#202943;
+.messages{
+  height:430px;
+  overflow-y:auto;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.msg{
+  padding:15px 18px;
+  border-radius:18px;
+  line-height:1.6;
+  max-width:88%;
+  word-wrap:break-word;
 }
 
 .user{
-  background:#3157d5;
-  margin-left:auto;
+  align-self:flex-end;
+  background:#315bd6;
 }
 
-.input{
+.ai{
+  align-self:flex-start;
+  background:#202b49;
+}
+
+.quick{
   display:flex;
+  flex-wrap:wrap;
   gap:8px;
+  margin:15px 0;
 }
 
-input{
+.quick button{
+  background:#202b49;
+  color:white;
+  border:1px solid #3b4b73;
+  border-radius:12px;
+  padding:10px 14px;
+  cursor:pointer;
+}
+
+.quick button:active{
+  transform:scale(.97);
+}
+
+.input-area{
+  display:flex;
+  gap:10px;
+}
+
+#command{
   flex:1;
-  padding:15px;
-  border-radius:12px;
-  border:1px solid #394563;
-  background:#0d1426;
+  min-width:0;
+  background:#0d1428;
   color:white;
+  border:1px solid #3b4b73;
+  border-radius:15px;
+  padding:15px;
   font-size:16px;
+  outline:none;
 }
 
-button{
-  border:0;
-  border-radius:12px;
-  padding:0 20px;
-  background:#4d6fff;
+#command:focus{
+  border-color:#5276ff;
+}
+
+.send{
+  background:#4b6fff;
   color:white;
+  border:0;
+  border-radius:15px;
+  padding:0 22px;
+  font-size:16px;
   font-weight:bold;
   cursor:pointer;
 }
 
-button:active{
-  transform:scale(0.97);
+.send:active{
+  transform:scale(.97);
 }
 
-.quick{
-  margin-top:12px;
-  color:#9eabc7;
-  font-size:12px;
+.footer{
+  text-align:center;
+  color:#7783a5;
+  font-size:13px;
+  margin-top:20px;
 }
 
 @media(max-width:600px){
-  .modules{
-    grid-template-columns:1fr;
+
+  .container{
+    padding:12px;
   }
 
-  .app{
-    padding:14px;
+  .messages{
+    height:400px;
   }
 
-  h1{
-    font-size:25px;
+  .input-area{
+    flex-direction:row;
   }
 
-  .input{
-    flex-direction:column;
+  .send{
+    padding:0 18px;
   }
 
-  button{
-    height:48px;
+  .msg{
+    max-width:94%;
   }
 }
 </style>
 </head>
 
+
 <body>
 
-<div class="app">
+<div class="container">
 
   <div class="header">
-    <div class="logo">🧠 MasterMind AI</div>
-    <div class="status">● Online</div>
+
+    <div class="logo">🧠</div>
+
+    <h1>MasterMind AI</h1>
+
+    <div class="subtitle">
+      आपका Personal AI Agent
+    </div>
+
   </div>
+
 
   <div class="card">
 
-    <h1>आपका Personal AI Agent</h1>
-
-    <div class="subtitle">
-      मुझे आदेश दो। मैं आपके काम को समझकर अगले कदम तैयार करूँगा।
+    <div class="status">
+      <span class="status-dot"></span>
+      MasterMind AI Online
     </div>
 
-    <div class="modules">
 
-      <div class="module"
-           onclick="quickCommand('मेरे लिए आज की जरूरी रिसर्च करो')">
-        <b>🔎 Research</b>
-        <span>जानकारी और रिसर्च</span>
-      </div>
-
-      <div class="module"
-           onclick="quickCommand('मेरे लिए ऑनलाइन कमाई के असली और सुरक्षित अवसर खोजो')">
-        <b>💰 Earning</b>
-        <span>कमाई के अवसर</span>
-      </div>
-
-      <div class="module"
-           onclick="quickCommand('मेरे लिए एक वायरल वीडियो का आइडिया और स्क्रिप्ट तैयार करो')">
-        <b>🎬 Content</b>
-        <span>वीडियो और कंटेंट</span>
-      </div>
-
-      <div class="module"
-           onclick="quickCommand('मेरे आज के काम की योजना बनाओ')">
-        <b>⚙️ Tasks</b>
-        <span>काम और योजनाएँ</span>
-      </div>
-
-    </div>
-
-  </div>
-
-
-  <div class="card chat">
-
-    <div class="messages" id="messages">
+    <div id="messages" class="messages">
 
       <div class="msg ai">
-        नमस्ते! मैं आपका MasterMind हूँ। 🧠<br>
-        ऊपर कोई विकल्प चुनिए या अपना आदेश लिखिए।
+        नमस्ते! मैं आपका <b>MasterMind AI</b> हूँ। 🧠
+        <br><br>
+        आप मुझसे हिंदी, Hinglish या English में बात कर सकते हैं।
+        <br><br>
+        मैं आपके सवाल को समझकर practical जवाब और अगले steps देने की कोशिश करूँगा।
       </div>
 
     </div>
 
 
-    <div class="input">
+    <div class="quick">
+
+      <button onclick="quickCommand('मुझे ऑनलाइन पैसे कमाने का तरीका बताओ')">
+        💰 Earning
+      </button>
+
+      <button onclick="quickCommand('मेरे लिए YouTube automation project बनाओ')">
+        🎬 YouTube
+      </button>
+
+      <button onclick="quickCommand('मेरे लिए एक AI agent का plan बनाओ')">
+        🤖 AI Agent
+      </button>
+
+      <button onclick="quickCommand('आज मेरे लिए क्या काम करना चाहिए?')">
+        ⚙️ Tasks
+      </button>
+
+      <button onclick="quickCommand('मुझे इस topic पर research करनी है')">
+        🔎 Research
+      </button>
+
+    </div>
+
+
+    <div class="input-area">
 
       <input
         id="command"
-        placeholder="उदाहरण: मेरे लिए आज का काम तय करो">
+        type="text"
+        placeholder="अपना आदेश यहाँ लिखें..."
+        autocomplete="off"
+      >
 
-      <button onclick="sendCommand()">
+      <button class="send" onclick="sendCommand()">
         Send
       </button>
 
     </div>
 
-    <div class="quick">
-      💡 Earning दबाकर कमाई से संबंधित आदेश शुरू करें।
-    </div>
+  </div>
 
+
+  <div class="footer">
+    🛡️ MasterMind AI • Secure AI Backend
   </div>
 
 </div>
+
 
 
 <script>
 
 function quickCommand(text){
 
-  const input=document.getElementById("command");
+  const input = document.getElementById("command");
 
-  input.value=text;
+  input.value = text;
 
   sendCommand();
 
 }
 
 
-function sendCommand(){
 
-  const input=document.getElementById("command");
+async function sendCommand(){
 
-  const text=input.value.trim();
+  const input = document.getElementById("command");
+
+  const text = input.value.trim();
 
   if(!text){
     return;
   }
 
-  const messages=document.getElementById("messages");
+
+  const messages = document.getElementById("messages");
 
 
+  // User message
   messages.innerHTML +=
-    '<div class="msg user">'+
-    escapeHtml(text)+
+    '<div class="msg user">' +
+    escapeHtml(text) +
     '</div>';
 
 
-  input.value="";
+  input.value = "";
 
 
-  setTimeout(()=>{
+  // Loading
+  const loadingId = "loading-" + Date.now();
 
-    let reply="";
+  messages.innerHTML +=
+    '<div class="msg ai" id="' + loadingId + '">' +
+    '🧠 MasterMind सोच रहा है...' +
+    '</div>';
 
-    const lower=text.toLowerCase();
+
+  messages.scrollTop = messages.scrollHeight;
 
 
-    if(
-      lower.includes("कमाई") ||
-      lower.includes("कमाने") ||
-      lower.includes("earning")
-    ){
+  try{
 
-      reply=
-      "💰 Earning mode शुरू हो गया।<br><br>"+
-      "मैं आपके लिए ऐसे ऑनलाइन काम खोजने में मदद कर सकता हूँ जिन्हें मोबाइल से शुरू किया जा सके।<br><br>"+
-      "अगला चरण: असली और सुरक्षित earning opportunities की रिसर्च के लिए AI backend जोड़ना होगा।";
+    /*
+      Real Cloudflare Worker AI backend
+    */
+
+    const response = await fetch("/api/chat",{
+
+      method:"POST",
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:JSON.stringify({
+        message:text
+      })
+
+    });
+
+
+    const data = await response.json();
+
+
+    // Remove loading message
+    const loading = document.getElementById(loadingId);
+
+    if(loading){
+      loading.remove();
+    }
+
+
+    let reply = "";
+
+
+    if(data.ok && data.answer){
+
+      reply = data.answer;
 
     }
 
-    else if(
-      lower.includes("वीडियो") ||
-      lower.includes("कंटेंट") ||
-      lower.includes("content")
-    ){
+    else if(data.error){
 
-      reply=
-      "🎬 Content mode शुरू हो गया।<br><br>"+
-      "मैं आपके लिए topic, hook, script और video plan तैयार कर सकता हूँ।";
-
-    }
-
-    else if(
-      lower.includes("रिसर्च") ||
-      lower.includes("research")
-    ){
-
-      reply=
-      "🔎 Research mode शुरू हो गया।<br><br>"+
-      "मैं किसी topic की जानकारी इकट्ठा करके उसका आसान summary और action plan तैयार कर सकता हूँ।";
-
-    }
-
-    else if(
-      lower.includes("काम") ||
-      lower.includes("योजना") ||
-      lower.includes("tasks")
-    ){
-
-      reply=
-      "⚙️ Tasks mode शुरू हो गया।<br><br>"+
-      "मैं आपके काम को छोटे-छोटे steps में बाँटकर आज की योजना बना सकता हूँ।";
+      reply =
+        "❌ AI में समस्या आई।<br><br>" +
+        escapeHtml(data.error);
 
     }
 
     else{
 
-      reply=
-      "✅ आपका आदेश मिल गया।<br><br>"+
-      "मैंने आपका command समझ लिया है। अभी AI backend connect नहीं है। अगला चरण सुरक्षित AI backend जोड़ना है।";
+      reply =
+        "❌ AI से सही जवाब नहीं मिला।";
 
     }
 
 
     messages.innerHTML +=
-      '<div class="msg ai">'+
-      reply+
+      '<div class="msg ai">' +
+      formatAnswer(reply) +
       '</div>';
 
 
-    messages.scrollTop=messages.scrollHeight;
+  }
 
-  },500);
+  catch(error){
+
+    const loading = document.getElementById(loadingId);
+
+    if(loading){
+      loading.remove();
+    }
+
+
+    messages.innerHTML +=
+      '<div class="msg ai">' +
+      '❌ AI backend से connection नहीं हो पाया।<br><br>' +
+      escapeHtml(error.message) +
+      '</div>';
+
+  }
+
+
+  messages.scrollTop = messages.scrollHeight;
 
 }
 
 
+
+function formatAnswer(text){
+
+  /*
+    AI के जवाब को सुरक्षित HTML text में बदलना
+  */
+
+  return escapeHtml(String(text))
+    .replace(/\n/g,"<br>");
+
+}
+
+
+
 function escapeHtml(text){
 
-  const div=document.createElement("div");
+  const div = document.createElement("div");
 
-  div.textContent=text;
+  div.textContent = text;
 
   return div.innerHTML;
 
 }
 
 
+
 document
-.getElementById("command")
-.addEventListener("keydown",function(e){
+  .getElementById("command")
+  .addEventListener("keydown",function(e){
 
-  if(e.key==="Enter"){
-    sendCommand();
-  }
+    if(e.key === "Enter"){
 
-});
+      e.preventDefault();
+
+      sendCommand();
+
+    }
+
+  });
 
 </script>
+
 
 </body>
 </html>
