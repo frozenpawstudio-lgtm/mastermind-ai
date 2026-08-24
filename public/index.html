@@ -1,1 +1,499 @@
-fetch("/api/chat", {
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MasterMind AI</title>
+
+<style>
+*{
+  box-sizing:border-box;
+}
+
+body{
+  margin:0;
+  font-family:Arial,sans-serif;
+  background:#0b1020;
+  color:#fff;
+}
+
+.container{
+  max-width:850px;
+  margin:auto;
+  padding:16px;
+}
+
+.header{
+  text-align:center;
+  padding:22px 10px;
+}
+
+.logo{
+  font-size:42px;
+}
+
+h1{
+  margin:8px 0;
+  font-size:30px;
+}
+
+.subtitle{
+  color:#aeb8d0;
+}
+
+.card{
+  background:#151d36;
+  border:1px solid #293556;
+  border-radius:22px;
+  padding:18px;
+  margin-top:15px;
+}
+
+.status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  color:#79f2a6;
+  margin-bottom:15px;
+  font-size:18px;
+}
+
+.status-dot{
+  width:10px;
+  height:10px;
+  background:#32e875;
+  border-radius:50%;
+}
+
+.messages{
+  height:430px;
+  overflow-y:auto;
+  padding:8px;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+
+.msg{
+  padding:15px 18px;
+  border-radius:18px;
+  line-height:1.6;
+  max-width:90%;
+  word-wrap:break-word;
+}
+
+.user{
+  align-self:flex-end;
+  background:#315bd6;
+}
+
+.ai{
+  align-self:flex-start;
+  background:#202b49;
+}
+
+.quick{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:15px 0;
+}
+
+.quick button{
+  background:#202b49;
+  color:#fff;
+  border:1px solid #3b4b73;
+  border-radius:12px;
+  padding:10px 14px;
+  cursor:pointer;
+  font-size:15px;
+}
+
+.quick button:active{
+  transform:scale(.97);
+}
+
+.input-area{
+  display:flex;
+  gap:10px;
+}
+
+#command{
+  flex:1;
+  min-width:0;
+  background:#0d1428;
+  color:#fff;
+  border:1px solid #3b4b73;
+  border-radius:15px;
+  padding:15px;
+  font-size:16px;
+  outline:none;
+}
+
+#command:focus{
+  border-color:#5276ff;
+}
+
+.send{
+  background:#4b6fff;
+  color:#fff;
+  border:0;
+  border-radius:15px;
+  padding:0 22px;
+  font-size:16px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.send:disabled{
+  opacity:.6;
+  cursor:not-allowed;
+}
+
+.footer{
+  text-align:center;
+  color:#7783a5;
+  font-size:13px;
+  margin-top:18px;
+}
+
+@media(max-width:600px){
+
+  .container{
+    padding:12px;
+  }
+
+  .messages{
+    height:400px;
+  }
+
+  .msg{
+    max-width:94%;
+  }
+
+  .input-area{
+    flex-direction:row;
+  }
+
+  .send{
+    padding:0 18px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="header">
+    <div class="logo">🧠</div>
+    <h1>MasterMind AI</h1>
+    <div class="subtitle">
+      आपका Personal AI Agent
+    </div>
+  </div>
+
+  <div class="card">
+
+    <div class="status">
+      <span class="status-dot"></span>
+      <span id="statusText">MasterMind AI जाँच रहा है...</span>
+    </div>
+
+    <div id="messages" class="messages">
+
+      <div class="msg ai">
+        नमस्ते! मैं आपका <b>MasterMind AI</b> हूँ। 🧠
+        <br><br>
+        आप मुझसे हिंदी, Hinglish या English में बात कर सकते हैं।
+        <br><br>
+        अपना काम या सवाल लिखिए।
+      </div>
+
+    </div>
+
+    <div class="quick">
+
+      <button onclick="quickCommand('मुझे ऑनलाइन पैसे कमाने का तरीका बताओ')">
+        💰 Earning
+      </button>
+
+      <button onclick="quickCommand('मेरे लिए YouTube automation project का पूरा plan बनाओ')">
+        🎬 YouTube
+      </button>
+
+      <button onclick="quickCommand('मेरे लिए एक AI agent का पूरा plan बनाओ')">
+        🤖 AI Agent
+      </button>
+
+      <button onclick="quickCommand('आज मेरे लिए क्या काम करना चाहिए?')">
+        ⚙️ Tasks
+      </button>
+
+      <button onclick="quickCommand('मुझे इस topic पर research करनी है')">
+        🔎 Research
+      </button>
+
+    </div>
+
+    <div class="input-area">
+
+      <input
+        id="command"
+        type="text"
+        placeholder="अपना आदेश यहाँ लिखें..."
+        autocomplete="off"
+      >
+
+      <button
+        id="sendButton"
+        class="send"
+        onclick="sendCommand()"
+      >
+        Send
+      </button>
+
+    </div>
+
+  </div>
+
+  <div class="footer">
+    🛡️ MasterMind AI • Secure AI Backend
+  </div>
+
+</div>
+
+<script>
+
+let requestRunning = false;
+
+
+function quickCommand(text){
+
+  if(requestRunning){
+    return;
+  }
+
+  const input = document.getElementById("command");
+
+  input.value = text;
+
+  sendCommand();
+}
+
+
+async function sendCommand(){
+
+  if(requestRunning){
+    return;
+  }
+
+  const input = document.getElementById("command");
+  const button = document.getElementById("sendButton");
+  const messages = document.getElementById("messages");
+
+  const text = input.value.trim();
+
+  if(!text){
+    return;
+  }
+
+  requestRunning = true;
+  button.disabled = true;
+
+  messages.innerHTML +=
+    '<div class="msg user">' +
+    escapeHtml(text) +
+    '</div>';
+
+  input.value = "";
+
+  const loadingId = "loading-" + Date.now();
+
+  messages.innerHTML +=
+    '<div class="msg ai" id="' +
+    loadingId +
+    '">' +
+    '🧠 MasterMind सोच रहा है...' +
+    '</div>';
+
+  scrollMessages();
+
+
+  try{
+
+    const response = await fetch("/api/chat",{
+
+      method:"POST",
+
+      headers:{
+        "Content-Type":"application/json"
+      },
+
+      body:JSON.stringify({
+        message:text
+      })
+
+    });
+
+
+    let data;
+
+    try{
+      data = await response.json();
+    }
+    catch{
+      data = {
+        ok:false,
+        error:"Backend ने valid JSON response नहीं दिया।"
+      };
+    }
+
+
+    const loading =
+      document.getElementById(loadingId);
+
+    if(loading){
+      loading.remove();
+    }
+
+
+    if(data.ok && data.answer){
+
+      messages.innerHTML +=
+        '<div class="msg ai">' +
+        formatAnswer(data.answer) +
+        '</div>';
+
+    }
+    else{
+
+      let errorMessage =
+        data.error ||
+        "AI से जवाब नहीं मिला।";
+
+      messages.innerHTML +=
+        '<div class="msg ai">' +
+        '❌ AI में समस्या आई।<br><br>' +
+        escapeHtml(errorMessage) +
+        '</div>';
+    }
+
+  }
+  catch(error){
+
+    const loading =
+      document.getElementById(loadingId);
+
+    if(loading){
+      loading.remove();
+    }
+
+    messages.innerHTML +=
+      '<div class="msg ai">' +
+      '❌ AI backend से connection नहीं हो पाया।<br><br>' +
+      escapeHtml(error.message || "Network error") +
+      '</div>';
+  }
+
+
+  requestRunning = false;
+  button.disabled = false;
+
+  scrollMessages();
+}
+
+
+function formatAnswer(text){
+
+  return escapeHtml(String(text))
+    .replace(/\r\n/g,"\n")
+    .replace(/\n/g,"<br>");
+}
+
+
+function escapeHtml(text){
+
+  const div = document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+}
+
+
+function scrollMessages(){
+
+  const messages =
+    document.getElementById("messages");
+
+  messages.scrollTop =
+    messages.scrollHeight;
+}
+
+
+async function checkBackend(){
+
+  const statusText =
+    document.getElementById("statusText");
+
+  try{
+
+    const response =
+      await fetch("/api/health",{
+        method:"GET",
+        cache:"no-store"
+      });
+
+    const data =
+      await response.json();
+
+    if(data.ok && data.aiConnected){
+
+      statusText.textContent =
+        "MasterMind AI Online • AI Connected";
+
+    }
+    else if(data.ok){
+
+      statusText.textContent =
+        "MasterMind Online • AI Binding Missing";
+
+    }
+    else{
+
+      statusText.textContent =
+        "MasterMind Backend Error";
+    }
+
+  }
+  catch{
+
+    statusText.textContent =
+      "MasterMind Backend Offline";
+  }
+}
+
+
+document
+  .getElementById("command")
+  .addEventListener("keydown",function(e){
+
+    if(e.key === "Enter"){
+
+      e.preventDefault();
+
+      sendCommand();
+    }
+
+  });
+
+
+checkBackend();
+
+</script>
+
+</body>
+  </html>
