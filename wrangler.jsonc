@@ -6,8 +6,11 @@
   "ai": {
     "binding": "AI"
   },
+  "browser": {
+    "binding": "BROWSER"
+  },
   "assets": {
-    "directory": "./public",
+    "directory": ".",
     "binding": "ASSETS"
   }
 }
