@@ -1,0 +1,14 @@
+{
+  "name": "mastermind-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MasterMind AI personal agent",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "latest"
+  }
+}
