@@ -1,0 +1,13 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "mastermind-ai",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-24",
+  "ai": {
+    "binding": "AI"
+  },
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  }
+}
