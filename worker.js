@@ -1,18 +1,4 @@
-/**
- * MasterMind AI — Agent Core v2
- *
- * Core:
- * - Chat
- * - Intent detection
- * - Planning
- * - Web research
- * - Tool registry
- * - Permission-aware actions
- * - Self check
- *
- * Real actions are only reported as completed
- * when the connected tool actually succeeds.
- */
+import { Agent, routeAgentRequest } from "agents";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
@@ -22,81 +8,56 @@ You are MasterMind AI, a personal AI agent.
 You understand Hindi, Hinglish and English.
 
 Your job:
-1. Understand the user's goal.
-2. Break complex work into tasks.
-3. Select the appropriate connected tool.
-4. Ask for confirmation before sensitive or irreversible actions.
-5. Execute only through real connected tools.
-6. Verify tool results.
-7. Never claim an action happened when it did not.
-
-Safety:
-- Never expose passwords, OTPs, API keys or tokens.
-- Never ask the user to paste secrets into chat.
-- Never invent research results.
+- Understand the user's goal.
+- Break complex work into practical tasks.
+- Research when needed.
+- Use connected tools only when actually available.
+- Never claim an action was completed unless a real tool succeeded.
 - Never invent tool results.
-- Never claim GitHub, YouTube, Facebook, WhatsApp or Cloudflare actions happened unless a real tool completed them.
-- Prefer reversible actions.
-- If a required tool is unavailable, clearly say so.
-
-Be practical and concise.
+- Never expose passwords, OTPs, API keys or tokens.
+- Ask before sensitive or irreversible actions.
+- Give practical next steps.
 `;
 
 const TOOLS = {
   web_research: {
     name: "Web Research",
-    connected: true,
-    description:
-      "Research public webpages using Cloudflare Browser Run."
-  },
-
-  github: {
-    name: "GitHub",
-    connected: false,
-    description:
-      "Read and modify authorized GitHub repositories."
-  },
-
-  cloudflare: {
-    name: "Cloudflare",
-    connected: false,
-    description:
-      "Manage authorized Cloudflare resources."
-  },
-
-  youtube: {
-    name: "YouTube",
-    connected: false,
-    description:
-      "Manage authorized YouTube content."
-  },
-
-  facebook: {
-    name: "Facebook",
-    connected: false,
-    description:
-      "Manage authorized Facebook pages and content."
-  },
-
-  whatsapp: {
-    name: "WhatsApp",
-    connected: false,
-    description:
-      "Send authorized WhatsApp messages through an official API."
+    connected: true
   },
 
   browser: {
     name: "Browser Agent",
-    connected: true,
-    description:
-      "Public webpage research through Cloudflare Browser Run."
+    connected: true
+  },
+
+  github: {
+    name: "GitHub",
+    connected: false
+  },
+
+  cloudflare: {
+    name: "Cloudflare",
+    connected: false
+  },
+
+  youtube: {
+    name: "YouTube",
+    connected: false
+  },
+
+  facebook: {
+    name: "Facebook",
+    connected: false
+  },
+
+  whatsapp: {
+    name: "WhatsApp",
+    connected: false
   },
 
   files: {
     name: "Files",
-    connected: false,
-    description:
-      "Read and modify authorized project files."
+    connected: false
   }
 };
 
@@ -113,16 +74,11 @@ function json(data, status = 200) {
 function cors(response) {
   const headers = new Headers(response.headers);
 
-  headers.set(
-    "Access-Control-Allow-Origin",
-    "*"
-  );
-
+  headers.set("Access-Control-Allow-Origin", "*");
   headers.set(
     "Access-Control-Allow-Methods",
     "GET,POST,OPTIONS"
   );
-
   headers.set(
     "Access-Control-Allow-Headers",
     "Content-Type"
@@ -136,17 +92,15 @@ function cors(response) {
 
 function detectIntent(message) {
   const text = message.toLowerCase();
-
   const intents = [];
 
   if (
     text.includes("research") ||
     text.includes("रिसर्च") ||
-    text.includes("जानकारी") ||
     text.includes("search") ||
     text.includes("खोज") ||
-    text.includes("देखो") ||
-    text.includes("चेक करो")
+    text.includes("जानकारी") ||
+    text.includes("चेक")
   ) {
     intents.push("web_research");
   }
@@ -154,8 +108,8 @@ function detectIntent(message) {
   if (
     text.includes("github") ||
     text.includes("गिटहब") ||
-    text.includes("repository") ||
-    text.includes("repo")
+    text.includes("repo") ||
+    text.includes("repository")
   ) {
     intents.push("github");
   }
@@ -191,19 +145,12 @@ function detectIntent(message) {
   }
 
   if (
-    text.includes("browser") ||
-    text.includes("ब्राउज़र")
-  ) {
-    intents.push("browser");
-  }
-
-  if (
     text.includes("agent") ||
     text.includes("एजेंट") ||
     text.includes("automation") ||
     text.includes("ऑटोमेशन")
   ) {
-    intents.push("agent_build");
+    intents.push("agent");
   }
 
   if (
@@ -223,32 +170,6 @@ function detectIntent(message) {
   return [...new Set(intents)];
 }
 
-function getToolStatus(intents) {
-  return intents
-    .map((intent) => {
-      const tool = TOOLS[intent];
-
-      if (!tool) {
-        return null;
-      }
-
-      return {
-        key: intent,
-        name: tool.name,
-        connected: tool.connected,
-        description: tool.description
-      };
-    })
-    .filter(Boolean);
-}
-
-/*
- * Real Web Research
- *
- * Uses Cloudflare Browser Run Quick Action.
- * This fetches public webpage content as Markdown.
- */
-
 async function researchWeb(env, url) {
   if (
     !env.BROWSER ||
@@ -256,19 +177,15 @@ async function researchWeb(env, url) {
   ) {
     return {
       ok: false,
-      error:
-        "Browser Run binding connected नहीं है।"
+      error: "Browser Run binding connected नहीं है।"
     };
   }
 
   try {
-    const result =
-      await env.BROWSER.quickAction(
-        "markdown",
-        {
-          url
-        }
-      );
+    const result = await env.BROWSER.quickAction(
+      "markdown",
+      { url }
+    );
 
     let content = "";
 
@@ -293,12 +210,10 @@ async function researchWeb(env, url) {
       url,
       content: content.slice(0, 20000)
     };
-
   } catch (error) {
     return {
       ok: false,
-      error:
-        "Web research में समस्या आई।",
+      error: "Web research में समस्या आई।",
       details:
         error instanceof Error
           ? error.message
@@ -307,45 +222,31 @@ async function researchWeb(env, url) {
   }
 }
 
-async function askAI(
-  env,
-  userMessage,
-  context = {}
-) {
+async function runAI(env, userMessage, context = {}) {
   if (
     !env.AI ||
     typeof env.AI.run !== "function"
   ) {
     return {
       ok: false,
-      error:
-        "AI binding अभी connected नहीं है।"
+      error: "AI binding connected नहीं है।"
     };
   }
 
-  const intentText =
-    context.intents?.length
-      ? context.intents.join(", ")
-      : "general";
+  const toolsText = Object.entries(TOOLS)
+    .map(
+      ([key, tool]) =>
+        `${key}: ${
+          tool.connected
+            ? "CONNECTED"
+            : "NOT CONNECTED"
+        }`
+    )
+    .join("\n");
 
-  const toolsText =
-    context.tools?.length
-      ? context.tools
-          .map(
-            (tool) =>
-              `${tool.name}: ${
-                tool.connected
-                  ? "CONNECTED"
-                  : "NOT CONNECTED"
-              }`
-          )
-          .join("\n")
-      : "No specific tool.";
-
-  const researchText =
-    context.research
-      ? `
-REAL WEB RESEARCH RESULT:
+  const researchText = context.research
+    ? `
+REAL WEB RESEARCH:
 
 URL:
 ${context.research.url}
@@ -353,73 +254,53 @@ ${context.research.url}
 CONTENT:
 ${context.research.content}
 `
-      : "";
+    : "";
 
   const prompt = `
 ${SYSTEM_PROMPT}
 
-Detected intents:
-${intentText}
-
-Available tools:
+AVAILABLE TOOLS:
 ${toolsText}
+
+DETECTED INTENTS:
+${(context.intents || []).join(", ")}
 
 ${researchText}
 
 USER REQUEST:
 ${userMessage}
 
-Respond naturally.
-
-If research data is provided above:
-- Use it.
-- Do not invent information outside it.
-- Clearly distinguish facts from suggestions.
-
-If an external tool is not connected:
-- Say which tool is missing.
-- Do not pretend it was used.
-
-If the user asks for an action:
-1. Explain the goal.
-2. Explain the next action.
-3. Mention required permission if necessary.
-4. Never claim completion without a real tool result.
+Instructions:
+- Answer in the user's language.
+- Make a practical plan when the request is complex.
+- If a required tool is not connected, clearly say so.
+- Never pretend that an external action happened.
+- If research is supplied, use only the supplied research as factual evidence.
 `;
 
   try {
-    const result =
-      await env.AI.run(
-        MODEL,
-        {
-          prompt,
-          max_tokens: 2200
-        }
-      );
+    const result = await env.AI.run(
+      MODEL,
+      {
+        prompt,
+        max_tokens: 2200
+      }
+    );
 
-    let answer = "";
-
-    if (typeof result === "string") {
-      answer = result;
-    } else if (
-      result &&
-      typeof result.response === "string"
-    ) {
-      answer = result.response;
-    } else {
-      answer = JSON.stringify(result);
-    }
+    const answer =
+      typeof result === "string"
+        ? result
+        : result?.response ||
+          JSON.stringify(result);
 
     return {
       ok: true,
       answer
     };
-
   } catch (error) {
     return {
       ok: false,
-      error:
-        "AI request में समस्या आई।",
+      error: "AI request में समस्या आई।",
       details:
         error instanceof Error
           ? error.message
@@ -428,74 +309,194 @@ If the user asks for an action:
   }
 }
 
-async function health(env) {
-  return {
-    ok: true,
+/*
+ * REAL MASTER MIND AGENT
+ *
+ * This is now a Cloudflare Agent backed by
+ * a Durable Object with persistent state.
+ */
 
-    service: "MasterMind AI",
-
-    version: "agent-core-2",
-
-    status: "online",
-
-    aiConnected:
-      !!env.AI &&
-      typeof env.AI.run === "function",
-
-    browserConnected:
-      !!env.BROWSER &&
-      typeof env.BROWSER.quickAction ===
-        "function",
-
-    tools: Object.fromEntries(
-      Object.entries(TOOLS).map(
-        ([key, tool]) => [
-          key,
-          {
-            name: tool.name,
-            connected: tool.connected
-          }
-        ]
-      )
-    )
+export class MasterMindAgent extends Agent {
+  initialState = {
+    messages: [],
+    tasksCompleted: 0
   };
+
+  async onStart() {
+    if (!this.state) {
+      this.setState({
+        messages: [],
+        tasksCompleted: 0
+      });
+    }
+  }
+
+  async onRequest(request) {
+    const url = new URL(request.url);
+
+    if (
+      url.pathname.endsWith("/health") &&
+      request.method === "GET"
+    ) {
+      return Response.json({
+        ok: true,
+        service: "MasterMind AI",
+        status: "online",
+        agent: "MasterMindAgent",
+        persistentState: true,
+        aiConnected:
+          !!this.env.AI &&
+          typeof this.env.AI.run === "function",
+        browserConnected:
+          !!this.env.BROWSER &&
+          typeof this.env.BROWSER.quickAction ===
+            "function"
+      });
+    }
+
+    if (
+      url.pathname.endsWith("/chat") &&
+      request.method === "POST"
+    ) {
+      let body;
+
+      try {
+        body = await request.json();
+      } catch {
+        return Response.json(
+          {
+            ok: false,
+            error: "Invalid JSON."
+          },
+          { status: 400 }
+        );
+      }
+
+      const message =
+        String(body.message || "").trim();
+
+      if (!message) {
+        return Response.json(
+          {
+            ok: false,
+            error: "Message खाली है।"
+          },
+          { status: 400 }
+        );
+      }
+
+      const intents = detectIntent(message);
+
+      let research = null;
+
+      if (intents.includes("web_research")) {
+        const match =
+          message.match(
+            /https?:\/\/[^\s]+/i
+          );
+
+        if (match) {
+          research =
+            await researchWeb(
+              this.env,
+              match[0]
+            );
+        }
+      }
+
+      const result = await runAI(
+        this.env,
+        message,
+        {
+          intents,
+          research
+        }
+      );
+
+      const oldMessages =
+        Array.isArray(this.state?.messages)
+          ? this.state.messages
+          : [];
+
+      const updatedMessages = [
+        ...oldMessages,
+        {
+          role: "user",
+          content: message,
+          time: new Date().toISOString()
+        },
+        ...(result.ok
+          ? [
+              {
+                role: "assistant",
+                content: result.answer,
+                time: new Date().toISOString()
+              }
+            ]
+          : [])
+      ].slice(-40);
+
+      this.setState({
+        ...this.state,
+        messages: updatedMessages
+      });
+
+      return Response.json({
+        ...result,
+        mode: "mastermind-agent",
+        agent: "MasterMindAgent",
+        intents,
+        researched: !!research?.ok,
+        memoryMessages:
+          updatedMessages.length
+      });
+    }
+
+    return Response.json({
+      ok: true,
+      agent: "MasterMindAgent",
+      status: "online",
+      message:
+        "MasterMind Agent online है।"
+    });
+  }
 }
 
-async function handleAPI(
-  request,
-  env
-) {
+/*
+ * EXISTING API + AGENT ROUTER
+ */
+
+async function handleAPI(request, env) {
   const url = new URL(request.url);
 
   if (request.method === "OPTIONS") {
     return cors(
-      new Response(null, {
-        status: 204
-      })
+      new Response(null, { status: 204 })
     );
   }
-
-  /*
-   * HEALTH
-   */
 
   if (
     url.pathname === "/api/health" &&
     request.method === "GET"
   ) {
     return cors(
-      json(await health(env))
+      json({
+        ok: true,
+        service: "MasterMind AI",
+        status: "online",
+        version: "agent-core-3",
+        aiConnected:
+          !!env.AI &&
+          typeof env.AI.run === "function",
+        browserConnected:
+          !!env.BROWSER &&
+          typeof env.BROWSER.quickAction ===
+            "function",
+        realAgent:
+          "MasterMindAgent"
+      })
     );
   }
-
-  /*
-   * REAL WEB RESEARCH
-   *
-   * POST:
-   * {
-   *   "url": "https://example.com"
-   * }
-   */
 
   if (
     url.pathname === "/api/research" &&
@@ -510,8 +511,7 @@ async function handleAPI(
         json(
           {
             ok: false,
-            error:
-              "Invalid JSON request."
+            error: "Invalid JSON."
           },
           400
         )
@@ -526,58 +526,47 @@ async function handleAPI(
         json(
           {
             ok: false,
-            error:
-              "Research के लिए URL चाहिए।"
+            error: "URL चाहिए।"
           },
           400
         )
       );
     }
 
-    let parsedUrl;
-
     try {
-      parsedUrl = new URL(targetUrl);
+      const parsed = new URL(targetUrl);
 
       if (
-        parsedUrl.protocol !== "https:" &&
-        parsedUrl.protocol !== "http:"
+        parsed.protocol !== "http:" &&
+        parsed.protocol !== "https:"
       ) {
-        throw new Error(
-          "Only HTTP/HTTPS URLs are allowed."
-        );
+        throw new Error();
       }
 
+      const result =
+        await researchWeb(
+          env,
+          parsed.toString()
+        );
+
+      return cors(
+        json(
+          result,
+          result.ok ? 200 : 503
+        )
+      );
     } catch {
       return cors(
         json(
           {
             ok: false,
-            error:
-              "Valid website URL दीजिए।"
+            error: "Valid HTTP/HTTPS URL दीजिए।"
           },
           400
         )
       );
     }
-
-    const result =
-      await researchWeb(
-        env,
-        parsedUrl.toString()
-      );
-
-    return cors(
-      json(
-        result,
-        result.ok ? 200 : 503
-      )
-    );
   }
-
-  /*
-   * CHAT / AGENT
-   */
 
   if (
     url.pathname === "/api/chat" &&
@@ -592,8 +581,7 @@ async function handleAPI(
         json(
           {
             ok: false,
-            error:
-              "Invalid JSON request."
+            error: "Invalid JSON."
           },
           400
         )
@@ -601,16 +589,14 @@ async function handleAPI(
     }
 
     const message =
-      String(body.message || "")
-        .trim();
+      String(body.message || "").trim();
 
     if (!message) {
       return cors(
         json(
           {
             ok: false,
-            error:
-              "Message खाली है।"
+            error: "Message खाली है।"
           },
           400
         )
@@ -620,187 +606,76 @@ async function handleAPI(
     const intents =
       detectIntent(message);
 
-    const tools =
-      getToolStatus(intents);
-
-    /*
-     * IMPORTANT:
-     * We only automatically research when
-     * the user explicitly asks for research
-     * AND provides a URL.
-     *
-     * We do not guess a URL.
-     */
-
     let research = null;
 
     if (
-      intents.includes(
-        "web_research"
-      )
+      intents.includes("web_research")
     ) {
-      const urlMatch =
+      const match =
         message.match(
           /https?:\/\/[^\s]+/i
         );
 
-      if (urlMatch) {
+      if (match) {
         research =
           await researchWeb(
             env,
-            urlMatch[0]
+            match[0]
           );
       }
     }
 
     const result =
-      await askAI(
+      await runAI(
         env,
         message,
         {
           intents,
-          tools,
           research
         }
       );
 
     return cors(
-      json(
-        {
-          ...result,
-          mode: "agent",
-          intents,
-          tools,
-          researched:
-            !!research?.ok
-        },
-        result.ok ? 200 : 503
-      )
-    );
-  }
-
-  /*
-   * AGENT PLAN
-   */
-
-  if (
-    url.pathname ===
-      "/api/agent/plan" &&
-    request.method === "POST"
-  ) {
-    let body;
-
-    try {
-      body =
-        await request.json();
-    } catch {
-      return cors(
-        json(
-          {
-            ok: false,
-            error:
-              "Invalid JSON request."
-          },
-          400
-        )
-      );
-    }
-
-    const requestText =
-      String(
-        body.request ||
-        body.message ||
-        ""
-      ).trim();
-
-    if (!requestText) {
-      return cors(
-        json(
-          {
-            ok: false,
-            error:
-              "Agent का काम बताइए।"
-          },
-          400
-        )
-      );
-    }
-
-    const intents =
-      detectIntent(requestText);
-
-    const tools =
-      getToolStatus(intents);
-
-    const result =
-      await askAI(
-        env,
-        `
-Create a practical agent plan for:
-
-${requestText}
-
-Include:
-- Goal
-- Tasks
-- Required tools
-- Permissions
-- Safety checks
-- Execution order
-- Verification
-- Missing connections
-`,
-        {
-          intents,
-          tools
-        }
-      );
-
-    return cors(
-      json(
-        {
-          ...result,
-          mode: "agent-plan",
-          intents,
-          tools
-        },
-        result.ok ? 200 : 503
-      )
-    );
-  }
-
-  /*
-   * SELF CHECK
-   */
-
-  if (
-    url.pathname ===
-      "/api/self-check" &&
-    request.method === "GET"
-  ) {
-    const result =
-      await health(env);
-
-    return cors(
       json({
         ...result,
+        mode: "legacy-api",
+        intents,
+        researched:
+          !!research?.ok
+      })
+    );
+  }
 
+  if (
+    url.pathname === "/api/self-check" &&
+    request.method === "GET"
+  ) {
+    return cors(
+      json({
+        ok: true,
+        service: "MasterMind AI",
         checks: {
           ai_binding:
-            result.aiConnected
+            env.AI &&
+            typeof env.AI.run === "function"
               ? "PASS"
               : "FAIL",
 
           browser_binding:
-            result.browserConnected
+            env.BROWSER &&
+            typeof env.BROWSER.quickAction ===
+              "function"
               ? "PASS"
               : "FAIL",
 
-          api: "PASS",
+          agent_class: "PASS",
 
-          intent_engine: "PASS",
+          durable_object_binding:
+            env.MasterMindAgent
+              ? "AVAILABLE"
+              : "CHECK_BINDING",
 
-          tool_registry: "PASS"
+          api: "PASS"
         }
       })
     );
@@ -810,17 +685,32 @@ Include:
 }
 
 export default {
-  async fetch(
-    request,
-    env
-  ) {
-    const url =
-      new URL(request.url);
+  async fetch(request, env) {
+    /*
+     * FIRST:
+     * Route real Agent requests.
+     *
+     * /agents/master-mind-agent/<instance>
+     */
+    const agentResponse =
+      await routeAgentRequest(
+        request,
+        env,
+        { cors: true }
+      );
 
+    if (agentResponse) {
+      return agentResponse;
+    }
+
+    /*
+     * SECOND:
+     * Existing APIs remain available.
+     */
     if (
-      url.pathname.startsWith(
-        "/api/"
-      )
+      new URL(request.url)
+        .pathname
+        .startsWith("/api/")
     ) {
       const response =
         await handleAPI(
@@ -833,10 +723,12 @@ export default {
       }
     }
 
+    /*
+     * THIRD:
+     * Existing website/assets.
+     */
     if (env.ASSETS) {
-      return env.ASSETS.fetch(
-        request
-      );
+      return env.ASSETS.fetch(request);
     }
 
     return new Response(
