@@ -1,20 +1,8 @@
 /**
  * MasterMind AI — Core Worker
- *
- * यह पहला backend Core है।
- * आगे इसी में:
- * - Agent Builder
- * - Project Builder
- * - Self Check / Repair
- * - Permissions
- * - GitHub
- * - Cloudflare
- * - YouTube / Facebook / WhatsApp
- * - Browser Agent
- * जोड़े जाएंगे।
  */
 
-const MODEL = "@cf/meta/llama-3.1-8b-instruct";
+const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
 const SYSTEM_PROMPT = `
 You are MasterMind AI, a personal AI agent and project-building assistant.
@@ -22,7 +10,7 @@ You are MasterMind AI, a personal AI agent and project-building assistant.
 Your job is to understand the user's goal and turn it into practical steps.
 
 You can:
-- understand commands in Hindi, Hinglish and English
+- understand Hindi, Hinglish and English
 - plan AI agents
 - design applications
 - create project plans
@@ -33,14 +21,14 @@ You can:
 - prepare implementation steps
 
 Important:
-- Never claim that an action was completed unless the corresponding tool actually completed it.
+- Never claim an action was completed unless a connected tool actually completed it.
 - Never expose secrets, passwords, OTPs or API keys.
 - For destructive or irreversible actions, require user confirmation.
-- For external services, use official APIs/OAuth or authorized automation where available.
-- If a required tool is not connected yet, clearly say which connection is missing.
-- When asked to build an AI agent, create a concrete agent specification and implementation plan.
+- For external services, use official APIs/OAuth or authorized automation.
+- If a required tool is not connected, clearly say which connection is missing.
+- When asked to build an AI agent, create a concrete specification and implementation plan.
 - When asked to repair MasterMind, diagnose first, propose the repair, then test.
-- Prefer safe, reversible changes.
+- Prefer safe and reversible changes.
 `;
 
 function json(data, status = 200) {
@@ -77,9 +65,10 @@ async function askAI(env, userMessage, mode = "chat") {
   }
 
   const modeInstruction = {
+
     chat: `
 Answer the user naturally.
-Understand Hindi/Hinglish.
+Understand Hindi and Hinglish.
 Be practical and concise.
 `,
 
@@ -90,14 +79,14 @@ Return:
 1. Agent name
 2. Purpose
 3. Required capabilities
-4. Tools/integrations
+4. Tools and integrations
 5. Permissions required
-6. Files/components needed
+6. Files and components needed
 7. Build steps
 8. Testing steps
 9. Deployment steps
 
-Do not claim that files were actually created unless a file-writing tool exists.
+Do not claim files were actually created unless a file-writing tool exists.
 `,
 
     self_repair: `
@@ -152,8 +141,13 @@ ${userMessage}
 
     if (typeof result === "string") {
       answer = result;
-    } else if (result && typeof result.response === "string") {
+
+    } else if (
+      result &&
+      typeof result.response === "string"
+    ) {
       answer = result.response;
+
     } else {
       answer = JSON.stringify(result);
     }
@@ -170,7 +164,10 @@ ${userMessage}
       ok: false,
       mode,
       error: "AI request में समस्या आई।",
-      details: error instanceof Error ? error.message : String(error)
+      details:
+        error instanceof Error
+          ? error.message
+          : String(error)
     };
   }
 }
@@ -180,150 +177,273 @@ async function handleAPI(request, env) {
   const url = new URL(request.url);
 
   if (request.method === "OPTIONS") {
-    return cors(new Response(null, { status: 204 }));
+    return cors(
+      new Response(null, {
+        status: 204
+      })
+    );
   }
+
+  /*
+   * HEALTH CHECK
+   */
 
   if (url.pathname === "/api/health") {
 
-    return cors(json({
-      ok: true,
-      service: "MasterMind AI",
-      status: "online",
-      aiConnected: !!env.AI,
-      version: "core-1",
-      capabilities: [
-        "chat",
-        "agent-planning",
-        "project-planning",
-        "self-check",
-        "repair-planning"
-      ],
-      message: env.AI
-        ? "MasterMind Core online है। AI binding connected है।"
-        : "MasterMind Core online है, लेकिन AI binding अभी जोड़ना बाकी है।"
-    }));
+    return cors(
+      json({
+        ok: true,
+        service: "MasterMind AI",
+        status: "online",
+        aiConnected:
+          !!env.AI &&
+          typeof env.AI.run === "function",
+
+        version: "core-1",
+
+        model: MODEL,
+
+        capabilities: [
+          "chat",
+          "agent-planning",
+          "project-planning",
+          "self-check",
+          "repair-planning"
+        ],
+
+        message:
+          env.AI
+            ? "MasterMind Core online है। AI binding connected है।"
+            : "MasterMind Core online है, लेकिन AI binding अभी connected नहीं है।"
+      })
+    );
   }
 
-  if (url.pathname === "/api/chat" && request.method === "POST") {
+  /*
+   * CHAT
+   */
+
+  if (
+    url.pathname === "/api/chat" &&
+    request.method === "POST"
+  ) {
 
     let body;
 
     try {
+
       body = await request.json();
+
     } catch {
-      return cors(json({
-        ok: false,
-        error: "Invalid JSON request."
-      }, 400));
+
+      return cors(
+        json(
+          {
+            ok: false,
+            error: "Invalid JSON request."
+          },
+          400
+        )
+      );
     }
 
-    const message = String(body.message || "").trim();
+    const message =
+      String(body.message || "").trim();
 
     if (!message) {
-      return cors(json({
-        ok: false,
-        error: "Message खाली है।"
-      }, 400));
+
+      return cors(
+        json(
+          {
+            ok: false,
+            error: "Message खाली है।"
+          },
+          400
+        )
+      );
     }
 
-    const result = await askAI(env, message, "chat");
+    const result =
+      await askAI(
+        env,
+        message,
+        "chat"
+      );
 
-    return cors(json(result, result.ok ? 200 : 503));
+    return cors(
+      json(
+        result,
+        result.ok ? 200 : 503
+      )
+    );
   }
 
-  if (url.pathname === "/api/build-agent" && request.method === "POST") {
+  /*
+   * BUILD AGENT
+   */
+
+  if (
+    url.pathname === "/api/build-agent" &&
+    request.method === "POST"
+  ) {
 
     let body;
 
     try {
+
       body = await request.json();
+
     } catch {
-      return cors(json({
-        ok: false,
-        error: "Invalid JSON request."
-      }, 400));
+
+      return cors(
+        json(
+          {
+            ok: false,
+            error: "Invalid JSON request."
+          },
+          400
+        )
+      );
     }
 
-    const requestText = String(
-      body.request ||
-      body.message ||
-      ""
-    ).trim();
+    const requestText =
+      String(
+        body.request ||
+        body.message ||
+        ""
+      ).trim();
 
     if (!requestText) {
-      return cors(json({
-        ok: false,
-        error: "Agent की requirement बताइए।"
-      }, 400));
+
+      return cors(
+        json(
+          {
+            ok: false,
+            error: "Agent की requirement बताइए।"
+          },
+          400
+        )
+      );
     }
 
-    const result = await askAI(
-      env,
-      requestText,
-      "build_agent"
-    );
+    const result =
+      await askAI(
+        env,
+        requestText,
+        "build_agent"
+      );
 
-    return cors(json(result, result.ok ? 200 : 503));
+    return cors(
+      json(
+        result,
+        result.ok ? 200 : 503
+      )
+    );
   }
 
-  if (url.pathname === "/api/self-repair" && request.method === "POST") {
+  /*
+   * SELF REPAIR
+   */
+
+  if (
+    url.pathname === "/api/self-repair" &&
+    request.method === "POST"
+  ) {
 
     let body = {};
 
     try {
+
       body = await request.json();
+
     } catch {
+
       body = {};
     }
 
-    const problem = String(
-      body.problem ||
-      body.message ||
-      "MasterMind का complete self-check करो।"
-    ).trim();
+    const problem =
+      String(
+        body.problem ||
+        body.message ||
+        "MasterMind का complete self-check करो।"
+      ).trim();
 
-    const result = await askAI(
-      env,
-      problem,
-      "self_repair"
+    const result =
+      await askAI(
+        env,
+        problem,
+        "self_repair"
+      );
+
+    return cors(
+      json(
+        result,
+        result.ok ? 200 : 503
+      )
     );
-
-    return cors(json(result, result.ok ? 200 : 503));
   }
 
-  if (url.pathname === "/api/project-plan" && request.method === "POST") {
+  /*
+   * PROJECT PLAN
+   */
+
+  if (
+    url.pathname === "/api/project-plan" &&
+    request.method === "POST"
+  ) {
 
     let body;
 
     try {
+
       body = await request.json();
+
     } catch {
-      return cors(json({
-        ok: false,
-        error: "Invalid JSON request."
-      }, 400));
+
+      return cors(
+        json(
+          {
+            ok: false,
+            error: "Invalid JSON request."
+          },
+          400
+        )
+      );
     }
 
-    const requestText = String(
-      body.request ||
-      body.message ||
-      ""
-    ).trim();
+    const requestText =
+      String(
+        body.request ||
+        body.message ||
+        ""
+      ).trim();
 
     if (!requestText) {
-      return cors(json({
-        ok: false,
-        error: "Project requirement बताइए।"
-      }, 400));
+
+      return cors(
+        json(
+          {
+            ok: false,
+            error: "Project requirement बताइए।"
+          },
+          400
+        )
+      );
     }
 
-    const result = await askAI(
-      env,
-      requestText,
-      "project"
-    );
+    const result =
+      await askAI(
+        env,
+        requestText,
+        "project"
+      );
 
-    return cors(json(result, result.ok ? 200 : 503));
+    return cors(
+      json(
+        result,
+        result.ok ? 200 : 503
+      )
+    );
   }
 
   return null;
@@ -333,15 +453,22 @@ export default {
 
   async fetch(request, env) {
 
-    const url = new URL(request.url);
+    const url =
+      new URL(request.url);
 
     /*
      * API requests पहले Worker संभालेगा।
      */
 
-    if (url.pathname.startsWith("/api/")) {
+    if (
+      url.pathname.startsWith("/api/")
+    ) {
 
-      const response = await handleAPI(request, env);
+      const response =
+        await handleAPI(
+          request,
+          env
+        );
 
       if (response) {
         return response;
@@ -349,23 +476,23 @@ export default {
     }
 
     /*
-     * बाकी requests static frontend को जाएँगी।
-     *
-     * इसके लिए अगले step में ASSETS binding
-     * wrangler configuration में जोड़ी जाएगी।
+     * बाकी requests frontend को जाएँगी।
      */
 
     if (env.ASSETS) {
 
-      return env.ASSETS.fetch(request);
+      return env.ASSETS.fetch(
+        request
+      );
     }
 
     return new Response(
-      "MasterMind AI Core online है। ASSETS binding अभी configure करना बाकी है।",
+      "MasterMind AI Core online है। ASSETS binding configure करना बाकी है।",
       {
         status: 200,
         headers: {
-          "content-type": "text/plain; charset=utf-8"
+          "content-type":
+            "text/plain; charset=utf-8"
         }
       }
     );
