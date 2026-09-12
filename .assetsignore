@@ -1,0 +1,12 @@
+# Exclude node_modules and other build/dev files from assets upload
+node_modules/
+.git/
+.wrangler/
+dist/
+test/
+*.log
+package.json
+package-lock.json
+worker.js
+wrangler.jsonc
+README.md
