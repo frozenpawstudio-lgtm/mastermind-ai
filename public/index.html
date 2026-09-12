@@ -13,20 +13,20 @@
 
 body{
   margin:0;
-  font-family:Arial,sans-serif;
+  font-family:Arial, sans-serif;
   background:#0b1020;
-  color:#fff;
+  color:white;
 }
 
 .container{
   max-width:850px;
   margin:auto;
-  padding:16px;
+  padding:20px;
 }
 
 .header{
   text-align:center;
-  padding:22px 10px;
+  padding:25px 10px;
 }
 
 .logo{
@@ -46,8 +46,8 @@ h1{
   background:#151d36;
   border:1px solid #293556;
   border-radius:22px;
-  padding:18px;
-  margin-top:15px;
+  padding:20px;
+  margin-top:20px;
 }
 
 .status{
@@ -56,7 +56,6 @@ h1{
   gap:8px;
   color:#79f2a6;
   margin-bottom:15px;
-  font-size:18px;
 }
 
 .status-dot{
@@ -69,7 +68,7 @@ h1{
 .messages{
   height:430px;
   overflow-y:auto;
-  padding:8px;
+  padding:10px;
   display:flex;
   flex-direction:column;
   gap:14px;
@@ -79,7 +78,7 @@ h1{
   padding:15px 18px;
   border-radius:18px;
   line-height:1.6;
-  max-width:90%;
+  max-width:88%;
   word-wrap:break-word;
 }
 
@@ -102,12 +101,11 @@ h1{
 
 .quick button{
   background:#202b49;
-  color:#fff;
+  color:white;
   border:1px solid #3b4b73;
   border-radius:12px;
   padding:10px 14px;
   cursor:pointer;
-  font-size:15px;
 }
 
 .quick button:active{
@@ -123,7 +121,7 @@ h1{
   flex:1;
   min-width:0;
   background:#0d1428;
-  color:#fff;
+  color:white;
   border:1px solid #3b4b73;
   border-radius:15px;
   padding:15px;
@@ -137,7 +135,7 @@ h1{
 
 .send{
   background:#4b6fff;
-  color:#fff;
+  color:white;
   border:0;
   border-radius:15px;
   padding:0 22px;
@@ -146,16 +144,15 @@ h1{
   cursor:pointer;
 }
 
-.send:disabled{
-  opacity:.6;
-  cursor:not-allowed;
+.send:active{
+  transform:scale(.97);
 }
 
 .footer{
   text-align:center;
   color:#7783a5;
   font-size:13px;
-  margin-top:18px;
+  margin-top:20px;
 }
 
 @media(max-width:600px){
@@ -168,10 +165,6 @@ h1{
     height:400px;
   }
 
-  .msg{
-    max-width:94%;
-  }
-
   .input-area{
     flex-direction:row;
   }
@@ -179,28 +172,39 @@ h1{
   .send{
     padding:0 18px;
   }
+
+  .msg{
+    max-width:94%;
+  }
 }
 </style>
 </head>
+
 
 <body>
 
 <div class="container">
 
   <div class="header">
+
     <div class="logo">🧠</div>
+
     <h1>MasterMind AI</h1>
+
     <div class="subtitle">
       आपका Personal AI Agent
     </div>
+
   </div>
+
 
   <div class="card">
 
     <div class="status">
       <span class="status-dot"></span>
-      <span id="statusText">MasterMind AI जाँच रहा है...</span>
+      MasterMind AI Online
     </div>
+
 
     <div id="messages" class="messages">
 
@@ -209,10 +213,11 @@ h1{
         <br><br>
         आप मुझसे हिंदी, Hinglish या English में बात कर सकते हैं।
         <br><br>
-        अपना काम या सवाल लिखिए।
+        मैं आपके सवाल को समझकर practical जवाब और अगले steps देने की कोशिश करूँगा।
       </div>
 
     </div>
+
 
     <div class="quick">
 
@@ -220,11 +225,11 @@ h1{
         💰 Earning
       </button>
 
-      <button onclick="quickCommand('मेरे लिए YouTube automation project का पूरा plan बनाओ')">
+      <button onclick="quickCommand('मेरे लिए YouTube automation project बनाओ')">
         🎬 YouTube
       </button>
 
-      <button onclick="quickCommand('मेरे लिए एक AI agent का पूरा plan बनाओ')">
+      <button onclick="quickCommand('मेरे लिए एक AI agent का plan बनाओ')">
         🤖 AI Agent
       </button>
 
@@ -238,6 +243,7 @@ h1{
 
     </div>
 
+
     <div class="input-area">
 
       <input
@@ -247,11 +253,7 @@ h1{
         autocomplete="off"
       >
 
-      <button
-        id="sendButton"
-        class="send"
-        onclick="sendCommand()"
-      >
+      <button class="send" onclick="sendCommand()">
         Send
       </button>
 
@@ -259,40 +261,32 @@ h1{
 
   </div>
 
+
   <div class="footer">
     🛡️ MasterMind AI • Secure AI Backend
   </div>
 
 </div>
 
+
+
 <script>
 
-let requestRunning = false;
-
-
 function quickCommand(text){
-
-  if(requestRunning){
-    return;
-  }
 
   const input = document.getElementById("command");
 
   input.value = text;
 
   sendCommand();
+
 }
+
 
 
 async function sendCommand(){
 
-  if(requestRunning){
-    return;
-  }
-
   const input = document.getElementById("command");
-  const button = document.getElementById("sendButton");
-  const messages = document.getElementById("messages");
 
   const text = input.value.trim();
 
@@ -300,29 +294,37 @@ async function sendCommand(){
     return;
   }
 
-  requestRunning = true;
-  button.disabled = true;
 
+  const messages = document.getElementById("messages");
+
+
+  // User message
   messages.innerHTML +=
     '<div class="msg user">' +
     escapeHtml(text) +
     '</div>';
 
+
   input.value = "";
 
+
+  // Loading
   const loadingId = "loading-" + Date.now();
 
   messages.innerHTML +=
-    '<div class="msg ai" id="' +
-    loadingId +
-    '">' +
+    '<div class="msg ai" id="' + loadingId + '">' +
     '🧠 MasterMind सोच रहा है...' +
     '</div>';
 
-  scrollMessages();
+
+  messages.scrollTop = messages.scrollHeight;
 
 
   try{
+
+    /*
+      Real Cloudflare Worker AI backend
+    */
 
     const response = await fetch("/api/chat",{
 
@@ -339,79 +341,85 @@ async function sendCommand(){
     });
 
 
-    let data;
-
-    try{
-      data = await response.json();
-    }
-    catch{
-      data = {
-        ok:false,
-        error:"Backend ने valid JSON response नहीं दिया।"
-      };
-    }
+    const data = await response.json();
 
 
-    const loading =
-      document.getElementById(loadingId);
+    // Remove loading message
+    const loading = document.getElementById(loadingId);
 
     if(loading){
       loading.remove();
     }
+
+
+    let reply = "";
 
 
     if(data.ok && data.answer){
 
-      messages.innerHTML +=
-        '<div class="msg ai">' +
-        formatAnswer(data.answer) +
-        '</div>';
+      reply = data.answer;
 
     }
+
+    else if(data.error){
+
+      reply =
+        "❌ AI में समस्या आई।<br><br>" +
+        escapeHtml(data.error);
+
+    }
+
     else{
 
-      let errorMessage =
-        data.error ||
-        "AI से जवाब नहीं मिला।";
+      reply =
+        "❌ AI से सही जवाब नहीं मिला।";
 
-      messages.innerHTML +=
-        '<div class="msg ai">' +
-        '❌ AI में समस्या आई।<br><br>' +
-        escapeHtml(errorMessage) +
-        '</div>';
     }
 
+
+    messages.innerHTML +=
+      '<div class="msg ai">' +
+      formatAnswer(reply) +
+      '</div>';
+
+
   }
+
   catch(error){
 
-    const loading =
-      document.getElementById(loadingId);
+    const loading = document.getElementById(loadingId);
 
     if(loading){
       loading.remove();
     }
 
+
     messages.innerHTML +=
       '<div class="msg ai">' +
       '❌ AI backend से connection नहीं हो पाया।<br><br>' +
-      escapeHtml(error.message || "Network error") +
+      escapeHtml(error.message) +
       '</div>';
+
   }
 
 
-  requestRunning = false;
-  button.disabled = false;
+  messages.scrollTop = messages.scrollHeight;
 
-  scrollMessages();
 }
+
 
 
 function formatAnswer(text){
 
+  /*
+    AI के जवाब को सुरक्षित HTML text में बदलना
+  */
+
   return escapeHtml(String(text))
-    .replace(/\r\n/g,"\n")
     .replace(/\n/g,"<br>");
+
 }
+
 
 
 function escapeHtml(text){
@@ -421,60 +429,9 @@ function escapeHtml(text){
   div.textContent = text;
 
   return div.innerHTML;
+
 }
 
-
-function scrollMessages(){
-
-  const messages =
-    document.getElementById("messages");
-
-  messages.scrollTop =
-    messages.scrollHeight;
-}
-
-
-async function checkBackend(){
-
-  const statusText =
-    document.getElementById("statusText");
-
-  try{
-
-    const response =
-      await fetch("/api/health",{
-        method:"GET",
-        cache:"no-store"
-      });
-
-    const data =
-      await response.json();
-
-    if(data.ok && data.aiConnected){
-
-      statusText.textContent =
-        "MasterMind AI Online • AI Connected";
-
-    }
-    else if(data.ok){
-
-      statusText.textContent =
-        "MasterMind Online • AI Binding Missing";
-
-    }
-    else{
-
-      statusText.textContent =
-        "MasterMind Backend Error";
-    }
-
-  }
-  catch{
-
-    statusText.textContent =
-      "MasterMind Backend Offline";
-  }
-}
 
 
 document
@@ -486,14 +443,13 @@ document
       e.preventDefault();
 
       sendCommand();
+
     }
 
   });
 
-
-checkBackend();
-
 </script>
 
+
 </body>
-  </html>
+</html>
