@@ -432,6 +432,126 @@ export class MasterMindAgent extends Agent {
     return this.getOpportunity(opportunityId);
   }
 
+  evaluateDecision(opportunityId) {
+    this.initDb();
+    const updatedOpp = this.evaluateVerificationStatus(opportunityId);
+    if (!updatedOpp) {
+      throw new Error("Opportunity not found");
+    }
+
+    const evidenceList = this.getEvidenceForOpportunity(opportunityId);
+    const factCount = evidenceList.filter(e => e.classification === "FACT").length;
+    const assumptionCount = evidenceList.filter(e => e.classification === "ASSUMPTION").length;
+    const hypothesisCount = evidenceList.filter(e => e.classification === "HYPOTHESIS").length;
+    const hasFact = factCount > 0;
+
+    const verificationStatus = String(updatedOpp.verification_status || "UNVERIFIED").toUpperCase();
+    const eligibilityStatus = String(updatedOpp.eligibility_status || "pending").toLowerCase();
+    const ownerFitStatus = String(updatedOpp.owner_fit_status || "pending").toLowerCase();
+
+    const factors = {
+      verification: { value: verificationStatus, points: 0, maxPoints: 40, weight: 0.4 },
+      eligibility: { value: eligibilityStatus, points: 0, maxPoints: 30, weight: 0.3 },
+      ownerFit: { value: ownerFitStatus, points: 0, maxPoints: 30, weight: 0.3 },
+      evidenceQuality: {
+        totalEvidence: evidenceList.length,
+        factCount,
+        assumptionCount,
+        hypothesisCount,
+        hasFact
+      }
+    };
+
+    const reasons = [];
+    const unknowns = [];
+
+    // 1. Verification scoring
+    if (verificationStatus === "REJECTED") {
+      factors.verification.points = 0;
+      reasons.push("Verification status is REJECTED.");
+    } else if (verificationStatus === "VERIFIED") {
+      factors.verification.points = 40;
+      reasons.push("Verification status is VERIFIED with supporting FACT evidence.");
+    } else if (verificationStatus === "PARTIALLY_VERIFIED") {
+      factors.verification.points = 20;
+      reasons.push("Verification status is PARTIALLY_VERIFIED.");
+      unknowns.push("Verification is incomplete (has non-FACT evidence or unconfirmed assumptions).");
+    } else {
+      factors.verification.points = 0;
+      reasons.push("Verification status is UNVERIFIED.");
+      unknowns.push("Verification status is UNVERIFIED.");
+    }
+
+    // 2. Eligibility scoring
+    if (eligibilityStatus === "ineligible") {
+      factors.eligibility.points = 0;
+      reasons.push("Eligibility status is ineligible.");
+    } else if (eligibilityStatus === "eligible") {
+      factors.eligibility.points = 30;
+      reasons.push("Eligibility status is eligible.");
+    } else {
+      factors.eligibility.points = 0;
+      reasons.push("Eligibility status is pending or unknown.");
+      unknowns.push("Eligibility status is UNKNOWN / pending.");
+    }
+
+    // 3. Owner Fit scoring
+    if (ownerFitStatus === "unfit") {
+      factors.ownerFit.points = 0;
+      reasons.push("Owner-fit status is unfit.");
+    } else if (ownerFitStatus === "fit") {
+      factors.ownerFit.points = 30;
+      reasons.push("Owner-fit status is fit.");
+    } else {
+      factors.ownerFit.points = 0;
+      reasons.push("Owner-fit status is pending or unknown.");
+      unknowns.push("Owner-fit status is UNKNOWN / pending.");
+    }
+
+    // 4. Additional evidence tracking
+    if (evidenceList.length === 0) {
+      unknowns.push("No supporting evidence records found.");
+    }
+
+    const totalScore = Math.round((factors.verification.points + factors.eligibility.points + factors.ownerFit.points) * 10) / 10;
+
+    // Implementation decision thresholds
+    // SELECT threshold: score >= 80.0, VERIFIED status, hasFact evidence, eligible, fit
+    // REJECT threshold: REJECTED status OR ineligible OR unfit OR score < 30.0
+    // NEEDS_REVIEW threshold: missing/unknown info, unverified/partially verified status, or score 30.0..79.9
+    let decision = "NEEDS_REVIEW";
+
+    const isHardRejected = verificationStatus === "REJECTED" || eligibilityStatus === "ineligible" || ownerFitStatus === "unfit";
+
+    if (isHardRejected) {
+      decision = "REJECT";
+      reasons.push("Decision threshold evaluated to REJECT due to explicit disqualification (REJECTED status, ineligible, or unfit).");
+    } else if (verificationStatus === "VERIFIED" && hasFact && eligibilityStatus === "eligible" && ownerFitStatus === "fit" && totalScore >= 80.0) {
+      decision = "SELECT";
+      reasons.push("Decision threshold evaluated to SELECT: all verification, eligibility, and owner-fit criteria are fully satisfied.");
+    } else {
+      decision = "NEEDS_REVIEW";
+      reasons.push("Decision threshold evaluated to NEEDS_REVIEW: key information is missing, pending, unverified, or requires Owner review.");
+    }
+
+    this.sql`UPDATE opportunities SET score = ${totalScore}, updated_at = ${new Date().toISOString()} WHERE id = ${opportunityId};`;
+
+    return {
+      opportunityId,
+      decision,
+      score: totalScore,
+      factors,
+      reasons,
+      unknowns,
+      verificationStatus: updatedOpp.verification_status,
+      verificationLimitations: [
+        "Decision engine evaluates opportunity based on existing deterministic criteria and verified evidence records only.",
+        "No money was spent, no accounts were created, and no external submissions were made.",
+        "Marketplace submissions (Upwork/Fiverr) remain manual Owner actions."
+      ]
+    };
+  }
+
   createOpportunity(data) {
     this.initDb();
     const id = data.id || crypto.randomUUID();
@@ -680,6 +800,21 @@ export class MasterMindAgent extends Agent {
     if (url.pathname.includes("/opportunities")) {
       const parts = url.pathname.split("/opportunities");
       const subpath = parts[1] || "";
+
+      // Route: GET/POST /opportunities/:id/decision
+      const decisionMatch = subpath.match(/^\/([^\/]+)\/decision$/);
+      if (decisionMatch) {
+        const targetId = decisionMatch[1];
+        if (request.method === "POST" || request.method === "GET") {
+          try {
+            const decisionResult = this.evaluateDecision(targetId);
+            return Response.json({ ok: true, data: decisionResult });
+          } catch (err) {
+            const status = err.message === "Opportunity not found" ? 404 : 400;
+            return Response.json({ ok: false, error: err.message }, { status });
+          }
+        }
+      }
 
       // Route: POST /opportunities/:id/verify
       const verifyMatch = subpath.match(/^\/([^\/]+)\/verify$/);
