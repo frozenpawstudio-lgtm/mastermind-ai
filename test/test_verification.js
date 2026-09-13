@@ -116,7 +116,7 @@ async function runVerificationTests() {
   assert.strictEqual(getSingleEvidenceJson.data.id, factEvidence.id);
   console.log("✓ Single evidence retrieval passed");
 
-  // 8. Test Status REJECTED explicitly
+  // 8. Test Status REJECTED explicitly & confirm evidence additions do NOT overwrite REJECTED
   const rejectRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -127,7 +127,33 @@ async function runVerificationTests() {
   assert.strictEqual(rejectJson.data.verification_status, "REJECTED");
   console.log("✓ Status transition to REJECTED passed");
 
-  // 9. Delete Evidence and test status re-evaluation
+  // Adding new evidence while REJECTED must preserve REJECTED status
+  const postRejectFactRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/evidence`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      classification: "FACT",
+      source: "audit_log",
+      content: "Additional audit details added post-rejection"
+    })
+  });
+  assert.strictEqual(postRejectFactRes.status, 201);
+  const postRejectEvidence = (await postRejectFactRes.json()).data;
+
+  let oppCheckRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`);
+  assert.strictEqual((await oppCheckRes.json()).data.verification_status, "REJECTED", "REJECTED status must NOT be overwritten by new evidence");
+  console.log("✓ REJECTED status preserved when adding new evidence");
+
+  // Cleanup post-reject evidence
+  await fetch(`${BASE_URL}/api/evidence/${postRejectEvidence.id}`, { method: "DELETE" });
+
+  // 9. Reset status to UNVERIFIED and delete remaining evidence to test re-evaluation back to UNVERIFIED
+  await fetch(`${BASE_URL}/api/opportunities/${opp.id}/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "UNVERIFIED" })
+  });
+
   const deleteFactRes = await fetch(`${BASE_URL}/api/evidence/${factEvidence.id}`, {
     method: "DELETE"
   });

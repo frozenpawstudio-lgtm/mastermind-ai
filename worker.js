@@ -394,6 +394,11 @@ export class MasterMindAgent extends Agent {
     if (!opportunity) {
       throw new Error("Opportunity not found");
     }
+    // Respect explicit REJECTED status. If an opportunity is marked REJECTED, automatic evidence evaluation will not overwrite REJECTED.
+    if (String(opportunity.verification_status).toUpperCase() === "REJECTED") {
+      return opportunity;
+    }
+
     const evidenceList = this.getEvidenceForOpportunity(opportunityId);
     let newStatus = "UNVERIFIED";
 
