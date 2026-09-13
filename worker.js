@@ -77,7 +77,7 @@ function cors(response) {
   headers.set("Access-Control-Allow-Origin", "*");
   headers.set(
     "Access-Control-Allow-Methods",
-    "GET,POST,OPTIONS"
+    "GET,POST,PUT,PATCH,DELETE,OPTIONS"
   );
   headers.set(
     "Access-Control-Allow-Headers",
@@ -233,7 +233,19 @@ async function runAI(env, userMessage, context = {}) {
     };
   }
 
-  const toolsText = Object.entries(TOOLS)
+  const dynamicTools = {
+    ...TOOLS,
+    web_research: {
+      name: "Web Research",
+      connected: !!(env.BROWSER && typeof env.BROWSER.quickAction === "function")
+    },
+    browser: {
+      name: "Browser Agent",
+      connected: !!(env.BROWSER && typeof env.BROWSER.quickAction === "function")
+    }
+  };
+
+  const toolsText = Object.entries(dynamicTools)
     .map(
       ([key, tool]) =>
         `${key}: ${
