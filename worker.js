@@ -545,8 +545,8 @@ export class MasterMindAgent extends Agent {
       unknowns,
       verificationStatus: updatedOpp.verification_status,
       verificationLimitations: [
-        "Decision engine evaluates opportunity based on existing deterministic criteria and verified evidence records only.",
-        "No money was spent, no accounts were created, and no external submissions were made.",
+        "Decision engine evaluates opportunity based on existing deterministic criteria and evidence records classified as FACT under the existing verification rules.",
+        "Decision Engine evaluation itself did not spend money, create accounts, or make external submissions.",
         "Marketplace submissions (Upwork/Fiverr) remain manual Owner actions."
       ]
     };

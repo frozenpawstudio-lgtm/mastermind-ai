@@ -244,7 +244,7 @@ async function runDecisionEngineTests() {
   // TEST SCENARIO 13: No invented earning value
   console.log("\n--- Scenario 13: No invented earning value ---");
   assert.strictEqual(strongDec.factors.earningPotential, undefined, "No fake earning values added to factors");
-  assert.ok(strongDec.verificationLimitations.some(l => l.includes("No money was spent")), "Verification limitations explicitly stated");
+  assert.ok(strongDec.verificationLimitations.some(l => l.includes("did not spend money")), "Verification limitations explicitly stated");
   console.log("✓ Confirmed no invented earning values or fake capabilities");
 
   // Cleanup created opportunities
