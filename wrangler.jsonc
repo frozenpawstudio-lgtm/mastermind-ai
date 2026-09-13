@@ -13,7 +13,7 @@
     "binding": "BROWSER"
   },
   "assets": {
-    "directory": "public",
+    "directory": ".",
     "binding": "ASSETS"
   },
   "durable_objects": {
