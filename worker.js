@@ -347,9 +347,21 @@ export class MasterMindAgent extends Agent {
         eligibility_status TEXT NOT NULL DEFAULT 'pending',
         owner_fit_status TEXT NOT NULL DEFAULT 'pending',
         score REAL NOT NULL DEFAULT 0,
+        earning_model TEXT NOT NULL DEFAULT 'UNKNOWN',
+        risk TEXT NOT NULL DEFAULT 'UNKNOWN',
+        effort TEXT NOT NULL DEFAULT 'UNKNOWN',
+        cost TEXT NOT NULL DEFAULT 'UNKNOWN',
+        earning_potential TEXT NOT NULL DEFAULT 'UNKNOWN',
+        discovered_at TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );`;
+      try { this.sql`ALTER TABLE opportunities ADD COLUMN earning_model TEXT NOT NULL DEFAULT 'UNKNOWN';`; } catch (_) {}
+      try { this.sql`ALTER TABLE opportunities ADD COLUMN risk TEXT NOT NULL DEFAULT 'UNKNOWN';`; } catch (_) {}
+      try { this.sql`ALTER TABLE opportunities ADD COLUMN effort TEXT NOT NULL DEFAULT 'UNKNOWN';`; } catch (_) {}
+      try { this.sql`ALTER TABLE opportunities ADD COLUMN cost TEXT NOT NULL DEFAULT 'UNKNOWN';`; } catch (_) {}
+      try { this.sql`ALTER TABLE opportunities ADD COLUMN earning_potential TEXT NOT NULL DEFAULT 'UNKNOWN';`; } catch (_) {}
+      try { this.sql`ALTER TABLE opportunities ADD COLUMN discovered_at TEXT NOT NULL DEFAULT '';`; } catch (_) {}
       this.sql`CREATE TABLE IF NOT EXISTS evidence (
         id TEXT PRIMARY KEY,
         opportunity_id TEXT NOT NULL,
@@ -552,6 +564,86 @@ export class MasterMindAgent extends Agent {
     };
   }
 
+  findDuplicateOpportunity(url, title, platform) {
+    this.initDb();
+    if (url && String(url).trim() !== "") {
+      const byUrl = [...this.sql`SELECT * FROM opportunities WHERE url = ${String(url).trim()}`];
+      if (byUrl.length > 0) return byUrl[0];
+    }
+    if (title && String(title).trim() !== "") {
+      const p = String(platform || "").trim().toLowerCase();
+      const t = String(title).trim().toLowerCase();
+      const byTitlePlatform = [...this.sql`SELECT * FROM opportunities WHERE LOWER(title) = ${t} AND LOWER(platform) = ${p}`];
+      if (byTitlePlatform.length > 0) return byTitlePlatform[0];
+    }
+    return null;
+  }
+
+  discoverOpportunities(params = {}) {
+    this.initDb();
+    const query = String(params.query || params.keyword || "").trim();
+    const platform = String(params.platform || params.source || "manual").trim();
+
+    const browserConnected = !!(this.env.BROWSER && typeof this.env.BROWSER.quickAction === "function");
+    const aiConnected = !!(this.env.AI && typeof this.env.AI.run === "function");
+    const liveDiscoveryConnected = browserConnected || aiConnected;
+
+    let inputItems = [];
+    if (Array.isArray(params.items)) {
+      inputItems = params.items;
+    } else if (params.opportunity) {
+      inputItems = [params.opportunity];
+    } else if (params.title) {
+      inputItems = [params];
+    }
+
+    const discovered = [];
+    let duplicatesCount = 0;
+
+    for (const item of inputItems) {
+      const title = String(item.title || "").trim();
+      if (!title) {
+        throw new Error("Opportunity title is required");
+      }
+      const url = String(item.url || "").trim();
+      const oppPlatform = String(item.platform || platform || "manual").trim();
+
+      const existing = this.findDuplicateOpportunity(url, title, oppPlatform);
+      if (existing) {
+        duplicatesCount++;
+        this.sql`UPDATE opportunities SET updated_at = ${new Date().toISOString()} WHERE id = ${existing.id};`;
+        discovered.push({ ...this.getOpportunity(existing.id), duplicate: true });
+      } else {
+        const created = this.createOpportunity({
+          ...item,
+          title,
+          url,
+          platform: oppPlatform,
+          source: String(item.source || platform || "discovery").trim(),
+          verification_status: item.verification_status ? this.validateVerificationStatus(item.verification_status) : "UNVERIFIED",
+          eligibility_status: String(item.eligibility_status || "pending").trim(),
+          owner_fit_status: String(item.owner_fit_status || "pending").trim(),
+          discovered_at: item.discovered_at || item.discoveredAt || new Date().toISOString()
+        });
+        discovered.push({ ...created, duplicate: false });
+      }
+    }
+
+    return {
+      ok: true,
+      discoveryStatus: liveDiscoveryConnected ? "CONNECTED" : "NOT_CONNECTED",
+      liveDiscoveryConnected,
+      query: query || undefined,
+      platform,
+      discoveredCount: discovered.length,
+      duplicatesCount,
+      opportunities: discovered,
+      message: liveDiscoveryConnected
+        ? (discovered.length > 0 ? `Discovered and stored ${discovered.length} opportunity record(s).` : "Live discovery connected; specify query or items to discover.")
+        : "Live external discovery service is NOT_CONNECTED / UNAVAILABLE. Foundation layer is active for evidence-based opportunity ingestion."
+    };
+  }
+
   createOpportunity(data) {
     this.initDb();
     const id = data.id || crypto.randomUUID();
@@ -578,17 +670,25 @@ export class MasterMindAgent extends Agent {
     const eligibility_status = String(data.eligibility_status || "pending").trim();
     const owner_fit_status = String(data.owner_fit_status || "pending").trim();
     const score = typeof data.score === "number" ? data.score : 0;
+    const earning_model = String(data.earning_model || data.earningModel || "UNKNOWN").trim();
+    const risk = String(data.risk || "UNKNOWN").trim();
+    const effort = String(data.effort || "UNKNOWN").trim();
+    const cost = String(data.cost || "UNKNOWN").trim();
+    const earning_potential = String(data.earning_potential || data.earningPotential || "UNKNOWN").trim();
     const created_at = data.created_at || new Date().toISOString();
+    const discovered_at = String(data.discovered_at || data.discoveredAt || created_at).trim();
     const updated_at = data.updated_at || created_at;
 
     this.sql`INSERT INTO opportunities (
       id, source, title, url, platform, description,
       verification_status, eligibility_status, owner_fit_status,
-      score, created_at, updated_at
+      score, earning_model, risk, effort, cost, earning_potential,
+      discovered_at, created_at, updated_at
     ) VALUES (
       ${id}, ${source}, ${title}, ${url}, ${platform}, ${description},
       ${verification_status}, ${eligibility_status}, ${owner_fit_status},
-      ${score}, ${created_at}, ${updated_at}
+      ${score}, ${earning_model}, ${risk}, ${effort}, ${cost}, ${earning_potential},
+      ${discovered_at}, ${created_at}, ${updated_at}
     );`;
 
     return this.getOpportunity(id);
@@ -653,6 +753,12 @@ export class MasterMindAgent extends Agent {
     const eligibility_status = data.eligibility_status !== undefined ? String(data.eligibility_status).trim() : existing.eligibility_status;
     const owner_fit_status = data.owner_fit_status !== undefined ? String(data.owner_fit_status).trim() : existing.owner_fit_status;
     const score = typeof data.score === "number" ? data.score : existing.score;
+    const earning_model = data.earning_model !== undefined ? String(data.earning_model).trim() : (existing.earning_model || "UNKNOWN");
+    const risk = data.risk !== undefined ? String(data.risk).trim() : (existing.risk || "UNKNOWN");
+    const effort = data.effort !== undefined ? String(data.effort).trim() : (existing.effort || "UNKNOWN");
+    const cost = data.cost !== undefined ? String(data.cost).trim() : (existing.cost || "UNKNOWN");
+    const earning_potential = data.earning_potential !== undefined ? String(data.earning_potential).trim() : (existing.earning_potential || "UNKNOWN");
+    const discovered_at = data.discovered_at !== undefined ? String(data.discovered_at).trim() : (existing.discovered_at || "");
     const updated_at = new Date().toISOString();
 
     this.sql`UPDATE opportunities SET
@@ -665,6 +771,12 @@ export class MasterMindAgent extends Agent {
       eligibility_status = ${eligibility_status},
       owner_fit_status = ${owner_fit_status},
       score = ${score},
+      earning_model = ${earning_model},
+      risk = ${risk},
+      effort = ${effort},
+      cost = ${cost},
+      earning_potential = ${earning_potential},
+      discovered_at = ${discovered_at},
       updated_at = ${updated_at}
       WHERE id = ${id};`;
 
@@ -800,6 +912,29 @@ export class MasterMindAgent extends Agent {
     if (url.pathname.includes("/opportunities")) {
       const parts = url.pathname.split("/opportunities");
       const subpath = parts[1] || "";
+
+      // Route: GET/POST /opportunities/discover
+      const discoverMatch = subpath.match(/^\/discover$/);
+      if (discoverMatch) {
+        if (request.method === "GET") {
+          const result = this.discoverOpportunities({});
+          return Response.json({ ok: true, data: result });
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            // Empty JSON is permitted
+          }
+          try {
+            const result = this.discoverOpportunities(body);
+            return Response.json({ ok: true, data: result });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+      }
 
       // Route: GET/POST /opportunities/:id/decision
       const decisionMatch = subpath.match(/^\/([^\/]+)\/decision$/);
