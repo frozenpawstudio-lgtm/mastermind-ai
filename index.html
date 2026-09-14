@@ -1,455 +1,981 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>MasterMind AI</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AIRA — Personal AI MasterMind Agent</title>
 <style>
-*{
-  box-sizing:border-box;
+:root {
+  --bg-primary: #080b14;
+  --bg-secondary: #0f172a;
+  --bg-card: #131c31;
+  --bg-input: #0b1222;
+  --border-color: #1e293b;
+  --border-active: #3b82f6;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --accent-blue: #3b82f6;
+  --accent-blue-hover: #2563eb;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #ef4444;
+  --radius-sm: 8px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
-body{
-  margin:0;
-  font-family:Arial, sans-serif;
-  background:#0b1020;
-  color:white;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.container{
-  max-width:850px;
-  margin:auto;
-  padding:20px;
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
 }
 
-.header{
-  text-align:center;
-  padding:25px 10px;
+/* Header */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border-color);
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
-.logo{
-  font-size:42px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-h1{
-  margin:8px 0;
-  font-size:30px;
+.brand-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
 }
 
-.subtitle{
-  color:#aeb8d0;
+.brand-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #f8fafc, #cbd5e1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.card{
-  background:#151d36;
-  border:1px solid #293556;
-  border-radius:22px;
-  padding:20px;
-  margin-top:20px;
+.system-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
 }
 
-.status{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color:#79f2a6;
-  margin-bottom:15px;
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
 }
 
-.status-dot{
-  width:10px;
-  height:10px;
-  background:#32e875;
-  border-radius:50%;
+.status-dot.online {
+  background: var(--accent-emerald);
+  box-shadow: 0 0 8px var(--accent-emerald);
 }
 
-.messages{
-  height:430px;
-  overflow-y:auto;
-  padding:10px;
-  display:flex;
-  flex-direction:column;
-  gap:14px;
+.status-dot.offline {
+  background: var(--accent-rose);
 }
 
-.msg{
-  padding:15px 18px;
-  border-radius:18px;
-  line-height:1.6;
-  max-width:88%;
-  word-wrap:break-word;
+/* Main Content Area */
+.app-content {
+  flex: 1;
+  max-width: 768px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 16px 16px 80px 16px;
 }
 
-.user{
-  align-self:flex-end;
-  background:#315bd6;
+/* View Tabs */
+.view-panel {
+  display: none;
+  animation: fadeIn 0.2s ease-in-out;
 }
 
-.ai{
-  align-self:flex-start;
-  background:#202b49;
+.view-panel.active {
+  display: block;
 }
 
-.quick{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin:15px 0;
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.quick button{
-  background:#202b49;
-  color:white;
-  border:1px solid #3b4b73;
-  border-radius:12px;
-  padding:10px 14px;
-  cursor:pointer;
+/* Cards & Surfaces */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
-.quick button:active{
-  transform:scale(.97);
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
 
-.input-area{
-  display:flex;
-  gap:10px;
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-#command{
-  flex:1;
-  min-width:0;
-  background:#0d1428;
-  color:white;
-  border:1px solid #3b4b73;
-  border-radius:15px;
-  padding:15px;
-  font-size:16px;
-  outline:none;
+/* Chat Interface */
+.chat-messages {
+  height: calc(100vh - 280px);
+  min-height: 320px;
+  max-height: 520px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+  margin-bottom: 12px;
 }
 
-#command:focus{
-  border-color:#5276ff;
+.msg-bubble {
+  max-width: 88%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-wrap: break-word;
 }
 
-.send{
-  background:#4b6fff;
-  color:white;
-  border:0;
-  border-radius:15px;
-  padding:0 22px;
-  font-size:16px;
-  font-weight:bold;
-  cursor:pointer;
+.msg-bubble.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  color: #fff;
+  border-bottom-right-radius: 4px;
 }
 
-.send:active{
-  transform:scale(.97);
+.msg-bubble.ai {
+  align-self: flex-start;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  border-bottom-left-radius: 4px;
 }
 
-.footer{
-  text-align:center;
-  color:#7783a5;
-  font-size:13px;
-  margin-top:20px;
+.quick-prompts {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  scrollbar-width: none;
 }
 
-@media(max-width:600px){
+.quick-prompts::-webkit-scrollbar {
+  display: none;
+}
 
-  .container{
-    padding:12px;
-  }
+.btn-quick {
+  white-space: nowrap;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
 
-  .messages{
-    height:400px;
-  }
+.btn-quick:active {
+  transform: scale(0.96);
+  border-color: var(--accent-blue);
+  color: var(--text-primary);
+}
 
-  .input-area{
-    flex-direction:row;
-  }
+.chat-input-area {
+  display: flex;
+  gap: 8px;
+}
 
-  .send{
-    padding:0 18px;
-  }
+.input-text {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
 
-  .msg{
-    max-width:94%;
-  }
+.input-text:focus {
+  border-color: var(--border-active);
+}
+
+.btn-primary {
+  background: var(--accent-blue);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.2s ease;
+}
+
+.btn-primary:active {
+  transform: scale(0.97);
+  background: var(--accent-blue-hover);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Badges & Pills */
+.badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-verified { background: rgba(16, 185, 129, 0.2); color: var(--accent-emerald); border: 1px solid rgba(16, 185, 129, 0.4); }
+.badge-partially { background: rgba(245, 158, 11, 0.2); color: var(--accent-amber); border: 1px solid rgba(245, 158, 11, 0.4); }
+.badge-unverified { background: rgba(100, 116, 139, 0.2); color: var(--text-secondary); border: 1px solid rgba(100, 116, 139, 0.4); }
+.badge-rejected { background: rgba(239, 68, 68, 0.2); color: var(--accent-rose); border: 1px solid rgba(239, 68, 68, 0.4); }
+
+.badge-select { background: rgba(16, 185, 129, 0.25); color: var(--accent-emerald); border: 1px solid var(--accent-emerald); }
+.badge-reject { background: rgba(239, 68, 68, 0.25); color: var(--accent-rose); border: 1px solid var(--accent-rose); }
+.badge-review { background: rgba(245, 158, 11, 0.25); color: var(--accent-amber); border: 1px solid var(--accent-amber); }
+
+/* Form Controls */
+.form-group {
+  margin-bottom: 12px;
+}
+
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.select-control {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+}
+
+.textarea-control {
+  width: 100%;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  resize: vertical;
+  min-height: 70px;
+}
+
+/* Opportunity List Items */
+.opp-item {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-bottom: 10px;
+  transition: all 0.2s ease;
+}
+
+.opp-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.opp-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.opp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.opp-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(30, 41, 59, 0.5);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* Bottom Navigation Bar */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  justify-content: space-around;
+  padding: 8px 0 env(safe-area-inset-bottom, 8px);
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 12px;
+  transition: color 0.2s ease;
+}
+
+.nav-icon {
+  font-size: 20px;
+}
+
+.nav-item.active {
+  color: var(--accent-blue);
+}
+
+.nav-item.active .nav-icon {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+.info-banner {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+.decision-result-box {
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  margin-top: 12px;
 }
 </style>
 </head>
-
-
 <body>
 
-<div class="container">
-
-  <div class="header">
-
-    <div class="logo">🧠</div>
-
-    <h1>MasterMind AI</h1>
-
-    <div class="subtitle">
-      आपका Personal AI Agent
-    </div>
-
+<!-- Header -->
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-icon">🧠</div>
+    <div class="brand-title">AIRA MasterMind</div>
   </div>
+  <div class="system-status" id="systemStatus">
+    <span class="status-dot" id="statusDot"></span>
+    <span id="statusLabel">Checking backend...</span>
+  </div>
+</header>
 
+<!-- App Content Container -->
+<main class="app-content">
 
-  <div class="card">
-
-    <div class="status">
-      <span class="status-dot"></span>
-      MasterMind AI Online
-    </div>
-
-
-    <div id="messages" class="messages">
-
-      <div class="msg ai">
-        नमस्ते! मैं आपका <b>MasterMind AI</b> हूँ। 🧠
-        <br><br>
-        आप मुझसे हिंदी, Hinglish या English में बात कर सकते हैं।
-        <br><br>
-        मैं आपके सवाल को समझकर practical जवाब और अगले steps देने की कोशिश करूँगा।
+  <!-- VIEW 1: CHAT -->
+  <section id="view-chat" class="view-panel active">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">💬 Agent Assistant</div>
+        <span class="badge badge-verified">Phase-1 AI</span>
       </div>
 
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg-bubble ai">
+          Hello! I am <b>AIRA MasterMind AI</b>. 🧠
+          <br><br>
+          I can assist you with research, opportunity discovery, verification, and earning decision analysis. How can I help you today?
+        </div>
+      </div>
+
+      <div class="quick-prompts">
+        <button class="btn-quick" onclick="sendQuickPrompt('Tell me how to start discovering freelance AI engineering opportunities.')">💰 Opportunities</button>
+        <button class="btn-quick" onclick="sendQuickPrompt('How does the AIRA Verification Engine validate opportunity evidence?')">🛡️ Verification</button>
+        <button class="btn-quick" onclick="sendQuickPrompt('Explain the Earning Decision Engine scoring model.')">📊 Decision Engine</button>
+        <button class="btn-quick" onclick="sendQuickPrompt('Help me research Cloudflare Workers AI integration.')">🔎 Research</button>
+      </div>
+
+      <div class="chat-input-area">
+        <input type="text" id="chatInput" class="input-text" placeholder="Type message to AIRA..." autocomplete="off">
+        <button id="chatSendBtn" class="btn-primary" onclick="handleSendChat()">Send</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- VIEW 2: DISCOVERY -->
+  <section id="view-discovery" class="view-panel">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🔍 Opportunity Discovery</div>
+        <span class="badge badge-partially" id="discoveryConnBadge">NOT_CONNECTED</span>
+      </div>
+
+      <div class="info-banner" id="discoveryConnMessage">
+        Loading discovery connectivity status...
+      </div>
+
+      <div class="card-title" style="font-size: 14px; margin-bottom: 8px;">Submit Structured Discovery Payload</div>
+      <div class="form-group">
+        <label class="form-label">Opportunity Title *</label>
+        <input type="text" id="discTitle" class="input-text" placeholder="e.g. Build Cloudflare Workers AI Agent">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Platform / Marketplace</label>
+        <input type="text" id="discPlatform" class="input-text" placeholder="e.g. Upwork">
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL</label>
+        <input type="text" id="discUrl" class="input-text" placeholder="e.g. https://example.com/job/123">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Earning Model</label>
+        <input type="text" id="discEarningModel" class="input-text" placeholder="e.g. Fixed Price / Hourly">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Earning Potential</label>
+        <input type="text" id="discEarningPotential" class="input-text" placeholder="e.g. $500 - $1000">
+      </div>
+
+      <button class="btn-primary" style="width: 100%;" onclick="handleRunDiscovery()">Submit to Discovery Engine</button>
+
+      <div id="discoveryResult" style="margin-top: 12px;"></div>
+    </div>
+  </section>
+
+  <!-- VIEW 3: OPPORTUNITIES -->
+  <section id="view-opportunities" class="view-panel">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">📋 Opportunity Management</div>
+        <button class="btn-primary" style="padding: 6px 12px; font-size: 12px;" onclick="fetchOpportunities()">Refresh</button>
+      </div>
+
+      <div id="opportunitiesList">
+        <div class="info-banner">Loading opportunities from MasterMind DO store...</div>
+      </div>
     </div>
 
-
-    <div class="quick">
-
-      <button onclick="quickCommand('मुझे ऑनलाइन पैसे कमाने का तरीका बताओ')">
-        💰 Earning
-      </button>
-
-      <button onclick="quickCommand('मेरे लिए YouTube automation project बनाओ')">
-        🎬 YouTube
-      </button>
-
-      <button onclick="quickCommand('मेरे लिए एक AI agent का plan बनाओ')">
-        🤖 AI Agent
-      </button>
-
-      <button onclick="quickCommand('आज मेरे लिए क्या काम करना चाहिए?')">
-        ⚙️ Tasks
-      </button>
-
-      <button onclick="quickCommand('मुझे इस topic पर research करनी है')">
-        🔎 Research
-      </button>
-
+    <!-- Create Opportunity Card -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom: 12px;">Create New Opportunity</div>
+      <div class="form-group">
+        <label class="form-label">Title *</label>
+        <input type="text" id="createTitle" class="input-text" placeholder="Title">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Platform</label>
+        <input type="text" id="createPlatform" class="input-text" placeholder="Platform">
+      </div>
+      <div class="form-group">
+        <label class="form-label">URL</label>
+        <input type="text" id="createUrl" class="input-text" placeholder="URL">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea id="createDesc" class="textarea-control" placeholder="Description"></textarea>
+      </div>
+      <button class="btn-primary" style="width: 100%;" onclick="handleCreateOpportunity()">Create Opportunity</button>
     </div>
+  </section>
 
+  <!-- VIEW 4: VERIFICATION & DECISION -->
+  <section id="view-verification" class="view-panel">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title">🛡️ Verification & Decision Engine</div>
+      </div>
 
-    <div class="input-area">
+      <div class="form-group">
+        <label class="form-label">Select Target Opportunity</label>
+        <select id="verifOppSelect" class="select-control" onchange="handleSelectOppForVerif()">
+          <option value="">-- Select Opportunity --</option>
+        </select>
+      </div>
 
-      <input
-        id="command"
-        type="text"
-        placeholder="अपना आदेश यहाँ लिखें..."
-        autocomplete="off"
-      >
+      <div id="verifDetailsArea" style="display: none;">
+        <!-- Evidence Section -->
+        <div class="card-title" style="font-size: 14px; margin: 12px 0 8px 0;">Add Verification Evidence</div>
+        <div class="form-group">
+          <label class="form-label">Classification *</label>
+          <select id="evidenceClass" class="select-control">
+            <option value="FACT">FACT (Required for VERIFIED status)</option>
+            <option value="ASSUMPTION">ASSUMPTION</option>
+            <option value="HYPOTHESIS">HYPOTHESIS</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Evidence Source *</label>
+          <input type="text" id="evidenceSource" class="input-text" placeholder="e.g. official_api_verification">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Evidence Content *</label>
+          <textarea id="evidenceContent" class="textarea-control" placeholder="Detail verified fact or assumption..."></textarea>
+        </div>
+        <button class="btn-primary" style="width: 100%; margin-bottom: 12px;" onclick="handleAddEvidence()">Add Evidence</button>
 
-      <button class="send" onclick="sendCommand()">
-        Send
-      </button>
+        <!-- Evidence List -->
+        <div class="card-title" style="font-size: 14px; margin-bottom: 8px;">Existing Evidence Records</div>
+        <div id="evidenceListArea" style="margin-bottom: 16px;"></div>
 
+        <!-- Decision Engine Action -->
+        <button class="btn-primary" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669);" onclick="handleRunDecision()">
+          Evaluate Earning Decision
+        </button>
+
+        <div id="decisionOutputArea"></div>
+      </div>
     </div>
+  </section>
 
-  </div>
+</main>
 
-
-  <div class="footer">
-    🛡️ MasterMind AI • Secure AI Backend
-  </div>
-
-</div>
-
-
+<!-- Bottom Navigation Bar -->
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchTab('chat', this)">
+    <span class="nav-icon">💬</span>
+    <span>Chat</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('discovery', this)">
+    <span class="nav-icon">🔍</span>
+    <span>Discovery</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('opportunities', this)">
+    <span class="nav-icon">📋</span>
+    <span>Opportunities</span>
+  </button>
+  <button class="nav-item" onclick="switchTab('verification', this)">
+    <span class="nav-icon">🛡️</span>
+    <span>Decision</span>
+  </button>
+</nav>
 
 <script>
+let currentOpportunities = [];
 
-function quickCommand(text){
+function switchTab(tabId, el) {
+  document.querySelectorAll('.view-panel').forEach(panel => panel.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
 
-  const input = document.getElementById("command");
+  document.getElementById(`view-${tabId}`).classList.add('active');
+  if (el) el.classList.add('active');
 
-  input.value = text;
-
-  sendCommand();
-
+  if (tabId === 'opportunities') fetchOpportunities();
+  if (tabId === 'discovery') fetchDiscoveryStatus();
+  if (tabId === 'verification') loadOpportunitiesForVerif();
 }
 
+async function checkHealth() {
+  const statusLabel = document.getElementById('statusLabel');
+  const statusDot = document.getElementById('statusDot');
+  try {
+    const res = await fetch('/api/health');
+    const data = await res.json();
+    if (data.ok) {
+      statusDot.className = 'status-dot online';
+      statusLabel.textContent = `AIRA Online • DO Active`;
+    } else {
+      statusDot.className = 'status-dot offline';
+      statusLabel.textContent = `System Error`;
+    }
+  } catch (err) {
+    statusDot.className = 'status-dot offline';
+    statusLabel.textContent = `Backend Offline`;
+  }
+}
 
+/* CHAT */
+function sendQuickPrompt(text) {
+  document.getElementById('chatInput').value = text;
+  handleSendChat();
+}
 
-async function sendCommand(){
-
-  const input = document.getElementById("command");
+async function handleSendChat() {
+  const input = document.getElementById('chatInput');
+  const sendBtn = document.getElementById('chatSendBtn');
+  const messages = document.getElementById('chatMessages');
 
   const text = input.value.trim();
+  if (!text) return;
 
-  if(!text){
+  input.value = '';
+  sendBtn.disabled = true;
+
+  messages.innerHTML += `<div class="msg-bubble user">${escapeHtml(text)}</div>`;
+  const loadingId = 'loading-' + Date.now();
+  messages.innerHTML += `<div class="msg-bubble ai" id="${loadingId}">🧠 AIRA is thinking...</div>`;
+  messages.scrollTop = messages.scrollHeight;
+
+  try {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text })
+    });
+    const data = await res.json();
+
+    document.getElementById(loadingId)?.remove();
+
+    if (data.ok && data.answer) {
+      messages.innerHTML += `<div class="msg-bubble ai">${escapeHtml(data.answer).replace(/\n/g, '<br>')}</div>`;
+    } else {
+      messages.innerHTML += `<div class="msg-bubble ai">❌ Error: ${escapeHtml(data.error || 'Unknown error')}</div>`;
+    }
+  } catch (err) {
+    document.getElementById(loadingId)?.remove();
+    messages.innerHTML += `<div class="msg-bubble ai">❌ Connection failed: ${escapeHtml(err.message)}</div>`;
+  }
+
+  sendBtn.disabled = false;
+  messages.scrollTop = messages.scrollHeight;
+}
+
+/* DISCOVERY */
+async function fetchDiscoveryStatus() {
+  const badge = document.getElementById('discoveryConnBadge');
+  const msg = document.getElementById('discoveryConnMessage');
+  try {
+    const res = await fetch('/api/opportunities/discover');
+    const data = await res.json();
+    if (data.ok) {
+      badge.textContent = data.connectivity || 'NOT_CONNECTED';
+      msg.textContent = data.message || 'Marketplace connectivity status checked truthfully.';
+    }
+  } catch (err) {
+    msg.textContent = 'Failed to fetch discovery status.';
+  }
+}
+
+async function handleRunDiscovery() {
+  const title = document.getElementById('discTitle').value.trim();
+  const platform = document.getElementById('discPlatform').value.trim();
+  const url = document.getElementById('discUrl').value.trim();
+  const earningModel = document.getElementById('discEarningModel').value.trim();
+  const earningPotential = document.getElementById('discEarningPotential').value.trim();
+  const resultDiv = document.getElementById('discoveryResult');
+
+  if (!title) {
+    alert('Opportunity Title is required.');
     return;
   }
 
-
-  const messages = document.getElementById("messages");
-
-
-  // User message
-  messages.innerHTML +=
-    '<div class="msg user">' +
-    escapeHtml(text) +
-    '</div>';
-
-
-  input.value = "";
-
-
-  // Loading
-  const loadingId = "loading-" + Date.now();
-
-  messages.innerHTML +=
-    '<div class="msg ai" id="' + loadingId + '">' +
-    '🧠 MasterMind सोच रहा है...' +
-    '</div>';
-
-
-  messages.scrollTop = messages.scrollHeight;
-
-
-  try{
-
-    /*
-      Real Cloudflare Worker AI backend
-    */
-
-    const response = await fetch("/api/chat",{
-
-      method:"POST",
-
-      headers:{
-        "Content-Type":"application/json"
-      },
-
-      body:JSON.stringify({
-        message:text
+  try {
+    const res = await fetch('/api/opportunities/discover', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        opportunities: [{
+          title, platform, url,
+          earning_model: earningModel,
+          earning_potential: earningPotential
+        }]
       })
-
     });
-
-
-    const data = await response.json();
-
-
-    // Remove loading message
-    const loading = document.getElementById(loadingId);
-
-    if(loading){
-      loading.remove();
+    const data = await res.json();
+    if (data.ok) {
+      resultDiv.innerHTML = `
+        <div class="info-banner" style="background: rgba(16, 185, 129, 0.15); border-color: var(--accent-emerald);">
+          <strong>Discovery Summary:</strong> Total: ${data.summary.totalInput}, Discovered: ${data.summary.discoveredCount}, Duplicates: ${data.summary.duplicateCount}
+        </div>
+      `;
+      document.getElementById('discTitle').value = '';
+    } else {
+      resultDiv.innerHTML = `<div class="info-banner" style="border-color: var(--accent-rose);">❌ ${escapeHtml(data.error)}</div>`;
     }
-
-
-    let reply = "";
-
-
-    if(data.ok && data.answer){
-
-      reply = data.answer;
-
-    }
-
-    else if(data.error){
-
-      reply =
-        "❌ AI में समस्या आई।<br><br>" +
-        escapeHtml(data.error);
-
-    }
-
-    else{
-
-      reply =
-        "❌ AI से सही जवाब नहीं मिला।";
-
-    }
-
-
-    messages.innerHTML +=
-      '<div class="msg ai">' +
-      formatAnswer(reply) +
-      '</div>';
-
-
+  } catch (err) {
+    resultDiv.innerHTML = `<div class="info-banner" style="border-color: var(--accent-rose);">❌ Connection error</div>`;
   }
-
-  catch(error){
-
-    const loading = document.getElementById(loadingId);
-
-    if(loading){
-      loading.remove();
-    }
-
-
-    messages.innerHTML +=
-      '<div class="msg ai">' +
-      '❌ AI backend से connection नहीं हो पाया।<br><br>' +
-      escapeHtml(error.message) +
-      '</div>';
-
-  }
-
-
-  messages.scrollTop = messages.scrollHeight;
-
 }
 
-
-
-function formatAnswer(text){
-
-  /*
-    AI के जवाब को सुरक्षित HTML text में बदलना
-  */
-
-  return escapeHtml(String(text))
-    .replace(/\n/g,"<br>");
-
+/* OPPORTUNITIES */
+async function fetchOpportunities() {
+  const container = document.getElementById('opportunitiesList');
+  try {
+    const res = await fetch('/api/opportunities');
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.data)) {
+      currentOpportunities = data.data;
+      if (currentOpportunities.length === 0) {
+        container.innerHTML = '<div class="info-banner">No opportunities found in DO SQLite store. Create one below or use Discovery!</div>';
+        return;
+      }
+      container.innerHTML = currentOpportunities.map(opp => `
+        <div class="opp-item">
+          <div class="opp-item-header">
+            <div class="opp-title">${escapeHtml(opp.title)}</div>
+            ${getStatusBadge(opp.verification_status)}
+          </div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+            ${escapeHtml(opp.description || 'No description provided.')}
+          </div>
+          <div class="opp-meta">
+            <span class="opp-meta-item">🌐 ${escapeHtml(opp.platform || 'Platform: N/A')}</span>
+            <span class="opp-meta-item">📋 Eligibility: ${escapeHtml(opp.eligibility_status)}</span>
+            <span class="opp-meta-item">👤 Fit: ${escapeHtml(opp.owner_fit_status)}</span>
+            <span class="opp-meta-item">⭐ Score: ${opp.score}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    container.innerHTML = '<div class="info-banner">Failed to load opportunities.</div>';
+  }
 }
 
+async function handleCreateOpportunity() {
+  const title = document.getElementById('createTitle').value.trim();
+  const platform = document.getElementById('createPlatform').value.trim();
+  const url = document.getElementById('createUrl').value.trim();
+  const description = document.getElementById('createDesc').value.trim();
 
+  if (!title) { alert('Title is required'); return; }
 
-function escapeHtml(text){
+  try {
+    const res = await fetch('/api/opportunities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, platform, url, description, source: 'manual' })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('createTitle').value = '';
+      document.getElementById('createPlatform').value = '';
+      document.getElementById('createUrl').value = '';
+      document.getElementById('createDesc').value = '';
+      fetchOpportunities();
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (err) {
+    alert('Failed to create opportunity');
+  }
+}
 
-  const div = document.createElement("div");
+function getStatusBadge(status) {
+  const s = String(status || 'UNVERIFIED').toUpperCase();
+  if (s === 'VERIFIED') return `<span class="badge badge-verified">VERIFIED</span>`;
+  if (s === 'PARTIALLY_VERIFIED') return `<span class="badge badge-partially">PARTIALLY</span>`;
+  if (s === 'REJECTED') return `<span class="badge badge-rejected">REJECTED</span>`;
+  return `<span class="badge badge-unverified">UNVERIFIED</span>`;
+}
 
-  div.textContent = text;
+/* VERIFICATION & DECISION */
+async function loadOpportunitiesForVerif() {
+  const select = document.getElementById('verifOppSelect');
+  select.innerHTML = '<option value="">-- Select Opportunity --</option>';
+  try {
+    const res = await fetch('/api/opportunities');
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.data)) {
+      data.data.forEach(opp => {
+        const opt = document.createElement('option');
+        opt.value = opp.id;
+        opt.textContent = `${opp.title} (${opp.verification_status})`;
+        select.appendChild(opt);
+      });
+    }
+  } catch (err) {}
+}
 
+async function handleSelectOppForVerif() {
+  const id = document.getElementById('verifOppSelect').value;
+  const area = document.getElementById('verifDetailsArea');
+  if (!id) {
+    area.style.display = 'none';
+    return;
+  }
+  area.style.display = 'block';
+  fetchEvidenceForOpp(id);
+}
+
+async function fetchEvidenceForOpp(oppId) {
+  const container = document.getElementById('evidenceListArea');
+  try {
+    const res = await fetch(`/api/opportunities/${oppId}/evidence`);
+    const data = await res.json();
+    if (data.ok && Array.isArray(data.data)) {
+      if (data.data.length === 0) {
+        container.innerHTML = '<div style="font-size: 13px; color: var(--text-muted);">No evidence records found.</div>';
+        return;
+      }
+      container.innerHTML = data.data.map(ev => `
+        <div style="background: var(--bg-input); border: 1px solid var(--border-color); padding: 10px; border-radius: var(--radius-md); margin-bottom: 6px; font-size: 13px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <strong>${escapeHtml(ev.classification)}</strong>
+            <span style="color: var(--text-muted);">${escapeHtml(ev.source)}</span>
+          </div>
+          <div>${escapeHtml(ev.content)}</div>
+        </div>
+      `).join('');
+    }
+  } catch (err) {}
+}
+
+async function handleAddEvidence() {
+  const oppId = document.getElementById('verifOppSelect').value;
+  const classification = document.getElementById('evidenceClass').value;
+  const source = document.getElementById('evidenceSource').value.trim();
+  const content = document.getElementById('evidenceContent').value.trim();
+
+  if (!oppId || !source || !content) {
+    alert('Please complete all required evidence fields.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/opportunities/${oppId}/evidence`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ classification, source, content })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('evidenceSource').value = '';
+      document.getElementById('evidenceContent').value = '';
+      fetchEvidenceForOpp(oppId);
+      loadOpportunitiesForVerif();
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch (err) {
+    alert('Failed to add evidence.');
+  }
+}
+
+async function handleRunDecision() {
+  const oppId = document.getElementById('verifOppSelect').value;
+  const outArea = document.getElementById('decisionOutputArea');
+
+  try {
+    const res = await fetch(`/api/opportunities/${oppId}/decision`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok && data.data) {
+      const dec = data.data;
+      let badgeClass = 'badge-review';
+      if (dec.decision === 'SELECT') badgeClass = 'badge-select';
+      if (dec.decision === 'REJECT') badgeClass = 'badge-reject';
+
+      outArea.innerHTML = `
+        <div class="decision-result-box">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span class="badge ${badgeClass}" style="font-size: 13px;">DECISION: ${dec.decision}</span>
+            <span style="font-weight: 700; font-size: 16px;">Score: ${dec.score} / 100</span>
+          </div>
+          <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">
+            <strong>Verification Status:</strong> ${dec.verificationStatus}
+          </div>
+          <div style="font-size: 13px; margin-bottom: 6px;"><strong>Reasons:</strong></div>
+          <ul style="font-size: 12px; color: var(--text-secondary); padding-left: 18px; margin-bottom: 8px;">
+            ${dec.reasons.map(r => `<li>${escapeHtml(r)}</li>`).join('')}
+          </ul>
+          ${dec.unknowns.length > 0 ? `
+            <div style="font-size: 13px; margin-bottom: 6px;"><strong>Unknowns:</strong></div>
+            <ul style="font-size: 12px; color: var(--accent-amber); padding-left: 18px;">
+              ${dec.unknowns.map(u => `<li>${escapeHtml(u)}</li>`).join('')}
+            </ul>
+          ` : ''}
+        </div>
+      `;
+    } else {
+      outArea.innerHTML = `<div class="info-banner" style="border-color: var(--accent-rose);">❌ ${escapeHtml(data.error)}</div>`;
+    }
+  } catch (err) {
+    outArea.innerHTML = `<div class="info-banner" style="border-color: var(--accent-rose);">❌ Failed to evaluate decision</div>`;
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
   return div.innerHTML;
-
 }
 
-
-
-document
-  .getElementById("command")
-  .addEventListener("keydown",function(e){
-
-    if(e.key === "Enter"){
-
-      e.preventDefault();
-
-      sendCommand();
-
-    }
-
-  });
-
+// Init
+checkHealth();
 </script>
-
-
 </body>
 </html>
