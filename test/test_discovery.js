@@ -23,15 +23,15 @@ async function runDiscoveryTests() {
   console.log("✓ GET /discover truthfully reports NOT_CONNECTED status");
 
   // 3. Process Legitimate Discovery Input: POST /api/opportunities/discover
-  console.log("\n--- Scenario 2: POST /api/opportunities/discover with valid opportunity ---");
+  console.log("\n--- Scenario 2: POST /api/opportunities/discover with valid synthetic opportunity ---");
   const discoveryInput = {
     opportunities: [
       {
         source: "discovery_test",
-        title: "Build Cloudflare Workers AI Plugin",
-        url: "https://example.com/job/discover-101",
-        platform: "Upwork",
-        description: "Need a skilled engineer to build an AI integration plugin on Workers.",
+        title: "Synthetic Discovery Test - Build Cloudflare Workers AI Plugin",
+        url: "https://test.synthetic.example/job/discover-101",
+        platform: "SyntheticPlatform",
+        description: "Synthetic test data: Need a skilled engineer to build an AI integration plugin on Workers.",
         earning_model: "Fixed Price",
         risk: "Low",
         effort: "Medium",
@@ -57,9 +57,9 @@ async function runDiscoveryTests() {
 
   const discoveredOpp = postDiscoverJson.discovered[0];
   assert.ok(discoveredOpp.id, "Discovered opportunity should have an ID");
-  assert.strictEqual(discoveredOpp.title, "Build Cloudflare Workers AI Plugin");
-  assert.strictEqual(discoveredOpp.url, "https://example.com/job/discover-101");
-  assert.strictEqual(discoveredOpp.platform, "Upwork");
+  assert.strictEqual(discoveredOpp.title, "Synthetic Discovery Test - Build Cloudflare Workers AI Plugin");
+  assert.strictEqual(discoveredOpp.url, "https://test.synthetic.example/job/discover-101");
+  assert.strictEqual(discoveredOpp.platform, "SyntheticPlatform");
   assert.strictEqual(discoveredOpp.verification_status, "UNVERIFIED", "Newly discovered item must preserve UNVERIFIED state");
   assert.strictEqual(discoveredOpp.eligibility_status, "pending", "Newly discovered item must preserve pending eligibility state");
   assert.strictEqual(discoveredOpp.owner_fit_status, "pending", "Newly discovered item must preserve pending owner fit state");
@@ -69,7 +69,7 @@ async function runDiscoveryTests() {
   assert.strictEqual(discoveredOpp.cost, "Free tier Workers");
   assert.strictEqual(discoveredOpp.earning_potential, "$500 - $1,000");
   assert.ok(discoveredOpp.discovered_at, "discovered_at should be populated");
-  console.log("✓ Valid opportunity successfully ingested and saved via Discovery Engine:", discoveredOpp.id);
+  console.log("✓ Valid synthetic opportunity successfully ingested and saved via Discovery Engine:", discoveredOpp.id);
 
   // 4. Duplicate Prevention by URL
   console.log("\n--- Scenario 3: Prevent Duplicate Opportunity by URL ---");
@@ -77,10 +77,10 @@ async function runDiscoveryTests() {
     opportunities: [
       {
         source: "discovery_test",
-        title: "Different Title Same URL",
-        url: "https://example.com/job/discover-101", // Same URL
-        platform: "Upwork",
-        description: "Duplicate check by URL test"
+        title: "Synthetic Test - Different Title Same URL",
+        url: "https://test.synthetic.example/job/discover-101", // Same URL
+        platform: "SyntheticPlatform",
+        description: "Synthetic test data: Duplicate check by URL test"
       }
     ]
   };
@@ -104,10 +104,10 @@ async function runDiscoveryTests() {
     opportunities: [
       {
         source: "discovery_test",
-        title: "Build Cloudflare Workers AI Plugin", // Same Title
-        url: "https://example.com/job/different-url-999", // Different URL
-        platform: "Upwork", // Same Platform
-        description: "Duplicate check by Title + Platform test"
+        title: "Synthetic Discovery Test - Build Cloudflare Workers AI Plugin", // Same Title
+        url: "https://test.synthetic.example/job/different-url-999", // Different URL
+        platform: "SyntheticPlatform", // Same Platform
+        description: "Synthetic test data: Duplicate check by Title + Platform test"
       }
     ]
   };
@@ -132,7 +132,7 @@ async function runDiscoveryTests() {
       {
         source: "discovery_test",
         // Missing title!
-        url: "https://example.com/job/no-title"
+        url: "https://test.synthetic.example/job/no-title"
       }
     ]
   };
@@ -166,8 +166,8 @@ async function runDiscoveryTests() {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       classification: "FACT",
-      source: "official_api",
-      content: "Verified contract offer with payment method verified"
+      source: "synthetic_test_verifier",
+      content: "Synthetic test FACT evidence: Verified contract offer"
     })
   });
   assert.strictEqual(evidenceRes.status, 201);

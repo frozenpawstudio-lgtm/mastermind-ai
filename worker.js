@@ -356,12 +356,25 @@ export class MasterMindAgent extends Agent {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );`;
-      try { this.sql`ALTER TABLE opportunities ADD COLUMN earning_model TEXT NOT NULL DEFAULT '';`; } catch {}
-      try { this.sql`ALTER TABLE opportunities ADD COLUMN risk TEXT NOT NULL DEFAULT '';`; } catch {}
-      try { this.sql`ALTER TABLE opportunities ADD COLUMN effort TEXT NOT NULL DEFAULT '';`; } catch {}
-      try { this.sql`ALTER TABLE opportunities ADD COLUMN cost TEXT NOT NULL DEFAULT '';`; } catch {}
-      try { this.sql`ALTER TABLE opportunities ADD COLUMN earning_potential TEXT NOT NULL DEFAULT '';`; } catch {}
-      try { this.sql`ALTER TABLE opportunities ADD COLUMN discovered_at TEXT NOT NULL DEFAULT '';`; } catch {}
+      const existingColumns = [...this.sql`PRAGMA table_info(opportunities);`].map(c => c.name);
+      if (!existingColumns.includes("earning_model")) {
+        this.sql`ALTER TABLE opportunities ADD COLUMN earning_model TEXT NOT NULL DEFAULT '';`;
+      }
+      if (!existingColumns.includes("risk")) {
+        this.sql`ALTER TABLE opportunities ADD COLUMN risk TEXT NOT NULL DEFAULT '';`;
+      }
+      if (!existingColumns.includes("effort")) {
+        this.sql`ALTER TABLE opportunities ADD COLUMN effort TEXT NOT NULL DEFAULT '';`;
+      }
+      if (!existingColumns.includes("cost")) {
+        this.sql`ALTER TABLE opportunities ADD COLUMN cost TEXT NOT NULL DEFAULT '';`;
+      }
+      if (!existingColumns.includes("earning_potential")) {
+        this.sql`ALTER TABLE opportunities ADD COLUMN earning_potential TEXT NOT NULL DEFAULT '';`;
+      }
+      if (!existingColumns.includes("discovered_at")) {
+        this.sql`ALTER TABLE opportunities ADD COLUMN discovered_at TEXT NOT NULL DEFAULT '';`;
+      }
       this.sql`CREATE TABLE IF NOT EXISTS evidence (
         id TEXT PRIMARY KEY,
         opportunity_id TEXT NOT NULL,
