@@ -22,7 +22,7 @@
       --text-muted: #94a3b8;
       --text-dim: #64748b;
       --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --bottom-nav-height: 72px;
+      --bottom-nav-height: 70px;
     }
 
     * {
@@ -40,7 +40,7 @@
       min-height: 100vh;
       overflow-x: hidden;
       overflow-y: auto;
-      padding-bottom: calc(var(--bottom-nav-height) + 24px);
+      padding-bottom: 110px; /* Ensures safe spacing above bottom nav */
       position: relative;
     }
 
@@ -62,10 +62,10 @@
       width: 100%;
       max-width: 440px;
       margin: 0 auto;
-      padding: 16px 16px 32px 16px;
+      padding: 16px 16px 120px 16px; /* Generous bottom padding to prevent nav collisions */
       display: flex;
       flex-direction: column;
-      gap: 24px;
+      gap: 20px;
     }
 
     /* Header Bar */
@@ -83,9 +83,9 @@
     }
 
     .brand-title {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 800;
-      letter-spacing: 4px;
+      letter-spacing: 3.5px;
       background: linear-gradient(135deg, #ffffff 30%, var(--neon-cyan) 70%, var(--neon-purple) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -138,7 +138,7 @@
     .hero-viewport {
       position: relative;
       width: 100%;
-      height: 320px;
+      height: 300px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -180,25 +180,25 @@
       text-transform: uppercase;
     }
 
-    /* Command Center Console */
-    .command-console {
+    /* Sleek Pill Command Capsule */
+    .command-capsule {
       position: relative;
-      background: rgba(10, 15, 30, 0.55);
+      background: rgba(10, 15, 30, 0.65);
       border: 1px solid var(--glass-border-violet);
-      border-radius: 24px;
-      padding: 6px 6px 6px 16px;
+      border-radius: 30px;
+      padding: 6px 8px 6px 20px;
       display: flex;
       align-items: center;
       gap: 12px;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
       transition: border-color 0.3s ease, box-shadow 0.3s ease;
     }
 
-    .command-console:focus-within {
+    .command-capsule:focus-within {
       border-color: var(--neon-cyan);
-      box-shadow: 0 8px 32px rgba(0, 240, 255, 0.2), inset 0 1px 0 rgba(0, 240, 255, 0.3);
+      box-shadow: 0 8px 32px rgba(0, 240, 255, 0.25), inset 0 1px 0 rgba(0, 240, 255, 0.4);
     }
 
     .command-input {
@@ -217,41 +217,38 @@
       color: var(--text-dim);
     }
 
-    .command-submit-btn {
-      background: linear-gradient(135deg, var(--neon-violet), var(--neon-blue));
+    .capsule-send-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--neon-violet), var(--neon-cyan));
       border: none;
-      border-radius: 18px;
-      padding: 10px 20px;
       color: #ffffff;
-      font-family: var(--font-family);
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      cursor: pointer;
-      box-shadow: 0 4px 15px rgba(168, 85, 247, 0.4);
-      transition: transform 0.2s ease, opacity 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+      transition: transform 0.2s ease;
+      flex-shrink: 0;
     }
 
-    .command-submit-btn:active {
-      transform: scale(0.95);
-      opacity: 0.9;
+    .capsule-send-btn:active {
+      transform: scale(0.92);
     }
 
-    /* Section Styling */
-    .section-container {
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+    .send-icon {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
     }
 
+    /* Section Header */
     .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0 4px;
+      padding: 0 4px 4px 4px;
     }
 
     .section-title {
@@ -270,93 +267,63 @@
       text-transform: uppercase;
     }
 
-    /* Capability Navigation Grid */
-    .capabilities-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
+    /* Horizontal Capability Pill Strip */
+    .capabilities-strip {
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+      padding: 4px 2px 10px 2px;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
     }
 
-    .cap-card {
+    .capabilities-strip::-webkit-scrollbar {
+      display: none;
+    }
+
+    .cap-pill {
+      flex: 0 0 auto;
       background: var(--bg-surface);
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 20px;
-      padding: 16px;
+      padding: 10px 16px;
       display: flex;
-      flex-direction: column;
-      gap: 10px;
+      align-items: center;
+      gap: 8px;
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
-      position: relative;
-      overflow: hidden;
-      transition: transform 0.2s ease, border-color 0.2s ease;
+      white-space: nowrap;
+      transition: border-color 0.2s ease, transform 0.2s ease;
     }
 
-    .cap-card.active {
+    .cap-pill.active {
       border-color: var(--glass-border);
       background: var(--bg-surface-active);
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
     }
 
-    .cap-card.active:active {
-      transform: scale(0.98);
+    .cap-pill.locked {
+      opacity: 0.5;
     }
 
-    .cap-card.locked {
-      opacity: 0.55;
-      filter: grayscale(0.4);
+    .cap-pill-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
     }
 
-    .cap-card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .cap-icon {
-      width: 28px;
-      height: 28px;
-      color: var(--neon-cyan);
-    }
-
-    .cap-badge {
-      font-size: 9px;
+    .cap-pill-badge {
+      font-size: 8px;
       font-weight: 700;
       letter-spacing: 1px;
-      padding: 2px 7px;
-      border-radius: 8px;
+      padding: 2px 6px;
+      border-radius: 6px;
       text-transform: uppercase;
     }
 
-    .cap-badge.active-badge {
-      background: rgba(16, 185, 129, 0.15);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      color: #10b981;
-    }
-
-    .cap-badge.planned-badge {
-      background: rgba(245, 158, 11, 0.15);
-      border: 1px solid rgba(245, 158, 11, 0.3);
-      color: #f59e0b;
-    }
-
-    .cap-badge.locked-badge {
-      background: rgba(100, 116, 139, 0.15);
-      border: 1px solid rgba(100, 116, 139, 0.3);
-      color: var(--text-dim);
-    }
-
-    .cap-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #ffffff;
-      letter-spacing: 0.5px;
-    }
-
-    .cap-desc {
-      font-size: 11px;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
+    .cap-pill-badge.active { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
+    .cap-pill-badge.planned { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
+    .cap-pill-badge.locked { background: rgba(100, 116, 139, 0.2); color: var(--text-dim); border: 1px solid rgba(100, 116, 139, 0.4); }
 
     /* Phase 1 Earning Hub Panel */
     .earning-hub-panel {
@@ -417,16 +384,16 @@
     .state-pill.unknown { background: rgba(100, 116, 139, 0.2); color: var(--text-muted); border: 1px solid rgba(100, 116, 139, 0.4); }
 
     /* System Telemetry & Knowledge Map Visual */
-    .telemetry-box {
+    .telemetry-strip {
       background: var(--bg-surface);
       border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 20px;
-      padding: 16px;
+      padding: 14px;
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
 
     .telemetry-row {
@@ -434,7 +401,7 @@
       justify-content: space-between;
       align-items: center;
       font-size: 12px;
-      padding-bottom: 8px;
+      padding-bottom: 6px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     }
 
@@ -454,37 +421,6 @@
       font-family: monospace;
     }
 
-    /* Quick Action Pills */
-    .quick-actions-row {
-      display: flex;
-      gap: 8px;
-      overflow-x: auto;
-      padding: 4px 0;
-      scrollbar-width: none;
-    }
-
-    .quick-actions-row::-webkit-scrollbar {
-      display: none;
-    }
-
-    .quick-pill {
-      background: rgba(10, 15, 30, 0.6);
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      padding: 8px 14px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--neon-cyan);
-      white-space: nowrap;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      cursor: pointer;
-    }
-
-    .quick-pill:active {
-      transform: scale(0.95);
-    }
-
     /* Floating Mobile Bottom Navigation Bar */
     .bottom-nav-container {
       position: fixed;
@@ -494,16 +430,16 @@
       width: calc(100% - 32px);
       max-width: 408px;
       height: var(--bottom-nav-height);
-      background: rgba(10, 15, 30, 0.75);
+      background: rgba(10, 15, 30, 0.85);
       border: 1px solid var(--glass-border);
       border-radius: 28px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
       display: flex;
       justify-content: space-around;
       align-items: center;
-      z-index: 100;
+      z-index: 999;
       padding: 0 8px;
     }
 
@@ -543,7 +479,7 @@
     .tab-view {
       display: none;
       flex-direction: column;
-      gap: 20px;
+      gap: 18px;
     }
 
     .tab-view.active {
@@ -598,115 +534,71 @@
         </div>
       </section>
 
-      <!-- Main Command Area -->
-      <section class="command-console">
+      <!-- Pill Command Capsule Area -->
+      <section class="command-capsule">
         <input type="text" id="main-command-input" class="command-input" placeholder="AIRA, mujhe kamai karni hai." value="AIRA, mujhe kamai karni hai." autocomplete="off">
-        <button id="main-command-send-btn" class="command-submit-btn">Send</button>
+        <button id="main-command-send-btn" class="capsule-send-btn" aria-label="Send Command">
+          <svg class="send-icon" viewBox="0 0 24 24">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
       </section>
 
       <div id="response-output-box" class="output-console"></div>
 
-      <!-- Quick Access Area -->
-      <div class="quick-actions-row">
-        <button class="quick-pill" onclick="quickPrompt('Scan Phase 1 Opportunities')">Scan Opportunities</button>
-        <button class="quick-pill" onclick="quickPrompt('Verify Evidence State')">Verify Evidence</button>
-        <button class="quick-pill" onclick="quickPrompt('Check Owner Fit Profile')">Owner Fit Check</button>
-        <button class="quick-pill" onclick="quickPrompt('Evaluate Decision Engine')">Run Decision</button>
-      </div>
-
       <!-- Capability Navigation Section -->
-      <section class="section-container">
+      <section style="display: flex; flex-direction: column; gap: 8px;">
         <div class="section-header">
-          <h2 class="section-title">Capabilities Navigation</h2>
+          <h2 class="section-title">Capabilities</h2>
           <span class="section-tag">Phase 1 Active</span>
         </div>
 
-        <div class="capabilities-grid">
+        <div class="capabilities-strip">
           <!-- Research (Active Phase 1) -->
-          <div class="cap-card active">
-            <div class="cap-card-header">
-              <svg class="cap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-              </svg>
-              <span class="cap-badge active-badge">ACTIVE</span>
-            </div>
-            <div class="cap-title">Research</div>
-            <div class="cap-desc">Web research and factual information discovery.</div>
+          <div class="cap-pill active">
+            <span class="cap-pill-title">Research</span>
+            <span class="cap-pill-badge active">ACTIVE</span>
           </div>
 
           <!-- Earning (Active Phase 1 Priority) -->
-          <div class="cap-card active">
-            <div class="cap-card-header">
-              <svg class="cap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-              <span class="cap-badge active-badge">ACTIVE</span>
-            </div>
-            <div class="cap-title">Earning</div>
-            <div class="cap-desc">Earning Agent, discovery, eligibility & decision engine.</div>
+          <div class="cap-pill active">
+            <span class="cap-pill-title">Earning</span>
+            <span class="cap-pill-badge active">ACTIVE</span>
           </div>
 
           <!-- Build (Planned) -->
-          <div class="cap-card locked">
-            <div class="cap-card-header">
-              <svg class="cap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path>
-              </svg>
-              <span class="cap-badge planned-badge">PLANNED</span>
-            </div>
-            <div class="cap-title">Build</div>
-            <div class="cap-desc">Software build agent. Phase 2 planned capability.</div>
+          <div class="cap-pill locked">
+            <span class="cap-pill-title">Build</span>
+            <span class="cap-pill-badge planned">PLANNED</span>
           </div>
 
           <!-- Analyze (Locked) -->
-          <div class="cap-card locked">
-            <div class="cap-card-header">
-              <svg class="cap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="20" x2="18" y2="10"></line>
-                <line x1="12" y1="20" x2="12" y2="4"></line>
-                <line x1="6" y1="20" x2="6" y2="14"></line>
-              </svg>
-              <span class="cap-badge locked-badge">LOCKED</span>
-            </div>
-            <div class="cap-title">Analyze</div>
-            <div class="cap-desc">Data analysis suite. Phase 2 planned capability.</div>
+          <div class="cap-pill locked">
+            <span class="cap-pill-title">Analyze</span>
+            <span class="cap-pill-badge locked">LOCKED</span>
           </div>
 
           <!-- Create (Coming Soon) -->
-          <div class="cap-card locked">
-            <div class="cap-card-header">
-              <svg class="cap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 8v8M8 12h8"></path>
-              </svg>
-              <span class="cap-badge planned-badge">COMING SOON</span>
-            </div>
-            <div class="cap-title">Create</div>
-            <div class="cap-desc">Creative synthesis agent. Phase 3 module.</div>
+          <div class="cap-pill locked">
+            <span class="cap-pill-title">Create</span>
+            <span class="cap-pill-badge planned">COMING SOON</span>
           </div>
 
           <!-- Automate (Locked) -->
-          <div class="cap-card locked">
-            <div class="cap-card-header">
-              <svg class="cap-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path>
-              </svg>
-              <span class="cap-badge locked-badge">LOCKED</span>
-            </div>
-            <div class="cap-title">Automate</div>
-            <div class="cap-desc">Autonomous workflow automation suite.</div>
+          <div class="cap-pill locked">
+            <span class="cap-pill-title">Automate</span>
+            <span class="cap-pill-badge locked">LOCKED</span>
           </div>
         </div>
       </section>
 
       <!-- System Environment & Truthful Telemetry -->
-      <section class="section-container">
+      <section style="display: flex; flex-direction: column; gap: 8px;">
         <div class="section-header">
           <h2 class="section-title">System Environment</h2>
           <span class="section-tag">Truthful State</span>
         </div>
-        <div class="telemetry-box">
+        <div class="telemetry-strip">
           <div class="telemetry-row">
             <span class="telemetry-label">Backend Environment</span>
             <span class="telemetry-val" id="val-backend">Cloudflare DO</span>
@@ -729,24 +621,28 @@
 
     <!-- Chat / Command View Tab -->
     <main id="view-chat" class="tab-view">
-      <section class="section-container">
+      <section style="display: flex; flex-direction: column; gap: 12px;">
         <div class="section-header">
           <h2 class="section-title">AIRA Conversation Console</h2>
           <span class="section-tag">Phase 1 AI</span>
         </div>
-        <div id="chat-messages-container" class="telemetry-box" style="min-height:260px; justify-content: flex-end;">
+        <div id="chat-messages-container" class="telemetry-strip" style="min-height:260px; justify-content: flex-end;">
           <div style="font-size:12px; color:var(--text-muted); text-align:center;">AIRA Operating System Ready. Send a command to begin.</div>
         </div>
-        <div class="command-console">
+        <div class="command-capsule">
           <input type="text" id="chat-tab-input" class="command-input" placeholder="Ask AIRA anything...">
-          <button id="chat-tab-send-btn" class="command-submit-btn">Send</button>
+          <button id="chat-tab-send-btn" class="capsule-send-btn" aria-label="Send Message">
+            <svg class="send-icon" viewBox="0 0 24 24">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
         </div>
       </section>
     </main>
 
     <!-- Earning Agent View Tab -->
     <main id="view-earning" class="tab-view">
-      <section class="section-container">
+      <section style="display: flex; flex-direction: column; gap: 12px;">
         <div class="section-header">
           <h2 class="section-title">Earning Agent Operator</h2>
           <span class="section-tag">Real API Data</span>
@@ -756,7 +652,7 @@
           <div id="opportunities-list-container">
             <div class="opportunity-card">
               <div class="opp-meta-row">
-                <span>Platform: Upwork (Manual Submit)</span>
+                <span>Platform: Upwork (Manual)</span>
                 <span class="state-pill unverified">UNVERIFIED</span>
               </div>
               <div class="opp-title">Fullstack Cloudflare Workers Engineer</div>
@@ -766,19 +662,19 @@
               </div>
             </div>
           </div>
-          <button class="command-submit-btn" style="width:100%; border-radius:12px;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
+          <button class="capsule-send-btn" style="width:100%; border-radius:12px; height:44px;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
         </div>
       </section>
     </main>
 
     <!-- Profile View Tab -->
     <main id="view-profile" class="tab-view">
-      <section class="section-container">
+      <section style="display: flex; flex-direction: column; gap: 12px;">
         <div class="section-header">
           <h2 class="section-title">Owner Fit Profile</h2>
           <span class="section-tag">Backend Record</span>
         </div>
-        <div class="telemetry-box" id="profile-details-box">
+        <div class="telemetry-strip" id="profile-details-box">
           <div class="telemetry-row">
             <span class="telemetry-label">Owner Skills</span>
             <span class="telemetry-val">JavaScript, Python, Cloudflare</span>
@@ -1031,11 +927,6 @@
     document.getElementById('main-command-input').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') sendMainCommand();
     });
-
-    function quickPrompt(promptText) {
-      document.getElementById('main-command-input').value = promptText;
-      sendMainCommand();
-    }
 
     function switchTab(tabName) {
       document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
