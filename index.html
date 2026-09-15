@@ -3,22 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>AIRA — Phase 1 Mobile UI</title>
+<title>AIRA — Phase 1 Premium Mobile AI OS</title>
 
 <style>
 :root {
-  --bg-dark: #05070e;
-  --bg-card: rgba(15, 23, 42, 0.75);
-  --bg-card-border: rgba(99, 102, 241, 0.2);
-  --bg-input: rgba(10, 15, 30, 0.85);
+  --bg-dark: #03050c;
+  --bg-card: rgba(13, 19, 36, 0.72);
+  --bg-card-hover: rgba(22, 31, 56, 0.85);
+  --bg-card-border: rgba(99, 102, 241, 0.22);
+  --bg-card-border-glow: rgba(168, 85, 247, 0.45);
+  --bg-input: rgba(8, 12, 24, 0.9);
   --primary-glow: #6366f1;
   --accent-purple: #a855f7;
   --accent-cyan: #06b6d4;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
   --text-main: #f8fafc;
   --text-muted: #94a3b8;
-  --status-online: #10b981;
-  --status-locked: #64748b;
-  --nav-bg: rgba(7, 10, 22, 0.92);
+  --nav-bg: rgba(6, 9, 20, 0.93);
 }
 
 * {
@@ -38,8 +40,9 @@ body {
   align-items: flex-start;
   overflow-x: hidden;
   background-image:
-    radial-gradient(circle at 50% 15%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
-    radial-gradient(circle at 80% 60%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+    radial-gradient(circle at 50% 12%, rgba(99, 102, 241, 0.18) 0%, transparent 48%),
+    radial-gradient(circle at 85% 55%, rgba(168, 85, 247, 0.1) 0%, transparent 40%),
+    radial-gradient(circle at 15% 80%, rgba(6, 182, 212, 0.08) 0%, transparent 35%);
   background-attachment: fixed;
 }
 
@@ -50,21 +53,22 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  padding-bottom: 85px;
+  padding-bottom: 92px;
 }
 
 /* HEADER */
 .header {
-  padding: 16px 20px 12px;
+  padding: 14px 20px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   position: sticky;
   top: 0;
   z-index: 50;
-  background: rgba(5, 7, 14, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(3, 5, 12, 0.85);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
 }
 
 .brand {
@@ -76,8 +80,8 @@ body {
 .brand-title {
   font-size: 20px;
   font-weight: 800;
-  letter-spacing: 2px;
-  background: linear-gradient(135deg, #fff 30%, #a855f7 100%);
+  letter-spacing: 2.5px;
+  background: linear-gradient(135deg, #ffffff 20%, #a855f7 70%, #06b6d4 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -85,11 +89,11 @@ body {
 .brand-badge {
   font-size: 9px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 1.2px;
   color: var(--accent-cyan);
   background: rgba(6, 182, 212, 0.12);
-  border: 1px solid rgba(6, 182, 212, 0.3);
-  padding: 2px 6px;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+  padding: 2px 7px;
   border-radius: 6px;
   text-transform: uppercase;
 }
@@ -97,12 +101,12 @@ body {
 .status-pill {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   font-size: 11px;
   font-weight: 600;
-  color: #10b981;
+  color: var(--accent-emerald);
   background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  border: 1px solid rgba(16, 185, 129, 0.3);
   padding: 4px 10px;
   border-radius: 20px;
 }
@@ -110,16 +114,16 @@ body {
 .status-dot {
   width: 7px;
   height: 7px;
-  background-color: #10b981;
+  background-color: var(--accent-emerald);
   border-radius: 50%;
-  box-shadow: 0 0 8px #10b981;
-  animation: pulse-dot 2s infinite;
+  box-shadow: 0 0 10px var(--accent-emerald);
+  animation: pulse-dot 2s infinite ease-in-out;
 }
 
 @keyframes pulse-dot {
-  0% { opacity: 0.6; transform: scale(0.95); }
-  50% { opacity: 1; transform: scale(1.15); }
-  100% { opacity: 0.6; transform: scale(0.95); }
+  0% { opacity: 0.5; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 0.5; transform: scale(0.9); }
 }
 
 /* VIEWS */
@@ -128,100 +132,74 @@ body {
   padding: 16px 18px;
   flex-direction: column;
   gap: 20px;
+  animation: fadeIn 0.25s ease-out;
 }
 
 .view.active {
   display: flex;
 }
 
-/* NEURAL CORE VISUAL */
-.core-container {
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 5D NEURAL CORE CANVAS AREA */
+.core-section {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 10px 0;
   position: relative;
+  padding: 10px 0 0;
 }
 
-.neural-core {
-  width: 170px;
-  height: 170px;
+.canvas-wrapper {
   position: relative;
+  width: 240px;
+  height: 220px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.core-orb {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #818cf8, #4f46e5 50%, #1e1b4b 100%);
-  box-shadow:
-    0 0 35px rgba(99, 102, 241, 0.6),
-    0 0 75px rgba(168, 85, 247, 0.3),
-    inset 0 0 15px rgba(255, 255, 255, 0.4);
-  position: relative;
-  z-index: 2;
-  animation: core-float 4s ease-in-out infinite;
+#neuralCanvas {
+  width: 240px;
+  height: 220px;
+  border-radius: 20px;
 }
 
-@keyframes core-float {
-  0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-6px) scale(1.03); }
-}
-
-.core-ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px solid rgba(168, 85, 247, 0.35);
-  box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
-}
-
-.ring-1 {
-  width: 135px;
-  height: 135px;
-  border-top-color: var(--accent-cyan);
-  border-bottom-color: transparent;
-  animation: spin-clockwise 8s linear infinite;
-}
-
-.ring-2 {
-  width: 160px;
-  height: 160px;
-  border-left-color: var(--accent-purple);
-  border-right-color: transparent;
-  animation: spin-counter 12s linear infinite;
-}
-
-@keyframes spin-clockwise {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-@keyframes spin-counter {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
-}
-
-.core-status-text {
-  margin-top: 10px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  letter-spacing: 1px;
+.core-label {
+  margin-top: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--accent-cyan);
   text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
 }
 
-/* COMMAND AREA */
+.core-sublabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+}
+
+/* COMMAND CARD */
 .command-card {
   background: var(--bg-card);
   border: 1px solid var(--bg-card-border);
   border-radius: 20px;
   padding: 14px 16px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transition: border-color 0.3s;
+}
+
+.command-card:focus-within {
+  border-color: var(--bg-card-border-glow);
+  box-shadow: 0 10px 35px rgba(168, 85, 247, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .command-input-group {
@@ -233,31 +211,33 @@ body {
 .command-input {
   flex: 1;
   background: var(--bg-input);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
   padding: 14px 16px;
-  color: #fff;
+  color: #ffffff;
   font-size: 14px;
+  font-weight: 500;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .command-input:focus {
   border-color: var(--primary-glow);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.3);
 }
 
 .command-btn {
   background: linear-gradient(135deg, #6366f1, #a855f7);
-  color: #fff;
+  color: #ffffff;
   border: none;
   border-radius: 14px;
-  padding: 0 18px;
+  padding: 0 20px;
   height: 48px;
   font-weight: 700;
   font-size: 14px;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+  box-shadow: 0 4px 18px rgba(99, 102, 241, 0.4);
   transition: transform 0.15s, opacity 0.15s;
   display: flex;
   align-items: center;
@@ -265,7 +245,7 @@ body {
 }
 
 .command-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
 .command-btn:disabled {
@@ -273,11 +253,11 @@ body {
   cursor: not-allowed;
 }
 
-/* CAPABILITIES GRID */
+/* SECTION TITLES */
 .section-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
-  letter-spacing: 1.2px;
+  letter-spacing: 1.5px;
   color: var(--text-muted);
   text-transform: uppercase;
   margin-bottom: 12px;
@@ -286,6 +266,7 @@ body {
   justify-content: space-between;
 }
 
+/* CAPABILITIES GRID */
 .capabilities-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -295,20 +276,22 @@ body {
 .cap-card {
   background: var(--bg-card);
   border: 1px solid var(--bg-card-border);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
   position: relative;
   overflow: hidden;
-  backdrop-filter: blur(10px);
-  transition: transform 0.15s, border-color 0.2s;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 .cap-card.active-cap {
-  border-color: rgba(99, 102, 241, 0.5);
-  background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(30, 27, 75, 0.4));
+  border-color: rgba(99, 102, 241, 0.45);
+  background: linear-gradient(145deg, rgba(13, 19, 36, 0.85), rgba(30, 27, 75, 0.35));
   cursor: pointer;
 }
 
@@ -319,7 +302,7 @@ body {
 .cap-card.locked-cap {
   opacity: 0.65;
   border-color: rgba(255, 255, 255, 0.05);
-  background: rgba(10, 14, 26, 0.6);
+  background: rgba(8, 12, 22, 0.6);
 }
 
 .cap-header {
@@ -329,20 +312,21 @@ body {
 }
 
 .cap-icon {
-  font-size: 20px;
+  font-size: 22px;
 }
 
 .cap-badge {
   font-size: 9px;
   font-weight: 700;
-  padding: 2px 6px;
+  padding: 2px 7px;
   border-radius: 6px;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
 }
 
 .cap-badge.badge-active {
   background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
+  color: var(--accent-emerald);
   border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
@@ -355,22 +339,24 @@ body {
 .cap-name {
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: #ffffff;
 }
 
 .cap-desc {
   font-size: 11px;
   color: var(--text-muted);
-  line-height: 1.3;
+  line-height: 1.35;
 }
 
 /* SYSTEM STATUS PANEL */
 .glass-panel {
   background: var(--bg-card);
   border: 1px solid var(--bg-card-border);
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 16px;
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .status-grid {
@@ -380,9 +366,9 @@ body {
 }
 
 .status-item {
-  background: rgba(10, 15, 30, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  background: rgba(8, 12, 24, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
   padding: 10px 12px;
 }
 
@@ -391,13 +377,13 @@ body {
   font-weight: 600;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
 }
 
 .status-value {
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: #ffffff;
   margin-top: 4px;
   display: flex;
   align-items: center;
@@ -412,10 +398,10 @@ body {
 }
 
 .quick-chip {
-  background: rgba(30, 41, 59, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(22, 31, 56, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.09);
   color: #e2e8f0;
-  padding: 8px 12px;
+  padding: 8px 14px;
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
@@ -425,15 +411,15 @@ body {
 
 .quick-chip:active {
   transform: scale(0.96);
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(99, 102, 241, 0.25);
   border-color: var(--primary-glow);
 }
 
 /* KNOWLEDGE MAP SECTION */
 .map-visual {
-  background: rgba(10, 15, 30, 0.8);
+  background: rgba(8, 12, 24, 0.85);
   border: 1px solid var(--bg-card-border);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 16px;
   position: relative;
   overflow: hidden;
@@ -444,7 +430,7 @@ body {
   justify-content: space-around;
   align-items: center;
   position: relative;
-  padding: 15px 0;
+  padding: 16px 0 8px;
 }
 
 .node-item {
@@ -456,21 +442,21 @@ body {
 }
 
 .node-circle {
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: #1e293b;
-  border: 2px solid #475569;
+  background: #131b2e;
+  border: 2px solid #334155;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .node-circle.active-node {
-  background: rgba(99, 102, 241, 0.2);
+  background: rgba(99, 102, 241, 0.25);
   border-color: var(--primary-glow);
-  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.45);
 }
 
 .node-circle.locked-node {
@@ -485,7 +471,7 @@ body {
 
 .graph-connector {
   position: absolute;
-  top: 33px;
+  top: 36px;
   left: 20%;
   right: 20%;
   height: 2px;
@@ -498,8 +484,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  min-height: 350px;
-  max-height: 60vh;
+  min-height: 380px;
+  max-height: 62vh;
   overflow-y: auto;
   padding-right: 4px;
 }
@@ -507,7 +493,7 @@ body {
 .msg-bubble {
   max-width: 88%;
   padding: 12px 16px;
-  border-radius: 16px;
+  border-radius: 18px;
   font-size: 13.5px;
   line-height: 1.5;
   word-break: break-word;
@@ -516,50 +502,17 @@ body {
 .msg-bubble.user {
   align-self: flex-end;
   background: linear-gradient(135deg, #4f46e5, #6366f1);
-  color: #fff;
+  color: #ffffff;
   border-bottom-right-radius: 4px;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+  box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
 }
 
 .msg-bubble.ai {
   align-self: flex-start;
-  background: rgba(30, 41, 59, 0.85);
+  background: rgba(18, 26, 48, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.08);
   color: #f1f5f9;
   border-bottom-left-radius: 4px;
-}
-
-/* OPPORTUNITIES CARDS */
-.opp-card {
-  background: var(--bg-card);
-  border: 1px solid var(--bg-card-border);
-  border-radius: 16px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.opp-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.opp-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.opp-tag {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: var(--text-muted);
 }
 
 /* BOTTOM MOBILE NAVIGATION */
@@ -570,15 +523,16 @@ body {
   transform: translateX(-50%);
   width: 100%;
   max-width: 480px;
-  height: 68px;
+  height: 70px;
   background: var(--nav-bg);
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   display: flex;
   justify-content: space-around;
   align-items: center;
   z-index: 100;
-  padding: 0 8px;
+  padding: 0 10px;
 }
 
 .nav-item {
@@ -598,7 +552,7 @@ body {
 }
 
 .nav-item.active {
-  color: var(--primary-glow);
+  color: var(--accent-cyan);
 }
 
 .nav-item:active {
@@ -608,10 +562,6 @@ body {
 .nav-icon {
   font-size: 18px;
 }
-
-/* UTILITY CLASSES */
-.badge-verified { color: #10b981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); }
-.badge-unverified { color: #f59e0b; border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.1); }
 </style>
 </head>
 
@@ -634,14 +584,13 @@ body {
   <!-- VIEW 1: HOME VIEW -->
   <main id="view-home" class="view active">
 
-    <!-- CENTRAL NEURAL CORE VISUAL -->
-    <section class="core-container">
-      <div class="neural-core">
-        <div class="core-ring ring-1"></div>
-        <div class="core-ring ring-2"></div>
-        <div class="core-orb"></div>
+    <!-- CENTRAL 5D NEURAL CORE CANVAS -->
+    <section class="core-section">
+      <div class="canvas-wrapper">
+        <canvas id="neuralCanvas" width="240" height="220"></canvas>
       </div>
-      <div class="core-status-text" id="coreStatusText">NEURAL ENGINE ACTIVE</div>
+      <div class="core-label">AIRA NEURAL OS</div>
+      <div class="core-sublabel">EARNING OPERATOR & RESEARCH CORE</div>
     </section>
 
     <!-- COMMAND AREA -->
@@ -661,7 +610,7 @@ body {
       </div>
     </section>
 
-    <!-- CAPABILITIES GRID -->
+    <!-- CAPABILITIES NAVIGATION -->
     <section>
       <div class="section-title">
         <span>Capabilities Navigation</span>
@@ -735,32 +684,32 @@ body {
     <!-- SYSTEM STATUS PANEL -->
     <section class="glass-panel">
       <div class="section-title">
-        <span>System Status</span>
-        <span style="font-size:10px; color:#10b981;">TRUTHFUL METRICS</span>
+        <span>System Telemetry</span>
+        <span style="font-size:10px; color:var(--accent-emerald);">TRUTHFUL METRICS</span>
       </div>
       <div class="status-grid">
         <div class="status-item">
           <div class="status-label">AI Binding</div>
           <div class="status-value" id="sysAiBinding">
-            <span style="color:#10b981;">●</span> CONNECTED
+            <span style="color:var(--accent-emerald);">●</span> CONNECTED
           </div>
         </div>
         <div class="status-item">
           <div class="status-label">Browser Engine</div>
           <div class="status-value" id="sysBrowserBinding">
-            <span style="color:#f59e0b;">●</span> DISCONNECTED
+            <span style="color:var(--accent-amber);">●</span> DISCONNECTED
           </div>
         </div>
         <div class="status-item">
           <div class="status-label">Durable Object</div>
           <div class="status-value" id="sysDOBinding">
-            <span style="color:#10b981;">●</span> READY
+            <span style="color:var(--accent-emerald);">●</span> READY
           </div>
         </div>
         <div class="status-item">
           <div class="status-label">Earning Agent</div>
           <div class="status-value" id="sysEarningAgent">
-            <span style="color:#10b981;">●</span> ACTIVE
+            <span style="color:var(--accent-emerald);">●</span> ACTIVE
           </div>
         </div>
       </div>
@@ -768,12 +717,12 @@ body {
 
     <!-- LEARNING / NEURAL ACTIVITY -->
     <section class="glass-panel">
-      <div class="section-title">Neural Model Metadata</div>
+      <div class="section-title">Neural Engine Specifications</div>
       <div style="font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:6px;">
         <div><b>Model:</b> @cf/meta/llama-3.1-8b-instruct-fp8</div>
-        <div><b>Inference Mode:</b> Cloudflare Workers AI</div>
-        <div><b>Verification Engine:</b> FACT Evidence Mandate Active</div>
-        <div><b>Marketplace Actions:</b> Manual Owner Final Submission Enforced</div>
+        <div><b>Inference Engine:</b> Cloudflare Workers AI</div>
+        <div><b>Verification Engine:</b> FACT Evidence Mandate Enforced</div>
+        <div><b>Marketplace Guard:</b> Manual Owner Final Submission Enforced</div>
       </div>
     </section>
 
@@ -838,26 +787,25 @@ body {
 
   <!-- VIEW 3: AIRA CORE VIEW -->
   <main id="view-aira" class="view">
-    <div class="section-title">AIRA Central Core Diagnostics</div>
-    <section class="core-container" style="padding: 20px 0;">
-      <div class="neural-core" style="width:200px; height:200px;">
-        <div class="core-ring ring-1" style="width:160px; height:160px;"></div>
-        <div class="core-ring ring-2" style="width:190px; height:190px;"></div>
-        <div class="core-orb" style="width:110px; height:110px;"></div>
-      </div>
-      <div class="core-status-text" style="margin-top:20px; font-size:14px; color:#a855f7;">
-        STATE: OPERATIONAL (INFERENCE MODE)
+    <div class="section-title">AIRA Core Diagnostics</div>
+
+    <section class="glass-panel" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="font-size:13px; font-weight:700; color:var(--accent-cyan);">ACTIVE PHASE 1 CAPABILITIES</div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">
+        • Deterministic Decision Engine (SELECT / REJECT / NEEDS_REVIEW)<br>
+        • Truthful Discovery & Duplicate Prevention<br>
+        • Verification Engine (FACT Evidence Mandate)<br>
+        • Eligibility & Owner-Fit Engines<br>
+        • Manual Upwork/Fiverr Submission Guard
       </div>
     </section>
 
     <section class="glass-panel">
-      <div class="section-title">Phase 1 Earning Capabilities</div>
-      <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">
-        • Deterministic Decision Engine (SELECT / REJECT / NEEDS_REVIEW)<br>
-        • Truthful Discovery & Duplicate Prevention<br>
-        • Verification Engine (FACT evidence requirement)<br>
-        • Eligibility & Owner-Fit Engine<br>
-        • Manual Upwork/Fiverr Submission Guard
+      <div class="section-title">Security & Safety Status</div>
+      <div style="font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:6px;">
+        <div><b>External Submissions:</b> Strictly Manual</div>
+        <div><b>Spending / Money:</b> Prohibited</div>
+        <div><b>Model Binding:</b> Standard Cloudflare AI</div>
       </div>
     </section>
   </main>
@@ -867,7 +815,7 @@ body {
     <div class="section-title">Connected Tools & Services</div>
 
     <div class="glass-panel" style="display:flex; flex-direction:column; gap:12px;">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; justify-space-between; align-items:center;">
         <div>
           <div style="font-weight:700; font-size:14px;">Web Research</div>
           <div style="font-size:11px; color:var(--text-muted);">Cloudflare Browser Rendering</div>
@@ -886,7 +834,7 @@ body {
       <div style="display:flex; justify-content:space-between; align-items:center;">
         <div>
           <div style="font-weight:700; font-size:14px;">Upwork / Fiverr Automation</div>
-          <div style="font-size:11px; color:var(--text-muted);">Manual Submission Required</div>
+          <div style="font-size:11px; color:var(--text-muted);">Manual Owner Review Guard</div>
         </div>
         <span class="cap-badge badge-locked">MANUAL GUARD</span>
       </div>
@@ -933,6 +881,136 @@ body {
 
 <script>
 let requestRunning = false;
+
+// 5D NEURAL CORE ANIMATION ENGINE
+function initNeuralCoreCanvas() {
+  const canvas = document.getElementById('neuralCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const width = canvas.width;
+  const height = canvas.height;
+  const cx = width / 2;
+  const cy = height / 2 - 10;
+
+  let angle1 = 0;
+  let angle2 = 0;
+  let pulse = 0;
+
+  const particles = [];
+  for (let i = 0; i < 25; i++) {
+    particles.push({
+      angle: Math.random() * Math.PI * 2,
+      radius: 45 + Math.random() * 45,
+      speed: 0.01 + Math.random() * 0.02,
+      size: 1 + Math.random() * 2,
+      alpha: 0.3 + Math.random() * 0.7
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, width, height);
+
+    // Glowing Pedestal Beam
+    const beamGrad = ctx.createLinearGradient(cx, cy + 20, cx, height - 10);
+    beamGrad.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
+    beamGrad.addColorStop(0.5, 'rgba(99, 102, 241, 0.12)');
+    beamGrad.addColorStop(1, 'rgba(6, 182, 212, 0)');
+    ctx.fillStyle = beamGrad;
+    ctx.beginPath();
+    ctx.moveTo(cx - 35, cy + 25);
+    ctx.lineTo(cx + 35, cy + 25);
+    ctx.lineTo(cx + 65, height - 10);
+    ctx.lineTo(cx - 65, height - 10);
+    ctx.closePath();
+    ctx.fill();
+
+    // Pedestal Base Oval
+    ctx.save();
+    ctx.translate(cx, height - 12);
+    ctx.scale(1, 0.3);
+    ctx.beginPath();
+    ctx.arc(0, 0, 60, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.5)';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#06b6d4';
+    ctx.stroke();
+    ctx.restore();
+
+    // Orbital Ring 1 (Tilt X)
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle1);
+    ctx.scale(1, 0.4);
+    ctx.beginPath();
+    ctx.arc(0, 0, 75, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(168, 85, 247, 0.6)';
+    ctx.lineWidth = 1.8;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#a855f7';
+    ctx.stroke();
+    ctx.restore();
+
+    // Orbital Ring 2 (Tilt Y)
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-angle2);
+    ctx.scale(0.4, 1);
+    ctx.beginPath();
+    ctx.arc(0, 0, 70, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(6, 182, 212, 0.6)';
+    ctx.lineWidth = 1.8;
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = '#06b6d4';
+    ctx.stroke();
+    ctx.restore();
+
+    // Orbital Particles
+    particles.forEach(p => {
+      p.angle += p.speed;
+      const px = cx + Math.cos(p.angle) * p.radius;
+      const py = cy + Math.sin(p.angle) * (p.radius * 0.45);
+      ctx.beginPath();
+      ctx.arc(px, py, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(168, 85, 247, ${p.alpha})`;
+      ctx.shadowBlur = 6;
+      ctx.shadowColor = '#a855f7';
+      ctx.fill();
+    });
+
+    // Core Volumetric Orb
+    const currentPulse = Math.sin(pulse) * 4;
+    const orbGrad = ctx.createRadialGradient(
+      cx - 10, cy - 10, 5,
+      cx, cy, 38 + currentPulse
+    );
+    orbGrad.addColorStop(0, '#ffffff');
+    orbGrad.addColorStop(0.3, '#818cf8');
+    orbGrad.addColorStop(0.7, '#6366f1');
+    orbGrad.addColorStop(1, '#312e81');
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, 38 + currentPulse, 0, Math.PI * 2);
+    ctx.fillStyle = orbGrad;
+    ctx.shadowBlur = 25 + currentPulse * 2;
+    ctx.shadowColor = '#818cf8';
+    ctx.fill();
+
+    // Inner Core Glow Peak
+    ctx.beginPath();
+    ctx.arc(cx - 8, cy - 8, 12, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
+    ctx.fill();
+
+    angle1 += 0.015;
+    angle2 += 0.02;
+    pulse += 0.03;
+
+    requestAnimationFrame(draw);
+  }
+
+  draw();
+}
 
 function switchTab(tabId, btnElement) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -985,7 +1063,7 @@ async function submitChatCommand() {
   if (sendBtn) sendBtn.disabled = true;
   if (homeSendBtn) homeSendBtn.disabled = true;
 
-  // Append user bubble
+  // Append user message bubble
   messages.innerHTML += `<div class="msg-bubble user">${escapeHtml(text)}</div>`;
   input.value = "";
 
@@ -1004,7 +1082,7 @@ async function submitChatCommand() {
     try {
       data = await response.json();
     } catch {
-      data = { ok: false, error: "Backend return invalid JSON" };
+      data = { ok: false, error: "Backend returned invalid JSON" };
     }
 
     const loadingElem = document.getElementById(loadingId);
@@ -1045,14 +1123,14 @@ async function checkSystemHealth() {
     const data = await response.json();
 
     if (data.ok) {
-      document.getElementById("sysAiBinding").innerHTML = `<span style="color:#10b981;">●</span> CONNECTED`;
+      document.getElementById("sysAiBinding").innerHTML = `<span style="color:var(--accent-emerald);">●</span> CONNECTED`;
 
       if (data.browserConnected) {
-        document.getElementById("sysBrowserBinding").innerHTML = `<span style="color:#10b981;">●</span> CONNECTED`;
+        document.getElementById("sysBrowserBinding").innerHTML = `<span style="color:var(--accent-emerald);">●</span> CONNECTED`;
         document.getElementById("toolBrowserBadge").textContent = "CONNECTED";
         document.getElementById("toolBrowserBadge").className = "cap-badge badge-active";
       } else {
-        document.getElementById("sysBrowserBinding").innerHTML = `<span style="color:#f59e0b;">●</span> NOT CONNECTED`;
+        document.getElementById("sysBrowserBinding").innerHTML = `<span style="color:var(--accent-amber);">●</span> NOT CONNECTED`;
         document.getElementById("toolBrowserBadge").textContent = "NOT CONNECTED";
         document.getElementById("toolBrowserBadge").className = "cap-badge badge-locked";
       }
@@ -1094,8 +1172,11 @@ document.getElementById("chatCommandInput")?.addEventListener("keydown", functio
   }
 });
 
-// Initial health check
-checkSystemHealth();
+// Initialize on load
+window.addEventListener('DOMContentLoaded', () => {
+  initNeuralCoreCanvas();
+  checkSystemHealth();
+});
 </script>
 
 </body>
