@@ -2,498 +2,1101 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>MasterMind AI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AIRA — Phase 1 Mobile UI</title>
 
 <style>
-*{
-  box-sizing:border-box;
+:root {
+  --bg-dark: #05070e;
+  --bg-card: rgba(15, 23, 42, 0.75);
+  --bg-card-border: rgba(99, 102, 241, 0.2);
+  --bg-input: rgba(10, 15, 30, 0.85);
+  --primary-glow: #6366f1;
+  --accent-purple: #a855f7;
+  --accent-cyan: #06b6d4;
+  --text-main: #f8fafc;
+  --text-muted: #94a3b8;
+  --status-online: #10b981;
+  --status-locked: #64748b;
+  --nav-bg: rgba(7, 10, 22, 0.92);
 }
 
-body{
-  margin:0;
-  font-family:Arial,sans-serif;
-  background:#0b1020;
-  color:#fff;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.container{
-  max-width:850px;
-  margin:auto;
-  padding:16px;
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-x: hidden;
+  background-image:
+    radial-gradient(circle at 50% 15%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 60%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+  background-attachment: fixed;
 }
 
-.header{
-  text-align:center;
-  padding:22px 10px;
+.app-container {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  padding-bottom: 85px;
 }
 
-.logo{
-  font-size:42px;
+/* HEADER */
+.header {
+  padding: 16px 20px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  backdrop-filter: blur(10px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(5, 7, 14, 0.8);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-h1{
-  margin:8px 0;
-  font-size:30px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-.subtitle{
-  color:#aeb8d0;
+.brand-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  background: linear-gradient(135deg, #fff 30%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.card{
-  background:#151d36;
-  border:1px solid #293556;
-  border-radius:22px;
-  padding:18px;
-  margin-top:15px;
+.brand-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.12);
+  border: 1px solid rgba(6, 182, 212, 0.3);
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-transform: uppercase;
 }
 
-.status{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  color:#79f2a6;
-  margin-bottom:15px;
-  font-size:18px;
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 4px 10px;
+  border-radius: 20px;
 }
 
-.status-dot{
-  width:10px;
-  height:10px;
-  background:#32e875;
-  border-radius:50%;
+.status-dot {
+  width: 7px;
+  height: 7px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulse-dot 2s infinite;
 }
 
-.messages{
-  height:430px;
-  overflow-y:auto;
-  padding:8px;
-  display:flex;
-  flex-direction:column;
-  gap:14px;
+@keyframes pulse-dot {
+  0% { opacity: 0.6; transform: scale(0.95); }
+  50% { opacity: 1; transform: scale(1.15); }
+  100% { opacity: 0.6; transform: scale(0.95); }
 }
 
-.msg{
-  padding:15px 18px;
-  border-radius:18px;
-  line-height:1.6;
-  max-width:90%;
-  word-wrap:break-word;
+/* VIEWS */
+.view {
+  display: none;
+  padding: 16px 18px;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.user{
-  align-self:flex-end;
-  background:#315bd6;
+.view.active {
+  display: flex;
 }
 
-.ai{
-  align-self:flex-start;
-  background:#202b49;
+/* NEURAL CORE VISUAL */
+.core-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 0;
+  position: relative;
 }
 
-.quick{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  margin:15px 0;
+.neural-core {
+  width: 170px;
+  height: 170px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.quick button{
-  background:#202b49;
-  color:#fff;
-  border:1px solid #3b4b73;
-  border-radius:12px;
-  padding:10px 14px;
-  cursor:pointer;
-  font-size:15px;
+.core-orb {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #818cf8, #4f46e5 50%, #1e1b4b 100%);
+  box-shadow:
+    0 0 35px rgba(99, 102, 241, 0.6),
+    0 0 75px rgba(168, 85, 247, 0.3),
+    inset 0 0 15px rgba(255, 255, 255, 0.4);
+  position: relative;
+  z-index: 2;
+  animation: core-float 4s ease-in-out infinite;
 }
 
-.quick button:active{
-  transform:scale(.97);
+@keyframes core-float {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-6px) scale(1.03); }
 }
 
-.input-area{
-  display:flex;
-  gap:10px;
+.core-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  box-shadow: 0 0 15px rgba(168, 85, 247, 0.15);
 }
 
-#command{
-  flex:1;
-  min-width:0;
-  background:#0d1428;
-  color:#fff;
-  border:1px solid #3b4b73;
-  border-radius:15px;
-  padding:15px;
-  font-size:16px;
-  outline:none;
+.ring-1 {
+  width: 135px;
+  height: 135px;
+  border-top-color: var(--accent-cyan);
+  border-bottom-color: transparent;
+  animation: spin-clockwise 8s linear infinite;
 }
 
-#command:focus{
-  border-color:#5276ff;
+.ring-2 {
+  width: 160px;
+  height: 160px;
+  border-left-color: var(--accent-purple);
+  border-right-color: transparent;
+  animation: spin-counter 12s linear infinite;
 }
 
-.send{
-  background:#4b6fff;
-  color:#fff;
-  border:0;
-  border-radius:15px;
-  padding:0 22px;
-  font-size:16px;
-  font-weight:bold;
-  cursor:pointer;
+@keyframes spin-clockwise {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
-.send:disabled{
-  opacity:.6;
-  cursor:not-allowed;
+@keyframes spin-counter {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
 }
 
-.footer{
-  text-align:center;
-  color:#7783a5;
-  font-size:13px;
-  margin-top:18px;
+.core-status-text {
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
-@media(max-width:600px){
-
-  .container{
-    padding:12px;
-  }
-
-  .messages{
-    height:400px;
-  }
-
-  .msg{
-    max-width:94%;
-  }
-
-  .input-area{
-    flex-direction:row;
-  }
-
-  .send{
-    padding:0 18px;
-  }
+/* COMMAND AREA */
+.command-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 20px;
+  padding: 14px 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
+
+.command-input-group {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.command-input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.command-input:focus {
+  border-color: var(--primary-glow);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.25);
+}
+
+.command-btn {
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  padding: 0 18px;
+  height: 48px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
+  transition: transform 0.15s, opacity 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.command-btn:active {
+  transform: scale(0.96);
+}
+
+.command-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* CAPABILITIES GRID */
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.capabilities-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.cap-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  transition: transform 0.15s, border-color 0.2s;
+}
+
+.cap-card.active-cap {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.85), rgba(30, 27, 75, 0.4));
+  cursor: pointer;
+}
+
+.cap-card.active-cap:active {
+  transform: scale(0.98);
+}
+
+.cap-card.locked-cap {
+  opacity: 0.65;
+  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(10, 14, 26, 0.6);
+}
+
+.cap-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cap-icon {
+  font-size: 20px;
+}
+
+.cap-badge {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 6px;
+  letter-spacing: 0.5px;
+}
+
+.cap-badge.badge-active {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.cap-badge.badge-locked {
+  background: rgba(100, 116, 139, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+}
+
+.cap-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.cap-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+/* SYSTEM STATUS PANEL */
+.glass-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 18px;
+  padding: 16px;
+  backdrop-filter: blur(12px);
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.status-item {
+  background: rgba(10, 15, 30, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.status-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-value {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* QUICK ACCESS & CHIPS */
+.chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quick-chip {
+  background: rgba(30, 41, 59, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e2e8f0;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, transform 0.1s;
+}
+
+.quick-chip:active {
+  transform: scale(0.96);
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--primary-glow);
+}
+
+/* KNOWLEDGE MAP SECTION */
+.map-visual {
+  background: rgba(10, 15, 30, 0.8);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 16px;
+  padding: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.node-graph {
+  display: flex;
+  justify-around: space-around;
+  align-items: center;
+  position: relative;
+  padding: 15px 0;
+}
+
+.node-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  z-index: 2;
+}
+
+.node-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 2px solid #475569;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.node-circle.active-node {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: var(--primary-glow);
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+.node-circle.locked-node {
+  opacity: 0.5;
+}
+
+.node-text {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.graph-connector {
+  position: absolute;
+  top: 33px;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary-glow) 30%, rgba(255, 255, 255, 0.1) 70%);
+  z-index: 1;
+}
+
+/* MESSAGES / CHAT VIEW */
+.chat-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 350px;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.msg-bubble {
+  max-width: 88%;
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.msg-bubble.user {
+  align-self: flex-end;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25);
+}
+
+.msg-bubble.ai {
+  align-self: flex-start;
+  background: rgba(30, 41, 59, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f1f5f9;
+  border-bottom-left-radius: 4px;
+}
+
+/* OPPORTUNITIES CARDS */
+.opp-card {
+  background: var(--bg-card);
+  border: 1px solid var(--bg-card-border);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.opp-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.opp-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opp-tag {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted);
+}
+
+/* BOTTOM MOBILE NAVIGATION */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 480px;
+  height: 68px;
+  background: var(--nav-bg);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 100;
+  padding: 0 8px;
+}
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 12px;
+  border-radius: 12px;
+  transition: color 0.2s, transform 0.1s;
+}
+
+.nav-item.active {
+  color: var(--primary-glow);
+}
+
+.nav-item:active {
+  transform: scale(0.92);
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+/* UTILITY CLASSES */
+.badge-verified { color: #10b981; border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.1); }
+.badge-unverified { color: #f59e0b; border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.1); }
 </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="app-container">
 
-  <div class="header">
-    <div class="logo">🧠</div>
-    <h1>MasterMind AI</h1>
-    <div class="subtitle">
-      आपका Personal AI Agent
+  <!-- HEADER -->
+  <header class="header">
+    <div class="brand">
+      <span class="brand-title">AIRA</span>
+      <span class="brand-badge">PHASE 1</span>
     </div>
-  </div>
-
-  <div class="card">
-
-    <div class="status">
+    <div class="status-pill" id="globalStatusPill">
       <span class="status-dot"></span>
-      <span id="statusText">MasterMind AI जाँच रहा है...</span>
+      <span id="globalStatusText">AIRA ONLINE</span>
+    </div>
+  </header>
+
+  <!-- VIEW 1: HOME VIEW -->
+  <main id="view-home" class="view active">
+
+    <!-- CENTRAL NEURAL CORE VISUAL -->
+    <section class="core-container">
+      <div class="neural-core">
+        <div class="core-ring ring-1"></div>
+        <div class="core-ring ring-2"></div>
+        <div class="core-orb"></div>
+      </div>
+      <div class="core-status-text" id="coreStatusText">NEURAL ENGINE ACTIVE</div>
+    </section>
+
+    <!-- COMMAND AREA -->
+    <section class="command-card">
+      <div class="command-input-group">
+        <input
+          type="text"
+          id="homeCommandInput"
+          class="command-input"
+          placeholder="AIRA, mujhe kamai karni hai."
+          value="AIRA, mujhe kamai karni hai."
+          autocomplete="off"
+        >
+        <button class="command-btn" id="homeSendBtn" onclick="submitHomeCommand()">
+          Send
+        </button>
+      </div>
+    </section>
+
+    <!-- CAPABILITIES GRID -->
+    <section>
+      <div class="section-title">
+        <span>Capabilities Navigation</span>
+        <span style="font-size:10px; color:var(--text-muted);">PHASE 1 ACTIVE</span>
+      </div>
+      <div class="capabilities-grid">
+
+        <!-- Research (Active) -->
+        <div class="cap-card active-cap" onclick="quickPrompt('Research trending earning opportunities')">
+          <div class="cap-header">
+            <span class="cap-icon">🔎</span>
+            <span class="cap-badge badge-active">ACTIVE</span>
+          </div>
+          <div class="cap-name">Research</div>
+          <div class="cap-desc">Web research and factual information discovery.</div>
+        </div>
+
+        <!-- Earning (Active Phase 1) -->
+        <div class="cap-card active-cap" onclick="quickPrompt('Show Phase 1 earning opportunities')">
+          <div class="cap-header">
+            <span class="cap-icon">💰</span>
+            <span class="cap-badge badge-active">ACTIVE</span>
+          </div>
+          <div class="cap-name">Earning</div>
+          <div class="cap-desc">Earning Agent, discovery, eligibility & decision engine.</div>
+        </div>
+
+        <!-- Build (Locked) -->
+        <div class="cap-card locked-cap">
+          <div class="cap-header">
+            <span class="cap-icon">🛠️</span>
+            <span class="cap-badge badge-locked">PLANNED</span>
+          </div>
+          <div class="cap-name">Build</div>
+          <div class="cap-desc">Software build agent. Phase 2 planned capability.</div>
+        </div>
+
+        <!-- Analyze (Locked) -->
+        <div class="cap-card locked-cap">
+          <div class="cap-header">
+            <span class="cap-icon">📊</span>
+            <span class="cap-badge badge-locked">LOCKED</span>
+          </div>
+          <div class="cap-name">Analyze</div>
+          <div class="cap-desc">Data analysis suite. Phase 2 planned capability.</div>
+        </div>
+
+        <!-- Create (Locked) -->
+        <div class="cap-card locked-cap">
+          <div class="cap-header">
+            <span class="cap-icon">🎨</span>
+            <span class="cap-badge badge-locked">COMING SOON</span>
+          </div>
+          <div class="cap-name">Create</div>
+          <div class="cap-desc">Content creation pipeline. Future capability.</div>
+        </div>
+
+        <!-- Automate (Locked) -->
+        <div class="cap-card locked-cap">
+          <div class="cap-header">
+            <span class="cap-icon">⚡</span>
+            <span class="cap-badge badge-locked">LOCKED</span>
+          </div>
+          <div class="cap-name">Automate</div>
+          <div class="cap-desc">Workflow automation agent. Future capability.</div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SYSTEM STATUS PANEL -->
+    <section class="glass-panel">
+      <div class="section-title">
+        <span>System Status</span>
+        <span style="font-size:10px; color:#10b981;">TRUTHFUL METRICS</span>
+      </div>
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="status-label">AI Binding</div>
+          <div class="status-value" id="sysAiBinding">
+            <span style="color:#10b981;">●</span> CONNECTED
+          </div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Browser Engine</div>
+          <div class="status-value" id="sysBrowserBinding">
+            <span style="color:#f59e0b;">●</span> DISCONNECTED
+          </div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Durable Object</div>
+          <div class="status-value" id="sysDOBinding">
+            <span style="color:#10b981;">●</span> READY
+          </div>
+        </div>
+        <div class="status-item">
+          <div class="status-label">Earning Agent</div>
+          <div class="status-value" id="sysEarningAgent">
+            <span style="color:#10b981;">●</span> ACTIVE
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LEARNING / NEURAL ACTIVITY -->
+    <section class="glass-panel">
+      <div class="section-title">Neural Model Metadata</div>
+      <div style="font-size:12px; color:var(--text-muted); display:flex; flex-direction:column; gap:6px;">
+        <div><b>Model:</b> @cf/meta/llama-3.1-8b-instruct-fp8</div>
+        <div><b>Inference Mode:</b> Cloudflare Workers AI</div>
+        <div><b>Verification Engine:</b> FACT Evidence Mandate Active</div>
+        <div><b>Marketplace Actions:</b> Manual Owner Final Submission Enforced</div>
+      </div>
+    </section>
+
+    <!-- QUICK ACCESS AREA -->
+    <section>
+      <div class="section-title">Quick Commands</div>
+      <div class="chip-group">
+        <button class="quick-chip" onclick="quickPrompt('AIRA, mujhe kamai karni hai.')">💰 Earning Request</button>
+        <button class="quick-chip" onclick="quickPrompt('Check system health and connected bindings')">⚡ Health Check</button>
+        <button class="quick-chip" onclick="quickPrompt('What earning models are supported in Phase 1?')">❓ Earning Models</button>
+      </div>
+    </section>
+
+    <!-- KNOWLEDGE MAP SECTION -->
+    <section class="map-visual">
+      <div class="section-title">Module Connectivity Map</div>
+      <div class="node-graph">
+        <div class="graph-connector"></div>
+        <div class="node-item">
+          <div class="node-circle active-node">🧠</div>
+          <span class="node-text">Core AI</span>
+        </div>
+        <div class="node-item">
+          <div class="node-circle active-node">💸</div>
+          <span class="node-text">Earning</span>
+        </div>
+        <div class="node-item">
+          <div class="node-circle locked-node">🔒</div>
+          <span class="node-text" style="color:#64748b;">Automate</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- VIEW 2: CHAT VIEW -->
+  <main id="view-chat" class="view">
+    <div class="section-title">AIRA Neural Stream</div>
+
+    <div id="chatMessages" class="chat-container">
+      <div class="msg-bubble ai">
+        नमस्ते! मैं आपका <b>AIRA MasterMind AI</b> हूँ। 🧠<br><br>
+        आप मुझसे Earning, Research या Tasks के बारे में बात कर सकते हैं।
+      </div>
     </div>
 
-    <div id="messages" class="messages">
+    <section class="command-card" style="margin-top:auto;">
+      <div class="command-input-group">
+        <input
+          type="text"
+          id="chatCommandInput"
+          class="command-input"
+          placeholder="अपना संदेश यहाँ लिखें..."
+          autocomplete="off"
+        >
+        <button class="command-btn" id="chatSendBtn" onclick="submitChatCommand()">
+          Send
+        </button>
+      </div>
+    </section>
+  </main>
 
-      <div class="msg ai">
-        नमस्ते! मैं आपका <b>MasterMind AI</b> हूँ। 🧠
-        <br><br>
-        आप मुझसे हिंदी, Hinglish या English में बात कर सकते हैं।
-        <br><br>
-        अपना काम या सवाल लिखिए।
+  <!-- VIEW 3: AIRA CORE VIEW -->
+  <main id="view-aira" class="view">
+    <div class="section-title">AIRA Central Core Diagnostics</div>
+    <section class="core-container" style="padding: 20px 0;">
+      <div class="neural-core" style="width:200px; height:200px;">
+        <div class="core-ring ring-1" style="width:160px; height:160px;"></div>
+        <div class="core-ring ring-2" style="width:190px; height:190px;"></div>
+        <div class="core-orb" style="width:110px; height:110px;"></div>
+      </div>
+      <div class="core-status-text" style="margin-top:20px; font-size:14px; color:#a855f7;">
+        STATE: OPERATIONAL (INFERENCE MODE)
+      </div>
+    </section>
+
+    <section class="glass-panel">
+      <div class="section-title">Phase 1 Earning Capabilities</div>
+      <div style="font-size:12px; color:var(--text-muted); line-height:1.6;">
+        • Deterministic Decision Engine (SELECT / REJECT / NEEDS_REVIEW)<br>
+        • Truthful Discovery & Duplicate Prevention<br>
+        • Verification Engine (FACT evidence requirement)<br>
+        • Eligibility & Owner-Fit Engine<br>
+        • Manual Upwork/Fiverr Submission Guard
+      </div>
+    </section>
+  </main>
+
+  <!-- VIEW 4: TOOLS VIEW -->
+  <main id="view-tools" class="view">
+    <div class="section-title">Connected Tools & Services</div>
+
+    <div class="glass-panel" style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:700; font-size:14px;">Web Research</div>
+          <div style="font-size:11px; color:var(--text-muted);">Cloudflare Browser Rendering</div>
+        </div>
+        <span class="cap-badge badge-active" id="toolBrowserBadge">CHECKING</span>
       </div>
 
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:700; font-size:14px;">Earning Agent DO</div>
+          <div style="font-size:11px; color:var(--text-muted);">SQLite Durable Object State</div>
+        </div>
+        <span class="cap-badge badge-active">CONNECTED</span>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-weight:700; font-size:14px;">Upwork / Fiverr Automation</div>
+          <div style="font-size:11px; color:var(--text-muted);">Manual Submission Required</div>
+        </div>
+        <span class="cap-badge badge-locked">MANUAL GUARD</span>
+      </div>
     </div>
+  </main>
 
-    <div class="quick">
+  <!-- VIEW 5: PROFILE VIEW -->
+  <main id="view-profile" class="view">
+    <div class="section-title">Owner Profile</div>
 
-      <button onclick="quickCommand('मुझे ऑनलाइन पैसे कमाने का तरीका बताओ')">
-        💰 Earning
-      </button>
-
-      <button onclick="quickCommand('मेरे लिए YouTube automation project का पूरा plan बनाओ')">
-        🎬 YouTube
-      </button>
-
-      <button onclick="quickCommand('मेरे लिए एक AI agent का पूरा plan बनाओ')">
-        🤖 AI Agent
-      </button>
-
-      <button onclick="quickCommand('आज मेरे लिए क्या काम करना चाहिए?')">
-        ⚙️ Tasks
-      </button>
-
-      <button onclick="quickCommand('मुझे इस topic पर research करनी है')">
-        🔎 Research
-      </button>
-
+    <div class="glass-panel" style="display:flex; flex-direction:column; gap:10px;">
+      <div><b>Status:</b> Owner Connected</div>
+      <div><b>Skills:</b> <span id="profSkills">Loading profile...</span></div>
+      <div><b>Location:</b> <span id="profLocation">Loading profile...</span></div>
+      <div><b>Max Cost Threshold:</b> <span id="profCost">Loading profile...</span></div>
     </div>
+  </main>
 
-    <div class="input-area">
-
-      <input
-        id="command"
-        type="text"
-        placeholder="अपना आदेश यहाँ लिखें..."
-        autocomplete="off"
-      >
-
-      <button
-        id="sendButton"
-        class="send"
-        onclick="sendCommand()"
-      >
-        Send
-      </button>
-
-    </div>
-
-  </div>
-
-  <div class="footer">
-    🛡️ MasterMind AI • Secure AI Backend
-  </div>
+  <!-- BOTTOM MOBILE NAVIGATION -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" onclick="switchTab('home', this)">
+      <span class="nav-icon">🏠</span>
+      <span>Home</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('chat', this)">
+      <span class="nav-icon">💬</span>
+      <span>Chat</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('aira', this)">
+      <span class="nav-icon">🧠</span>
+      <span>AIRA</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('tools', this)">
+      <span class="nav-icon">⚙️</span>
+      <span>Tools</span>
+    </button>
+    <button class="nav-item" onclick="switchTab('profile', this)">
+      <span class="nav-icon">👤</span>
+      <span>Profile</span>
+    </button>
+  </nav>
 
 </div>
 
 <script>
-
 let requestRunning = false;
 
+function switchTab(tabId, btnElement) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-function quickCommand(text){
-
-  if(requestRunning){
-    return;
+  const targetView = document.getElementById('view-' + tabId);
+  if (targetView) {
+    targetView.classList.add('active');
   }
 
-  const input = document.getElementById("command");
+  if (btnElement) {
+    btnElement.classList.add('active');
+  }
 
-  input.value = text;
-
-  sendCommand();
+  if (tabId === 'profile') {
+    fetchOwnerProfile();
+  }
 }
 
+function quickPrompt(text) {
+  switchTab('chat', document.querySelectorAll('.nav-item')[1]);
+  const input = document.getElementById('chatCommandInput');
+  input.value = text;
+  submitChatCommand();
+}
 
-async function sendCommand(){
+function submitHomeCommand() {
+  const input = document.getElementById('homeCommandInput');
+  const text = input.value.trim();
+  if (!text) return;
 
-  if(requestRunning){
-    return;
-  }
+  switchTab('chat', document.querySelectorAll('.nav-item')[1]);
+  const chatInput = document.getElementById('chatCommandInput');
+  chatInput.value = text;
+  submitChatCommand();
+}
 
-  const input = document.getElementById("command");
-  const button = document.getElementById("sendButton");
-  const messages = document.getElementById("messages");
+async function submitChatCommand() {
+  if (requestRunning) return;
+
+  const input = document.getElementById('chatCommandInput');
+  const sendBtn = document.getElementById('chatSendBtn');
+  const homeSendBtn = document.getElementById('homeSendBtn');
+  const messages = document.getElementById('chatMessages');
 
   const text = input.value.trim();
-
-  if(!text){
-    return;
-  }
+  if (!text) return;
 
   requestRunning = true;
-  button.disabled = true;
+  if (sendBtn) sendBtn.disabled = true;
+  if (homeSendBtn) homeSendBtn.disabled = true;
 
-  messages.innerHTML +=
-    '<div class="msg user">' +
-    escapeHtml(text) +
-    '</div>';
-
+  // Append user bubble
+  messages.innerHTML += `<div class="msg-bubble user">${escapeHtml(text)}</div>`;
   input.value = "";
 
   const loadingId = "loading-" + Date.now();
+  messages.innerHTML += `<div class="msg-bubble ai" id="${loadingId}">🧠 AIRA सोच रहा है...</div>`;
+  messages.scrollTop = messages.scrollHeight;
 
-  messages.innerHTML +=
-    '<div class="msg ai" id="' +
-    loadingId +
-    '">' +
-    '🧠 MasterMind सोच रहा है...' +
-    '</div>';
-
-  scrollMessages();
-
-
-  try{
-
-    const response = await fetch("/api/chat",{
-
-      method:"POST",
-
-      headers:{
-        "Content-Type":"application/json"
-      },
-
-      body:JSON.stringify({
-        message:text
-      })
-
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text })
     });
 
-
     let data;
-
-    try{
+    try {
       data = await response.json();
-    }
-    catch{
-      data = {
-        ok:false,
-        error:"Backend ने valid JSON response नहीं दिया।"
-      };
+    } catch {
+      data = { ok: false, error: "Backend return invalid JSON" };
     }
 
+    const loadingElem = document.getElementById(loadingId);
+    if (loadingElem) loadingElem.remove();
 
-    const loading =
-      document.getElementById(loadingId);
-
-    if(loading){
-      loading.remove();
+    if (data.ok && data.answer) {
+      messages.innerHTML += `<div class="msg-bubble ai">${formatAnswer(data.answer)}</div>`;
+    } else {
+      const err = data.error || "AIRA response error.";
+      messages.innerHTML += `<div class="msg-bubble ai">❌ ${escapeHtml(err)}</div>`;
     }
+  } catch (err) {
+    const loadingElem = document.getElementById(loadingId);
+    if (loadingElem) loadingElem.remove();
 
-
-    if(data.ok && data.answer){
-
-      messages.innerHTML +=
-        '<div class="msg ai">' +
-        formatAnswer(data.answer) +
-        '</div>';
-
-    }
-    else{
-
-      let errorMessage =
-        data.error ||
-        "AI से जवाब नहीं मिला।";
-
-      messages.innerHTML +=
-        '<div class="msg ai">' +
-        '❌ AI में समस्या आई।<br><br>' +
-        escapeHtml(errorMessage) +
-        '</div>';
-    }
-
+    messages.innerHTML += `<div class="msg-bubble ai">❌ Connection Error: ${escapeHtml(err.message)}</div>`;
   }
-  catch(error){
-
-    const loading =
-      document.getElementById(loadingId);
-
-    if(loading){
-      loading.remove();
-    }
-
-    messages.innerHTML +=
-      '<div class="msg ai">' +
-      '❌ AI backend से connection नहीं हो पाया।<br><br>' +
-      escapeHtml(error.message || "Network error") +
-      '</div>';
-  }
-
 
   requestRunning = false;
-  button.disabled = false;
-
-  scrollMessages();
+  if (sendBtn) sendBtn.disabled = false;
+  if (homeSendBtn) homeSendBtn.disabled = false;
+  messages.scrollTop = messages.scrollHeight;
 }
 
-
-function formatAnswer(text){
-
-  return escapeHtml(String(text))
-    .replace(/\r\n/g,"\n")
-    .replace(/\n/g,"<br>");
+function formatAnswer(text) {
+  return escapeHtml(String(text)).replace(/\n/g, "<br>");
 }
 
-
-function escapeHtml(text){
-
+function escapeHtml(text) {
   const div = document.createElement("div");
-
   div.textContent = text;
-
   return div.innerHTML;
 }
 
+async function checkSystemHealth() {
+  try {
+    const response = await fetch("/api/health", { method: "GET", cache: "no-store" });
+    const data = await response.json();
 
-function scrollMessages(){
+    if (data.ok) {
+      document.getElementById("sysAiBinding").innerHTML = `<span style="color:#10b981;">●</span> CONNECTED`;
 
-  const messages =
-    document.getElementById("messages");
-
-  messages.scrollTop =
-    messages.scrollHeight;
-}
-
-
-async function checkBackend(){
-
-  const statusText =
-    document.getElementById("statusText");
-
-  try{
-
-    const response =
-      await fetch("/api/health",{
-        method:"GET",
-        cache:"no-store"
-      });
-
-    const data =
-      await response.json();
-
-    if(data.ok && data.aiConnected){
-
-      statusText.textContent =
-        "MasterMind AI Online • AI Connected";
-
+      if (data.browserConnected) {
+        document.getElementById("sysBrowserBinding").innerHTML = `<span style="color:#10b981;">●</span> CONNECTED`;
+        document.getElementById("toolBrowserBadge").textContent = "CONNECTED";
+        document.getElementById("toolBrowserBadge").className = "cap-badge badge-active";
+      } else {
+        document.getElementById("sysBrowserBinding").innerHTML = `<span style="color:#f59e0b;">●</span> NOT CONNECTED`;
+        document.getElementById("toolBrowserBadge").textContent = "NOT CONNECTED";
+        document.getElementById("toolBrowserBadge").className = "cap-badge badge-locked";
+      }
     }
-    else if(data.ok){
-
-      statusText.textContent =
-        "MasterMind Online • AI Binding Missing";
-
-    }
-    else{
-
-      statusText.textContent =
-        "MasterMind Backend Error";
-    }
-
-  }
-  catch{
-
-    statusText.textContent =
-      "MasterMind Backend Offline";
+  } catch {
+    document.getElementById("globalStatusText").textContent = "OFFLINE";
   }
 }
 
-
-document
-  .getElementById("command")
-  .addEventListener("keydown",function(e){
-
-    if(e.key === "Enter"){
-
-      e.preventDefault();
-
-      sendCommand();
+async function fetchOwnerProfile() {
+  try {
+    const res = await fetch("/api/owner/profile");
+    const data = await res.json();
+    if (data.ok && data.data) {
+      document.getElementById("profSkills").textContent = data.data.skills || "Not specified";
+      document.getElementById("profLocation").textContent = data.data.location || "Not specified";
+      document.getElementById("profCost").textContent = data.data.max_cost || "Not specified";
+    } else {
+      document.getElementById("profSkills").textContent = "UNSET";
+      document.getElementById("profLocation").textContent = "UNSET";
+      document.getElementById("profCost").textContent = "UNSET";
     }
+  } catch {
+    document.getElementById("profSkills").textContent = "UNAVAILABLE";
+  }
+}
 
-  });
+document.getElementById("homeCommandInput")?.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitHomeCommand();
+  }
+});
 
+document.getElementById("chatCommandInput")?.addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    submitChatCommand();
+  }
+});
 
-checkBackend();
-
+// Initial health check
+checkSystemHealth();
 </script>
 
 </body>
-  </html>
+</html>
