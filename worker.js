@@ -344,8 +344,8 @@ export class MasterMindAgent extends Agent {
         platform TEXT NOT NULL DEFAULT '',
         description TEXT NOT NULL DEFAULT '',
         verification_status TEXT NOT NULL DEFAULT 'UNVERIFIED',
-        eligibility_status TEXT NOT NULL DEFAULT 'pending',
-        owner_fit_status TEXT NOT NULL DEFAULT 'pending',
+        eligibility_status TEXT NOT NULL DEFAULT 'UNKNOWN',
+        owner_fit_status TEXT NOT NULL DEFAULT 'UNKNOWN',
         score REAL NOT NULL DEFAULT 0,
         earning_model TEXT NOT NULL DEFAULT '',
         risk TEXT NOT NULL DEFAULT '',
@@ -385,8 +385,263 @@ export class MasterMindAgent extends Agent {
         updated_at TEXT NOT NULL,
         FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
       );`;
+      this.sql`CREATE TABLE IF NOT EXISTS owner_profile (
+        id TEXT PRIMARY KEY,
+        skills TEXT NOT NULL DEFAULT '',
+        experience TEXT NOT NULL DEFAULT '',
+        location TEXT NOT NULL DEFAULT '',
+        max_cost TEXT NOT NULL DEFAULT '',
+        max_effort TEXT NOT NULL DEFAULT '',
+        accessibility TEXT NOT NULL DEFAULT '',
+        other_criteria TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+      );`;
       this._dbInitialized = true;
     }
+  }
+
+  normalizeEligibilityStatus(status) {
+    if (!status) return "UNKNOWN";
+    const s = String(status).trim().toUpperCase();
+    if (s === "ELIGIBLE") return "ELIGIBLE";
+    if (s === "POTENTIALLY_ELIGIBLE") return "POTENTIALLY_ELIGIBLE";
+    if (s === "NOT_ELIGIBLE" || s === "INELIGIBLE") return "NOT_ELIGIBLE";
+    if (s === "UNKNOWN" || s === "PENDING") return "UNKNOWN";
+    return "UNKNOWN";
+  }
+
+  normalizeOwnerFitStatus(status) {
+    if (!status) return "UNKNOWN";
+    const s = String(status).trim().toUpperCase();
+    if (s === "FIT") return "FIT";
+    if (s === "POTENTIAL_FIT") return "POTENTIAL_FIT";
+    if (s === "NOT_FIT" || s === "UNFIT") return "NOT_FIT";
+    if (s === "UNKNOWN" || s === "PENDING") return "UNKNOWN";
+    return "UNKNOWN";
+  }
+
+  getOwnerProfile() {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM owner_profile WHERE id = 'default'`];
+    if (rows.length > 0) {
+      return rows[0];
+    }
+    return null;
+  }
+
+  updateOwnerProfile(data) {
+    this.initDb();
+    const existing = this.getOwnerProfile();
+    const skills = data.skills !== undefined ? (Array.isArray(data.skills) ? data.skills.join(',') : String(data.skills)) : (existing ? existing.skills : '');
+    const experience = data.experience !== undefined ? String(data.experience) : (existing ? existing.experience : '');
+    const location = data.location !== undefined ? String(data.location) : (existing ? existing.location : '');
+    const max_cost = data.max_cost !== undefined ? String(data.max_cost) : (existing ? existing.max_cost : '');
+    const max_effort = data.max_effort !== undefined ? String(data.max_effort) : (existing ? existing.max_effort : '');
+    const accessibility = data.accessibility !== undefined ? String(data.accessibility) : (existing ? existing.accessibility : '');
+    const other_criteria = data.other_criteria !== undefined ? String(data.other_criteria) : (existing ? existing.other_criteria : '');
+    const updated_at = new Date().toISOString();
+
+    if (existing) {
+      this.sql`UPDATE owner_profile SET
+        skills = ${skills},
+        experience = ${experience},
+        location = ${location},
+        max_cost = ${max_cost},
+        max_effort = ${max_effort},
+        accessibility = ${accessibility},
+        other_criteria = ${other_criteria},
+        updated_at = ${updated_at}
+        WHERE id = 'default';`;
+    } else {
+      this.sql`INSERT INTO owner_profile (
+        id, skills, experience, location, max_cost, max_effort, accessibility, other_criteria, updated_at
+      ) VALUES (
+        'default', ${skills}, ${experience}, ${location}, ${max_cost}, ${max_effort}, ${accessibility}, ${other_criteria}, ${updated_at}
+      );`;
+    }
+    return this.getOwnerProfile();
+  }
+
+  evaluateEligibility(opportunityId, requestedStatus) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+
+    const evidenceList = this.getEvidenceForOpportunity(opportunityId);
+    const factEvidences = evidenceList.filter(e => e.classification === "FACT");
+    const assumptionEvidences = evidenceList.filter(e => e.classification === "ASSUMPTION");
+    const hypothesisEvidences = evidenceList.filter(e => e.classification === "HYPOTHESIS");
+
+    if (requestedStatus) {
+      const normRequested = this.normalizeEligibilityStatus(requestedStatus);
+      if (normRequested === "ELIGIBLE") {
+        if (factEvidences.length === 0) {
+          throw new Error("Cannot set eligibility status to ELIGIBLE without at least one FACT evidence record.");
+        }
+      }
+      this.sql`UPDATE opportunities SET eligibility_status = ${normRequested}, updated_at = ${new Date().toISOString()} WHERE id = ${opportunityId};`;
+      return this.getOpportunity(opportunityId);
+    }
+
+    const currentNorm = this.normalizeEligibilityStatus(opportunity.eligibility_status);
+
+    let status = "UNKNOWN";
+    let reasons = [];
+
+    const hasIneligibleFact = factEvidences.some(e => {
+      const c = e.content.toLowerCase();
+      return c.includes("ineligible") || c.includes("not eligible") || c.includes("banned") || c.includes("restricted country") || c.includes("disqualified");
+    });
+
+    if (hasIneligibleFact || currentNorm === "NOT_ELIGIBLE") {
+      status = "NOT_ELIGIBLE";
+      reasons.push("FACT evidence or explicit evaluation indicates Owner is not eligible.");
+    } else {
+      const hasEligibleFact = factEvidences.some(e => {
+        const c = e.content.toLowerCase();
+        return c.includes("eligible") || c.includes("eligibility confirmed") || c.includes("verified location") || c.includes("verified account") || c.includes("contract eligible");
+      });
+
+      if (hasEligibleFact) {
+        status = "ELIGIBLE";
+        reasons.push("Sufficient FACT evidence confirms Owner eligibility.");
+      } else if (factEvidences.length > 0 && currentNorm === "ELIGIBLE") {
+        status = "ELIGIBLE";
+        reasons.push("FACT evidence supports eligibility status.");
+      } else if (assumptionEvidences.length > 0 || hypothesisEvidences.length > 0) {
+        status = "POTENTIALLY_ELIGIBLE";
+        reasons.push("Eligibility is supported by ASSUMPTION or HYPOTHESIS evidence but complete verification is not available.");
+      } else if (currentNorm === "ELIGIBLE") {
+        if (factEvidences.length > 0) {
+          status = "ELIGIBLE";
+          reasons.push("FACT evidence supports eligibility.");
+        } else {
+          status = "POTENTIALLY_ELIGIBLE";
+          reasons.push("Eligibility lacks supporting FACT evidence.");
+        }
+      } else if (currentNorm === "POTENTIALLY_ELIGIBLE") {
+        status = "POTENTIALLY_ELIGIBLE";
+        reasons.push("Partial supporting evidence exists.");
+      } else {
+        status = "UNKNOWN";
+        reasons.push("Required eligibility information or evidence is missing.");
+      }
+    }
+
+    this.sql`UPDATE opportunities SET eligibility_status = ${status}, updated_at = ${new Date().toISOString()} WHERE id = ${opportunityId};`;
+    const updatedOpp = this.getOpportunity(opportunityId);
+
+    return {
+      opportunityId,
+      eligibility_status: status,
+      status,
+      reasons,
+      factEvidenceCount: factEvidences.length,
+      assumptionEvidenceCount: assumptionEvidences.length,
+      hypothesisEvidenceCount: hypothesisEvidences.length,
+      opportunity: updatedOpp
+    };
+  }
+
+  evaluateOwnerFit(opportunityId, requestedStatus) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+
+    const evidenceList = this.getEvidenceForOpportunity(opportunityId);
+    const factEvidences = evidenceList.filter(e => e.classification === "FACT");
+    const assumptionEvidences = evidenceList.filter(e => e.classification === "ASSUMPTION");
+    const hypothesisEvidences = evidenceList.filter(e => e.classification === "HYPOTHESIS");
+
+    if (requestedStatus) {
+      const normRequested = this.normalizeOwnerFitStatus(requestedStatus);
+      if (normRequested === "FIT") {
+        if (factEvidences.length === 0) {
+          throw new Error("Cannot set owner fit status to FIT without at least one FACT evidence record.");
+        }
+      }
+      this.sql`UPDATE opportunities SET owner_fit_status = ${normRequested}, updated_at = ${new Date().toISOString()} WHERE id = ${opportunityId};`;
+      return this.getOpportunity(opportunityId);
+    }
+
+    const currentNorm = this.normalizeOwnerFitStatus(opportunity.owner_fit_status);
+    const ownerProfile = this.getOwnerProfile();
+
+    let status = "UNKNOWN";
+    let reasons = [];
+
+    const hasUnfitFact = factEvidences.some(e => {
+      const c = e.content.toLowerCase();
+      return c.includes("unfit") || c.includes("not fit") || c.includes("lacks required skill") || c.includes("exceeds cost limit") || c.includes("conflict");
+    });
+
+    if (hasUnfitFact || currentNorm === "NOT_FIT") {
+      status = "NOT_FIT";
+      reasons.push("FACT evidence or explicit evaluation indicates opportunity is NOT FIT for Owner.");
+    } else {
+      const hasFitFact = factEvidences.some(e => {
+        const c = e.content.toLowerCase();
+        return c.includes("owner fit confirmed") || c.includes("skills match verified") || c.includes("fit verified") || c.includes("fit confirmed");
+      });
+
+      let profileMismatch = false;
+
+      if (ownerProfile) {
+        if (ownerProfile.max_cost && opportunity.cost) {
+          const profileCostNum = parseFloat(ownerProfile.max_cost.replace(/[^0-9.]/g, ""));
+          const oppCostNum = parseFloat(opportunity.cost.replace(/[^0-9.]/g, ""));
+          if (!isNaN(profileCostNum) && !isNaN(oppCostNum) && oppCostNum > profileCostNum) {
+            profileMismatch = true;
+            reasons.push(`Required cost (${opportunity.cost}) exceeds Owner max cost limit (${ownerProfile.max_cost}).`);
+          }
+        }
+      }
+
+      if (profileMismatch) {
+        status = "NOT_FIT";
+      } else if (hasFitFact) {
+        status = "FIT";
+        reasons.push("Sufficient FACT evidence confirms Owner fit.");
+      } else if (factEvidences.length > 0 && currentNorm === "FIT") {
+        status = "FIT";
+        reasons.push("FACT evidence supports Owner fit.");
+      } else if (assumptionEvidences.length > 0 || hypothesisEvidences.length > 0) {
+        status = "POTENTIAL_FIT";
+        reasons.push("Owner fit is supported by ASSUMPTION or HYPOTHESIS evidence but complete verification is not available.");
+      } else if (currentNorm === "FIT") {
+        if (factEvidences.length > 0) {
+          status = "FIT";
+          reasons.push("FACT evidence supports Owner fit.");
+        } else {
+          status = "POTENTIAL_FIT";
+          reasons.push("Owner fit lacks supporting FACT evidence.");
+        }
+      } else if (currentNorm === "POTENTIAL_FIT") {
+        status = "POTENTIAL_FIT";
+        reasons.push("Partial supporting evidence exists.");
+      } else {
+        status = "UNKNOWN";
+        reasons.push("Required Owner fit information or criteria is missing.");
+      }
+    }
+
+    this.sql`UPDATE opportunities SET owner_fit_status = ${status}, updated_at = ${new Date().toISOString()} WHERE id = ${opportunityId};`;
+    const updatedOpp = this.getOpportunity(opportunityId);
+
+    return {
+      opportunityId,
+      owner_fit_status: status,
+      status,
+      reasons,
+      factEvidenceCount: factEvidences.length,
+      assumptionEvidenceCount: assumptionEvidences.length,
+      hypothesisEvidenceCount: hypothesisEvidences.length,
+      opportunity: updatedOpp
+    };
   }
 
   async onStart() {
@@ -459,11 +714,15 @@ export class MasterMindAgent extends Agent {
 
   evaluateDecision(opportunityId) {
     this.initDb();
-    const updatedOpp = this.evaluateVerificationStatus(opportunityId);
-    if (!updatedOpp) {
+    const updatedVerification = this.evaluateVerificationStatus(opportunityId);
+    if (!updatedVerification) {
       throw new Error("Opportunity not found");
     }
 
+    this.evaluateEligibility(opportunityId);
+    this.evaluateOwnerFit(opportunityId);
+
+    const updatedOpp = this.getOpportunity(opportunityId);
     const evidenceList = this.getEvidenceForOpportunity(opportunityId);
     const factCount = evidenceList.filter(e => e.classification === "FACT").length;
     const assumptionCount = evidenceList.filter(e => e.classification === "ASSUMPTION").length;
@@ -471,8 +730,8 @@ export class MasterMindAgent extends Agent {
     const hasFact = factCount > 0;
 
     const verificationStatus = String(updatedOpp.verification_status || "UNVERIFIED").toUpperCase();
-    const eligibilityStatus = String(updatedOpp.eligibility_status || "pending").toLowerCase();
-    const ownerFitStatus = String(updatedOpp.owner_fit_status || "pending").toLowerCase();
+    const eligibilityStatus = this.normalizeEligibilityStatus(updatedOpp.eligibility_status);
+    const ownerFitStatus = this.normalizeOwnerFitStatus(updatedOpp.owner_fit_status);
 
     const factors = {
       verification: { value: verificationStatus, points: 0, maxPoints: 40, weight: 0.4 },
@@ -508,29 +767,37 @@ export class MasterMindAgent extends Agent {
     }
 
     // 2. Eligibility scoring
-    if (eligibilityStatus === "ineligible") {
+    if (eligibilityStatus === "NOT_ELIGIBLE") {
       factors.eligibility.points = 0;
-      reasons.push("Eligibility status is ineligible.");
-    } else if (eligibilityStatus === "eligible") {
+      reasons.push("Eligibility status is NOT_ELIGIBLE.");
+    } else if (eligibilityStatus === "ELIGIBLE") {
       factors.eligibility.points = 30;
-      reasons.push("Eligibility status is eligible.");
+      reasons.push("Eligibility status is ELIGIBLE.");
+    } else if (eligibilityStatus === "POTENTIALLY_ELIGIBLE") {
+      factors.eligibility.points = 15;
+      reasons.push("Eligibility status is POTENTIALLY_ELIGIBLE.");
+      unknowns.push("Eligibility status is POTENTIALLY_ELIGIBLE (unconfirmed assumptions/hypotheses).");
     } else {
       factors.eligibility.points = 0;
-      reasons.push("Eligibility status is pending or unknown.");
-      unknowns.push("Eligibility status is UNKNOWN / pending.");
+      reasons.push("Eligibility status is UNKNOWN due to missing information.");
+      unknowns.push("Eligibility status is UNKNOWN.");
     }
 
     // 3. Owner Fit scoring
-    if (ownerFitStatus === "unfit") {
+    if (ownerFitStatus === "NOT_FIT") {
       factors.ownerFit.points = 0;
-      reasons.push("Owner-fit status is unfit.");
-    } else if (ownerFitStatus === "fit") {
+      reasons.push("Owner-fit status is NOT_FIT.");
+    } else if (ownerFitStatus === "FIT") {
       factors.ownerFit.points = 30;
-      reasons.push("Owner-fit status is fit.");
+      reasons.push("Owner-fit status is FIT.");
+    } else if (ownerFitStatus === "POTENTIAL_FIT") {
+      factors.ownerFit.points = 15;
+      reasons.push("Owner-fit status is POTENTIAL_FIT.");
+      unknowns.push("Owner-fit status is POTENTIAL_FIT (unconfirmed assumptions/hypotheses).");
     } else {
       factors.ownerFit.points = 0;
-      reasons.push("Owner-fit status is pending or unknown.");
-      unknowns.push("Owner-fit status is UNKNOWN / pending.");
+      reasons.push("Owner-fit status is UNKNOWN due to missing information.");
+      unknowns.push("Owner-fit status is UNKNOWN.");
     }
 
     // 4. Additional evidence tracking
@@ -540,18 +807,14 @@ export class MasterMindAgent extends Agent {
 
     const totalScore = Math.round((factors.verification.points + factors.eligibility.points + factors.ownerFit.points) * 10) / 10;
 
-    // Implementation decision thresholds
-    // SELECT threshold: score >= 80.0, VERIFIED status, hasFact evidence, eligible, fit
-    // REJECT threshold: REJECTED status OR ineligible OR unfit OR score < 30.0
-    // NEEDS_REVIEW threshold: missing/unknown info, unverified/partially verified status, or score 30.0..79.9
     let decision = "NEEDS_REVIEW";
 
-    const isHardRejected = verificationStatus === "REJECTED" || eligibilityStatus === "ineligible" || ownerFitStatus === "unfit";
+    const isHardRejected = verificationStatus === "REJECTED" || eligibilityStatus === "NOT_ELIGIBLE" || ownerFitStatus === "NOT_FIT";
 
     if (isHardRejected) {
       decision = "REJECT";
-      reasons.push("Decision threshold evaluated to REJECT due to explicit disqualification (REJECTED status, ineligible, or unfit).");
-    } else if (verificationStatus === "VERIFIED" && hasFact && eligibilityStatus === "eligible" && ownerFitStatus === "fit" && totalScore >= 80.0) {
+      reasons.push("Decision threshold evaluated to REJECT due to explicit disqualification (REJECTED status, NOT_ELIGIBLE, or NOT_FIT).");
+    } else if (verificationStatus === "VERIFIED" && hasFact && eligibilityStatus === "ELIGIBLE" && ownerFitStatus === "FIT" && totalScore >= 80.0) {
       decision = "SELECT";
       reasons.push("Decision threshold evaluated to SELECT: all verification, eligibility, and owner-fit criteria are fully satisfied.");
     } else {
@@ -569,6 +832,8 @@ export class MasterMindAgent extends Agent {
       reasons,
       unknowns,
       verificationStatus: updatedOpp.verification_status,
+      eligibilityStatus: updatedOpp.eligibility_status,
+      ownerFitStatus: updatedOpp.owner_fit_status,
       verificationLimitations: [
         "Decision engine evaluates opportunity based on existing deterministic criteria and evidence records classified as FACT under the existing verification rules.",
         "Decision Engine evaluation itself did not spend money, create accounts, or make external submissions.",
@@ -1033,6 +1298,64 @@ export class MasterMindAgent extends Agent {
         }
       }
 
+      // Route: GET/POST /opportunities/:id/eligibility
+      const eligibilityMatch = subpath.match(/^\/([^\/]+)\/eligibility$/);
+      if (eligibilityMatch) {
+        const targetId = eligibilityMatch[1];
+        if (request.method === "GET") {
+          try {
+            const evalResult = this.evaluateEligibility(targetId);
+            return Response.json({ ok: true, data: evalResult });
+          } catch (err) {
+            const status = err.message === "Opportunity not found" ? 404 : 400;
+            return Response.json({ ok: false, error: err.message }, { status });
+          }
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            // Body can be empty for auto evaluation
+          }
+          try {
+            const evalResult = this.evaluateEligibility(targetId, body.status || body.eligibility_status);
+            return Response.json({ ok: true, data: evalResult });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+      }
+
+      // Route: GET/POST /opportunities/:id/owner-fit
+      const ownerFitMatch = subpath.match(/^\/([^\/]+)\/owner-fit$/);
+      if (ownerFitMatch) {
+        const targetId = ownerFitMatch[1];
+        if (request.method === "GET") {
+          try {
+            const evalResult = this.evaluateOwnerFit(targetId);
+            return Response.json({ ok: true, data: evalResult });
+          } catch (err) {
+            const status = err.message === "Opportunity not found" ? 404 : 400;
+            return Response.json({ ok: false, error: err.message }, { status });
+          }
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            // Body can be empty for auto evaluation
+          }
+          try {
+            const evalResult = this.evaluateOwnerFit(targetId, body.status || body.owner_fit_status);
+            return Response.json({ ok: true, data: evalResult });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+      }
+
       // Route: GET/POST /opportunities/:id/evidence
       const oppEvidenceMatch = subpath.match(/^\/([^\/]+)\/evidence$/);
       if (oppEvidenceMatch) {
@@ -1116,6 +1439,23 @@ export class MasterMindAgent extends Agent {
       }
 
       return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+    }
+
+    if (url.pathname.includes("/owner/profile")) {
+      if (request.method === "GET") {
+        const profile = this.getOwnerProfile();
+        return Response.json({ ok: true, data: profile });
+      }
+      if (request.method === "POST" || request.method === "PUT") {
+        let body = {};
+        try {
+          body = await request.json();
+        } catch {
+          return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+        }
+        const updated = this.updateOwnerProfile(body);
+        return Response.json({ ok: true, data: updated });
+      }
     }
 
     if (url.pathname.includes("/evidence")) {
@@ -1296,6 +1636,22 @@ async function handleAPI(request, env) {
 
     const subpath = url.pathname.replace(/^\/api\/opportunities/, "");
     const agentUrl = new URL(`http://agent/agents/master-mind-agent/default/opportunities${subpath}${url.search}`);
+    const agentRequest = new Request(agentUrl.toString(), request);
+    const agentResponse = await stub.fetch(agentRequest);
+    return cors(agentResponse);
+  }
+
+  if (url.pathname.startsWith("/api/owner/profile")) {
+    if (!env.MasterMindAgent) {
+      return cors(
+        json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
+      );
+    }
+    const id = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(id);
+
+    const subpath = url.pathname.replace(/^\/api\/owner\/profile/, "");
+    const agentUrl = new URL(`http://agent/agents/master-mind-agent/default/owner/profile${subpath}${url.search}`);
     const agentRequest = new Request(agentUrl.toString(), request);
     const agentResponse = await stub.fetch(agentRequest);
     return cors(agentResponse);
