@@ -6,23 +6,23 @@
   <title>AIRA — Phase 1 AI Operating System</title>
   <style>
     /* ==========================================================================
-       AIRA 5D CINEMATIC AI OS — FOUNDATION STYLES
+       AIRA CINEMATIC AI OS — FOUNDATION & MOBILE STYLES
        ========================================================================== */
     :root {
       --bg-void: #03050c;
-      --bg-surface: rgba(10, 15, 30, 0.45);
-      --bg-surface-active: rgba(16, 25, 50, 0.65);
-      --glass-border: rgba(0, 240, 255, 0.18);
-      --glass-border-violet: rgba(168, 85, 247, 0.22);
+      --bg-surface: rgba(10, 15, 30, 0.55);
+      --bg-card: rgba(13, 19, 38, 0.65);
+      --glass-border: rgba(0, 240, 255, 0.2);
+      --glass-border-violet: rgba(168, 85, 247, 0.25);
       --neon-cyan: #00f0ff;
       --neon-purple: #9d4edd;
       --neon-violet: #a855f7;
       --neon-blue: #3b82f6;
-      --text-main: #f1f5f9;
+      --text-main: #f8fafc;
       --text-muted: #94a3b8;
       --text-dim: #64748b;
       --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --bottom-nav-height: 70px;
+      --bottom-nav-height: 72px;
     }
 
     * {
@@ -40,11 +40,11 @@
       min-height: 100vh;
       overflow-x: hidden;
       overflow-y: auto;
-      padding-bottom: 110px; /* Ensures safe spacing above bottom nav */
+      padding-bottom: 95px;
       position: relative;
     }
 
-    /* Atmospheric Void Background */
+    /* Background atmosphere */
     #background-canvas {
       position: fixed;
       top: 0;
@@ -55,150 +55,116 @@
       pointer-events: none;
     }
 
-    /* Main Container */
     .app-container {
       position: relative;
       z-index: 1;
       width: 100%;
-      max-width: 440px;
+      max-width: 480px;
       margin: 0 auto;
-      padding: 16px 16px 120px 16px; /* Generous bottom padding to prevent nav collisions */
+      padding: 12px 16px;
       display: flex;
       flex-direction: column;
       gap: 20px;
     }
 
-    /* Header Bar */
+    /* --------------------------------------------------------------------------
+       SECTION 1: HEADER & BRAND IDENTITY
+       -------------------------------------------------------------------------- */
     .header-bar {
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
       padding: 8px 4px;
     }
 
     .brand-identity {
       display: flex;
-      align-items: center;
-      gap: 10px;
+      flex-direction: column;
+    }
+
+    .brand-title-group {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
     }
 
     .brand-title {
-      font-size: 22px;
-      font-weight: 800;
-      letter-spacing: 3.5px;
-      background: linear-gradient(135deg, #ffffff 30%, var(--neon-cyan) 70%, var(--neon-purple) 100%);
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 2.5px;
+      background: linear-gradient(135deg, #ffffff 30%, var(--neon-cyan) 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-transform: uppercase;
-      filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.4));
     }
 
-    .phase-badge {
+    .brand-subtitle {
       font-size: 10px;
       font-weight: 700;
       letter-spacing: 1.5px;
-      padding: 3px 8px;
-      border-radius: 12px;
-      background: rgba(0, 240, 255, 0.1);
-      border: 1px solid var(--glass-border);
       color: var(--neon-cyan);
       text-transform: uppercase;
     }
 
-    .status-badge {
+    .brand-tagline {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-top: 1px;
+    }
+
+    .owner-badge {
       display: flex;
       align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 1px;
+      gap: 8px;
       padding: 6px 12px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--glass-border);
       border-radius: 20px;
-      background: rgba(10, 15, 30, 0.6);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      color: var(--text-muted);
+      backdrop-filter: blur(10px);
     }
 
-    .status-dot {
-      width: 7px;
-      height: 7px;
+    .owner-avatar {
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
-      background: #10b981;
-      box-shadow: 0 0 8px #10b981;
-    }
-
-    .status-dot.unknown {
-      background: #f59e0b;
-      box-shadow: 0 0 8px #f59e0b;
-    }
-
-    /* 5D Hero Neural Core Viewport */
-    .hero-viewport {
-      position: relative;
-      width: 100%;
-      height: 300px;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-violet));
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      margin-top: -10px;
-    }
-
-    #neural-core-canvas {
-      width: 100%;
-      height: 100%;
-      pointer-events: auto;
-    }
-
-    .core-caption {
-      position: absolute;
-      bottom: 0px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 4px;
-      text-align: center;
-      pointer-events: none;
-    }
-
-    .core-caption-title {
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 3px;
-      color: var(--neon-cyan);
-      text-transform: uppercase;
-      text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
-    }
-
-    .core-caption-sub {
       font-size: 10px;
-      font-weight: 500;
-      letter-spacing: 1.5px;
-      color: var(--text-muted);
-      text-transform: uppercase;
+      font-weight: bold;
+      color: #fff;
     }
 
-    /* Sleek Pill Command Capsule */
+    .owner-status {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: var(--neon-cyan);
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 2: COMMAND CAPSULE AREA
+       -------------------------------------------------------------------------- */
     .command-capsule {
       position: relative;
-      background: rgba(10, 15, 30, 0.65);
-      border: 1px solid var(--glass-border-violet);
-      border-radius: 30px;
-      padding: 6px 8px 6px 20px;
+      width: 100%;
+      background: rgba(12, 18, 34, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.3);
+      border-radius: 28px;
+      padding: 6px 6px 6px 18px;
       display: flex;
       align-items: center;
-      gap: 12px;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.12);
-      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      gap: 10px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 0 25px rgba(0, 240, 255, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+      transition: all 0.3s ease;
     }
 
     .command-capsule:focus-within {
       border-color: var(--neon-cyan);
-      box-shadow: 0 8px 32px rgba(0, 240, 255, 0.25), inset 0 1px 0 rgba(0, 240, 255, 0.4);
+      box-shadow: 0 0 35px rgba(0, 240, 255, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2);
     }
 
     .command-input {
@@ -207,7 +173,6 @@
       border: none;
       outline: none;
       color: #ffffff;
-      font-family: var(--font-family);
       font-size: 14px;
       font-weight: 500;
       letter-spacing: 0.3px;
@@ -221,16 +186,15 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      background: linear-gradient(135deg, var(--neon-violet), var(--neon-cyan));
       border: none;
-      color: #ffffff;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
+      color: #03050c;
       display: flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
-      transition: transform 0.2s ease;
-      flex-shrink: 0;
+      box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .capsule-send-btn:active {
@@ -243,109 +207,539 @@
       fill: currentColor;
     }
 
-    /* Section Header */
-    .section-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 4px 4px 4px;
+    /* Output console message box */
+    .output-console {
+      display: none;
+      padding: 12px 16px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid var(--glass-border);
+      border-radius: 14px;
+      font-size: 13px;
+      color: var(--neon-cyan);
+      backdrop-filter: blur(12px);
+      line-height: 1.4;
     }
 
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 2px;
+    /* --------------------------------------------------------------------------
+       SECTION 3: CAPABILITY STRIP
+       -------------------------------------------------------------------------- */
+    .capabilities-container {
+      width: 100%;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+      padding: 2px 0;
+    }
+
+    .capabilities-container::-webkit-scrollbar {
+      display: none;
+    }
+
+    .capabilities-strip {
+      display: flex;
+      gap: 8px;
+      width: max-content;
+    }
+
+    .cap-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(13, 20, 38, 0.65);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
       color: var(--text-muted);
+      white-space: nowrap;
+      backdrop-filter: blur(8px);
+    }
+
+    .cap-pill.active {
+      border-color: rgba(0, 240, 255, 0.4);
+      background: rgba(0, 240, 255, 0.08);
+      color: #ffffff;
+    }
+
+    .cap-pill-tag {
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 10px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
     }
 
-    .section-tag {
+    .cap-pill-tag.active {
+      background: var(--neon-cyan);
+      color: #03050c;
+    }
+
+    .cap-pill-tag.planned {
+      background: rgba(168, 85, 247, 0.2);
+      color: var(--neon-violet);
+      border: 1px solid rgba(168, 85, 247, 0.4);
+    }
+
+    .cap-pill-tag.locked {
+      background: rgba(100, 116, 139, 0.2);
+      color: var(--text-dim);
+      border: 1px solid rgba(100, 116, 139, 0.3);
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 4 & 5: DENSE NEURAL-BRAIN HERO & SURROUNDING INFO NODES
+       -------------------------------------------------------------------------- */
+    .neural-hero-section {
+      position: relative;
+      width: 100%;
+      min-height: 380px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 4px 0;
+    }
+
+    .neural-canvas-container {
+      position: relative;
+      width: 100%;
+      height: 340px;
+    }
+
+    #neural-core-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    /* Floating Info Nodes Overlay */
+    .info-nodes-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      justify-content: space-between;
+      padding: 10px 4px;
+    }
+
+    .nodes-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .node-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 10px;
+      background: rgba(10, 15, 30, 0.75);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 14px;
       font-size: 10px;
       font-weight: 600;
-      letter-spacing: 1px;
+      color: var(--text-main);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      white-space: nowrap;
+    }
+
+    .node-pill.right-node {
+      border-color: rgba(168, 85, 247, 0.25);
+      flex-direction: row-reverse;
+    }
+
+    .node-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      box-shadow: 0 0 8px var(--neon-cyan);
+    }
+
+    .node-pill.right-node .node-dot {
+      background: var(--neon-violet);
+      box-shadow: 0 0 8px var(--neon-violet);
+    }
+
+    .neural-core-caption {
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    .core-caption-title {
+      font-size: 13px;
+      font-weight: 900;
+      letter-spacing: 2.5px;
+      color: #ffffff;
+      text-transform: uppercase;
+    }
+
+    .core-caption-sub {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
       color: var(--neon-cyan);
       text-transform: uppercase;
     }
 
-    /* Horizontal Capability Pill Strip */
-    .capabilities-strip {
+    /* --------------------------------------------------------------------------
+       CARD AND SECTION GENERAL STYLES
+       -------------------------------------------------------------------------- */
+    .section-block {
       display: flex;
+      flex-direction: column;
       gap: 10px;
-      overflow-x: auto;
-      padding: 4px 2px 10px 2px;
-      scrollbar-width: none;
-      -webkit-overflow-scrolling: touch;
     }
 
-    .capabilities-strip::-webkit-scrollbar {
-      display: none;
+    .section-header-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 2px;
     }
 
-    .cap-pill {
-      flex: 0 0 auto;
-      background: var(--bg-surface);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 20px;
-      padding: 10px 16px;
+    .sec-title {
+      font-size: 13px;
+      font-weight: 800;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: #ffffff;
       display: flex;
       align-items: center;
       gap: 8px;
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      white-space: nowrap;
-      transition: border-color 0.2s ease, transform 0.2s ease;
     }
 
-    .cap-pill.active {
-      border-color: var(--glass-border);
-      background: var(--bg-surface-active);
-      box-shadow: 0 0 15px rgba(0, 240, 255, 0.15);
+    .sec-title::before {
+      content: "";
+      width: 3px;
+      height: 12px;
+      background: var(--neon-cyan);
+      border-radius: 2px;
+      box-shadow: 0 0 8px var(--neon-cyan);
     }
 
-    .cap-pill.locked {
-      opacity: 0.5;
-    }
-
-    .cap-pill-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: #ffffff;
-    }
-
-    .cap-pill-badge {
-      font-size: 8px;
+    .sec-badge {
+      font-size: 9px;
       font-weight: 700;
       letter-spacing: 1px;
-      padding: 2px 6px;
-      border-radius: 6px;
+      color: var(--text-dim);
       text-transform: uppercase;
     }
 
-    .cap-pill-badge.active { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .cap-pill-badge.planned { background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4); }
-    .cap-pill-badge.locked { background: rgba(100, 116, 139, 0.2); color: var(--text-dim); border: 1px solid rgba(100, 116, 139, 0.4); }
-
-    /* Phase 1 Earning Hub Panel */
-    .earning-hub-panel {
-      background: var(--bg-surface);
+    .glass-card {
+      background: var(--bg-card);
       border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      padding: 16px;
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+      border-radius: 18px;
+      padding: 14px;
+      backdrop-filter: blur(14px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
     }
 
-    .opportunity-card {
-      background: rgba(5, 8, 20, 0.6);
+    /* --------------------------------------------------------------------------
+       SECTION 6: AIRA STATUS GRID
+       -------------------------------------------------------------------------- */
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .status-card {
+      background: rgba(13, 20, 40, 0.6);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      border-radius: 14px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .status-label {
+      font-size: 9px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+
+    .status-value {
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--neon-cyan);
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 7: LEARNING PROGRESS
+       -------------------------------------------------------------------------- */
+    .progress-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .progress-item {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .progress-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+    }
+
+    .progress-name {
+      color: var(--text-main);
+      font-weight: 600;
+    }
+
+    .progress-state {
+      color: var(--text-dim);
+      font-weight: 700;
+      font-size: 10px;
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-violet));
+      border-radius: 2px;
+      width: 0%;
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 8: NEURAL ACTIVITY WAVEFORM
+       -------------------------------------------------------------------------- */
+    .activity-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      height: 40px;
+      padding: 0 8px;
+    }
+
+    .waveform-bar {
+      flex: 1;
+      height: 20%;
+      background: var(--neon-cyan);
+      border-radius: 2px;
+      opacity: 0.6;
+      animation: pulseWave 1.8s infinite ease-in-out alternate;
+    }
+
+    @keyframes pulseWave {
+      0% { height: 15%; opacity: 0.3; }
+      100% { height: 90%; opacity: 0.9; }
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 9: QUICK ACCESS GRID
+       -------------------------------------------------------------------------- */
+    .quick-access-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .qa-card {
+      background: rgba(15, 23, 42, 0.7);
       border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 12px 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 8px;
+      cursor: pointer;
+      backdrop-filter: blur(10px);
+      transition: all 0.2s ease;
+    }
+
+    .qa-card:active {
+      transform: scale(0.96);
+      border-color: var(--neon-cyan);
+    }
+
+    .qa-icon {
+      width: 24px;
+      height: 24px;
+      color: var(--neon-cyan);
+    }
+
+    .qa-title {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .qa-badge {
+      font-size: 8px;
+      font-weight: 800;
+      padding: 2px 4px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-dim);
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 10: KNOWLEDGE MAP VISUAL
+       -------------------------------------------------------------------------- */
+    .knowledge-map-box {
+      width: 100%;
+      height: 120px;
+      border-radius: 12px;
+      background: rgba(8, 12, 24, 0.8);
+      border: 1px solid rgba(0, 240, 255, 0.15);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #knowledge-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 11: LOWER CINEMATIC BANNER
+       -------------------------------------------------------------------------- */
+    .cinematic-banner {
+      background: linear-gradient(135deg, rgba(0, 240, 255, 0.12), rgba(168, 85, 247, 0.15));
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 0 30px rgba(168, 85, 247, 0.1);
+    }
+
+    .banner-quote {
+      font-size: 16px;
+      font-weight: 900;
+      letter-spacing: 0.5px;
+      background: linear-gradient(135deg, #ffffff, var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .banner-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+    }
+
+    /* --------------------------------------------------------------------------
+       SECTION 12: FLOATING BOTTOM MOBILE NAVIGATION DOCK
+       -------------------------------------------------------------------------- */
+    .bottom-nav-dock {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 24px);
+      max-width: 450px;
+      height: var(--bottom-nav-height);
+      background: rgba(8, 12, 24, 0.85);
+      border: 1px solid rgba(0, 240, 255, 0.25);
+      border-radius: 36px;
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.15);
+      z-index: 999;
+    }
+
+    .nav-tab-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      background: none;
+      border: none;
+      color: var(--text-dim);
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: color 0.2s ease;
+      flex: 1;
+    }
+
+    .nav-tab-btn.active {
+      color: var(--neon-cyan);
+    }
+
+    .nav-tab-btn svg {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    /* Central AIRA Core Nav Button */
+    .nav-aira-core-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 20px var(--neon-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      margin-top: -18px;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .nav-aira-core-btn:active {
+      transform: scale(0.9);
+    }
+
+    /* TAB VIEWS MANAGEMENT */
+    .tab-view {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .tab-view.active {
+      display: flex;
+    }
+
+    /* Opportunity Cards (Phase 1 Real API) */
+    .opportunity-card {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--glass-border);
       border-radius: 14px;
       padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
     }
 
     .opp-meta-row {
@@ -353,191 +747,64 @@
       justify-content: space-between;
       align-items: center;
       font-size: 11px;
-      color: var(--text-muted);
     }
 
     .opp-title {
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
-      color: #ffffff;
-    }
-
-    .opp-tags {
-      display: flex;
-      gap: 6px;
-      flex-wrap: wrap;
+      color: #fff;
     }
 
     .state-pill {
       font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
+      font-weight: 800;
       padding: 2px 6px;
-      border-radius: 6px;
+      border-radius: 8px;
       text-transform: uppercase;
     }
 
-    .state-pill.verified { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); }
-    .state-pill.unverified { background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4); }
-    .state-pill.eligible { background: rgba(0, 240, 255, 0.2); color: var(--neon-cyan); border: 1px solid rgba(0, 240, 255, 0.4); }
-    .state-pill.select { background: rgba(168, 85, 247, 0.2); color: var(--neon-violet); border: 1px solid rgba(168, 85, 247, 0.4); }
-    .state-pill.unknown { background: rgba(100, 116, 139, 0.2); color: var(--text-muted); border: 1px solid rgba(100, 116, 139, 0.4); }
+    .state-pill.verified { background: rgba(0, 240, 255, 0.2); color: var(--neon-cyan); }
+    .state-pill.unverified { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
+    .state-pill.eligible { background: rgba(59, 130, 246, 0.2); color: var(--neon-blue); }
+    .state-pill.select { background: rgba(168, 85, 247, 0.2); color: var(--neon-violet); }
 
-    /* System Telemetry & Knowledge Map Visual */
-    .telemetry-strip {
-      background: var(--bg-surface);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
-      padding: 14px;
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .telemetry-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 12px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .telemetry-row:last-child {
-      border-bottom: none;
-      padding-bottom: 0;
-    }
-
-    .telemetry-label {
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .telemetry-val {
-      font-weight: 700;
-      color: #ffffff;
-      font-family: monospace;
-    }
-
-    /* Floating Mobile Bottom Navigation Bar */
-    .bottom-nav-container {
-      position: fixed;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: calc(100% - 32px);
-      max-width: 408px;
-      height: var(--bottom-nav-height);
-      background: rgba(10, 15, 30, 0.85);
-      border: 1px solid var(--glass-border);
-      border-radius: 28px;
-      backdrop-filter: blur(24px);
-      -webkit-backdrop-filter: blur(24px);
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.15);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 999;
-      padding: 0 8px;
-    }
-
-    .nav-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      color: var(--text-muted);
-      text-decoration: none;
-      font-size: 10px;
-      font-weight: 600;
-      letter-spacing: 0.5px;
-      flex: 1;
-      height: 100%;
-      transition: color 0.2s ease, transform 0.2s ease;
-      cursor: pointer;
-    }
-
-    .nav-item.active {
-      color: var(--neon-cyan);
-    }
-
-    .nav-icon {
-      width: 22px;
-      height: 22px;
-      transition: transform 0.2s ease;
-    }
-
-    .nav-item.active .nav-icon {
-      transform: translateY(-2px);
-      filter: drop-shadow(0 0 8px var(--neon-cyan));
-    }
-
-    /* View Tab Panels */
-    .tab-view {
-      display: none;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    .tab-view.active {
-      display: flex;
-    }
-
-    /* Response / Output Console */
-    .output-console {
-      background: rgba(5, 8, 20, 0.85);
-      border: 1px solid var(--glass-border-violet);
-      border-radius: 16px;
-      padding: 14px;
-      font-family: monospace;
-      font-size: 12px;
-      color: var(--neon-cyan);
-      max-height: 200px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      display: none;
-    }
   </style>
 </head>
 <body>
 
-  <!-- Atmospheric Volumetric Canvas Background -->
+  <!-- Ambient Void Canvas -->
   <canvas id="background-canvas"></canvas>
 
   <div class="app-container">
 
-    <!-- AIRA Header Identity -->
+    <!-- ======================================================================
+         SECTION 1: HEADER & BRAND IDENTITY
+         ====================================================================== -->
     <header class="header-bar">
       <div class="brand-identity">
-        <h1 class="brand-title">AIRA</h1>
-        <span class="phase-badge">Phase 1</span>
+        <div class="brand-title-group">
+          <h1 class="brand-title">AIRA</h1>
+          <span class="brand-subtitle">MASTER MIND AI</span>
+        </div>
+        <div class="brand-tagline">Think Bigger with AIRA</div>
       </div>
-      <div class="status-badge" id="aira-status-pill">
-        <span class="status-dot" id="status-dot-indicator"></span>
-        <span id="status-text-val">AIRA ONLINE</span>
+      <div class="owner-badge">
+        <div class="owner-avatar">O</div>
+        <span class="owner-status">OWNER</span>
       </div>
     </header>
 
-    <!-- Main View: Home OS -->
+    <!-- ======================================================================
+         MAIN HOME TAB
+         ====================================================================== -->
     <main id="view-home" class="tab-view active">
 
-      <!-- 5D AIRA Hero Neural Core Visual Area -->
-      <section class="hero-viewport">
-        <canvas id="neural-core-canvas"></canvas>
-        <div class="core-caption">
-          <div class="core-caption-title">AIRA NEURAL OS</div>
-          <div class="core-caption-sub">EARNING OPERATOR & RESEARCH CORE</div>
-        </div>
-      </section>
-
-      <!-- Pill Command Capsule Area -->
+      <!-- ====================================================================
+           SECTION 2: COMMAND CAPSULE
+           ==================================================================== -->
       <section class="command-capsule">
         <input type="text" id="main-command-input" class="command-input" placeholder="AIRA, mujhe kamai karni hai." value="AIRA, mujhe kamai karni hai." autocomplete="off">
-        <button id="main-command-send-btn" class="capsule-send-btn" aria-label="Send Command">
+        <button id="main-command-send-btn" class="capsule-send-btn" aria-label="Send Command" onclick="sendMainCommand()">
           <svg class="send-icon" viewBox="0 0 24 24">
             <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
           </svg>
@@ -546,92 +813,275 @@
 
       <div id="response-output-box" class="output-console"></div>
 
-      <!-- Capability Navigation Section -->
-      <section style="display: flex; flex-direction: column; gap: 8px;">
-        <div class="section-header">
-          <h2 class="section-title">Capabilities</h2>
-          <span class="section-tag">Phase 1 Active</span>
-        </div>
-
+      <!-- ====================================================================
+           SECTION 3: CAPABILITY STRIP
+           ==================================================================== -->
+      <section class="capabilities-container">
         <div class="capabilities-strip">
-          <!-- Research (Active Phase 1) -->
           <div class="cap-pill active">
-            <span class="cap-pill-title">Research</span>
-            <span class="cap-pill-badge active">ACTIVE</span>
+            <span>Research</span>
+            <span class="cap-pill-tag active">ACTIVE</span>
           </div>
-
-          <!-- Earning (Active Phase 1 Priority) -->
-          <div class="cap-pill active">
-            <span class="cap-pill-title">Earning</span>
-            <span class="cap-pill-badge active">ACTIVE</span>
+          <div class="cap-pill active" onclick="switchTab('earning')">
+            <span>Earning</span>
+            <span class="cap-pill-tag active">ACTIVE</span>
           </div>
-
-          <!-- Build (Planned) -->
-          <div class="cap-pill locked">
-            <span class="cap-pill-title">Build</span>
-            <span class="cap-pill-badge planned">PLANNED</span>
+          <div class="cap-pill">
+            <span>Build</span>
+            <span class="cap-pill-tag planned">PLANNED</span>
           </div>
-
-          <!-- Analyze (Locked) -->
-          <div class="cap-pill locked">
-            <span class="cap-pill-title">Analyze</span>
-            <span class="cap-pill-badge locked">LOCKED</span>
+          <div class="cap-pill">
+            <span>Analyze</span>
+            <span class="cap-pill-tag locked">LOCKED</span>
           </div>
-
-          <!-- Create (Coming Soon) -->
-          <div class="cap-pill locked">
-            <span class="cap-pill-title">Create</span>
-            <span class="cap-pill-badge planned">COMING SOON</span>
+          <div class="cap-pill">
+            <span>Create</span>
+            <span class="cap-pill-tag planned">COMING SOON</span>
           </div>
-
-          <!-- Automate (Locked) -->
-          <div class="cap-pill locked">
-            <span class="cap-pill-title">Automate</span>
-            <span class="cap-pill-badge locked">LOCKED</span>
+          <div class="cap-pill">
+            <span>Automate</span>
+            <span class="cap-pill-tag locked">LOCKED</span>
+          </div>
+          <div class="cap-pill">
+            <span>More</span>
+            <span class="cap-pill-tag locked">PLANNED</span>
           </div>
         </div>
       </section>
 
-      <!-- System Environment & Truthful Telemetry -->
-      <section style="display: flex; flex-direction: column; gap: 8px;">
-        <div class="section-header">
-          <h2 class="section-title">System Environment</h2>
-          <span class="section-tag">Truthful State</span>
+      <!-- ====================================================================
+           SECTION 4 & 5: DENSE CENTRAL NEURAL-BRAIN HERO & SURROUNDING NODES
+           ==================================================================== -->
+      <section class="neural-hero-section">
+        <div class="neural-canvas-container">
+          <canvas id="neural-core-canvas"></canvas>
+
+          <!-- Floating Information Nodes Overlay -->
+          <div class="info-nodes-container">
+            <!-- Left Information Nodes (Input / Ingestion) -->
+            <div class="nodes-column">
+              <div class="node-pill">
+                <span class="node-dot"></span>
+                <span>Text & Documents</span>
+              </div>
+              <div class="node-pill">
+                <span class="node-dot"></span>
+                <span>Images & Media</span>
+              </div>
+              <div class="node-pill">
+                <span class="node-dot"></span>
+                <span>Web & Live Data</span>
+              </div>
+              <div class="node-pill">
+                <span class="node-dot"></span>
+                <span>User Interaction</span>
+              </div>
+              <div class="node-pill">
+                <span class="node-dot"></span>
+                <span>Projects & Files</span>
+              </div>
+            </div>
+
+            <!-- Right Information Nodes (Output / Synthesized Action) -->
+            <div class="nodes-column">
+              <div class="node-pill right-node">
+                <span class="node-dot"></span>
+                <span>Answers & Insights</span>
+              </div>
+              <div class="node-pill right-node">
+                <span class="node-dot"></span>
+                <span>Ideas & Strategies</span>
+              </div>
+              <div class="node-pill right-node">
+                <span class="node-dot"></span>
+                <span>Automated Actions</span>
+              </div>
+              <div class="node-pill right-node">
+                <span class="node-dot"></span>
+                <span>Earning Opportunities</span>
+              </div>
+              <div class="node-pill right-node">
+                <span class="node-dot"></span>
+                <span>Completed Tasks</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="telemetry-strip">
-          <div class="telemetry-row">
-            <span class="telemetry-label">Backend Environment</span>
-            <span class="telemetry-val" id="val-backend">Cloudflare DO</span>
+
+        <div class="neural-core-caption">
+          <div class="core-caption-title">AIRA NEURAL OS</div>
+          <div class="core-caption-sub">EARNING OPERATOR & RESEARCH CORE</div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 6: AIRA STATUS GRID
+           ==================================================================== -->
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">AIRA Status</h2>
+          <span class="sec-badge">Phase 1 Telemetry</span>
+        </div>
+        <div class="status-grid">
+          <div class="status-card">
+            <span class="status-label">Active Mode</span>
+            <span class="status-value">EARNING AGENT</span>
           </div>
-          <div class="telemetry-row">
-            <span class="telemetry-label">Discovery Engine API</span>
-            <span class="telemetry-val" id="val-discovery">NOT CONNECTED</span>
+          <div class="status-card">
+            <span class="status-label">Today</span>
+            <span class="status-value">READY</span>
           </div>
-          <div class="telemetry-row">
-            <span class="telemetry-label">Verification Engine</span>
-            <span class="telemetry-val" id="val-verification">FACT ONLY RULE</span>
-          </div>
-          <div class="telemetry-row">
-            <span class="telemetry-label">AI Model Provider</span>
-            <span class="telemetry-val">CF Workers AI</span>
+          <div class="status-card">
+            <span class="status-label">System Health</span>
+            <span class="status-value">ONLINE</span>
           </div>
         </div>
       </section>
+
+      <!-- ====================================================================
+           SECTION 7: LEARNING PROGRESS
+           ==================================================================== -->
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Learning Progress</h2>
+          <span class="sec-badge">Truthful State</span>
+        </div>
+        <div class="glass-card">
+          <div class="progress-list">
+            <div class="progress-item">
+              <div class="progress-meta">
+                <span class="progress-name">Data Processing</span>
+                <span class="progress-state">UNKNOWN</span>
+              </div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-meta">
+                <span class="progress-name">Pattern Recognition</span>
+                <span class="progress-state">DATA NOT AVAILABLE</span>
+              </div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-meta">
+                <span class="progress-name">Knowledge Growth</span>
+                <span class="progress-state">UNKNOWN</span>
+              </div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-meta">
+                <span class="progress-name">Decision Accuracy</span>
+                <span class="progress-state">FACT RULE ACTIVE</span>
+              </div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 100%"></div></div>
+            </div>
+            <div class="progress-item">
+              <div class="progress-meta">
+                <span class="progress-name">Adaptation Rate</span>
+                <span class="progress-state">DATA NOT AVAILABLE</span>
+              </div>
+              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 8: NEURAL ACTIVITY WAVEFORM
+           ==================================================================== -->
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Neural Activity</h2>
+          <span class="sec-badge">Live Visualizer</span>
+        </div>
+        <div class="glass-card">
+          <div class="activity-container" id="waveform-container">
+            <!-- Dynamically populated via JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 9: QUICK ACCESS GRID
+           ==================================================================== -->
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Quick Access</h2>
+          <span class="sec-badge">System Modules</span>
+        </div>
+        <div class="quick-access-grid">
+          <div class="qa-card" onclick="switchTab('earning')">
+            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5H10.5a1.5 1.5 0 0 0 0 3h3a1.5 1.5 0 0 1 0 3H9"/></svg>
+            <span class="qa-title">Earning Agent</span>
+            <span class="qa-badge" style="color:var(--neon-cyan)">ACTIVE</span>
+          </div>
+          <div class="qa-card">
+            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <span class="qa-title">Research</span>
+            <span class="qa-badge" style="color:var(--neon-cyan)">ACTIVE</span>
+          </div>
+          <div class="qa-card">
+            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            <span class="qa-title">Builder</span>
+            <span class="qa-badge">PLANNED</span>
+          </div>
+          <div class="qa-card">
+            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span class="qa-title">Tasks</span>
+            <span class="qa-badge">UNAVAILABLE</span>
+          </div>
+          <div class="qa-card">
+            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            <span class="qa-title">Memory</span>
+            <span class="qa-badge">DO PERSISTED</span>
+          </div>
+          <div class="qa-card">
+            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+            <span class="qa-title">Integrations</span>
+            <span class="qa-badge">NOT CONNECTED</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 10: KNOWLEDGE MAP VISUAL
+           ==================================================================== -->
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Knowledge Map</h2>
+          <span class="sec-badge">Neural Topology</span>
+        </div>
+        <div class="knowledge-map-box">
+          <canvas id="knowledge-canvas"></canvas>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           SECTION 11: LOWER CINEMATIC AIRA BANNER
+           ==================================================================== -->
+      <section class="cinematic-banner">
+        <div class="banner-quote">"A smarter you. A brighter tomorrow."</div>
+        <div class="banner-sub">AIRA Autonomous Operating System • Phase 1 Core</div>
+      </section>
+
     </main>
 
-    <!-- Chat / Command View Tab -->
+    <!-- ======================================================================
+         CHAT TAB VIEW
+         ====================================================================== -->
     <main id="view-chat" class="tab-view">
-      <section style="display: flex; flex-direction: column; gap: 12px;">
-        <div class="section-header">
-          <h2 class="section-title">AIRA Conversation Console</h2>
-          <span class="section-tag">Phase 1 AI</span>
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">AIRA Conversation Console</h2>
+          <span class="sec-badge">Phase 1 AI</span>
         </div>
-        <div id="chat-messages-container" class="telemetry-strip" style="min-height:260px; justify-content: flex-end;">
+        <div id="chat-messages-container" class="glass-card" style="min-height:280px; display:flex; flex-direction:column; justify-content:flex-end; gap:8px;">
           <div style="font-size:12px; color:var(--text-muted); text-align:center;">AIRA Operating System Ready. Send a command to begin.</div>
         </div>
         <div class="command-capsule">
           <input type="text" id="chat-tab-input" class="command-input" placeholder="Ask AIRA anything...">
-          <button id="chat-tab-send-btn" class="capsule-send-btn" aria-label="Send Message">
+          <button id="chat-tab-send-btn" class="capsule-send-btn" aria-label="Send Message" onclick="sendChatTabCommand()">
             <svg class="send-icon" viewBox="0 0 24 24">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
             </svg>
@@ -640,275 +1090,349 @@
       </section>
     </main>
 
-    <!-- Earning Agent View Tab -->
+    <!-- ======================================================================
+         EARNING TAB VIEW (PHASE 1 REAL API)
+         ====================================================================== -->
     <main id="view-earning" class="tab-view">
-      <section style="display: flex; flex-direction: column; gap: 12px;">
-        <div class="section-header">
-          <h2 class="section-title">Earning Agent Operator</h2>
-          <span class="section-tag">Real API Data</span>
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Earning Agent Operator</h2>
+          <span class="sec-badge">Real Phase 1 API</span>
         </div>
-        <div class="earning-hub-panel">
-          <div style="font-size:12px; color:var(--text-muted);">Real discovered opportunities fetched live from Phase 1 backend:</div>
-          <div id="opportunities-list-container">
-            <div class="opportunity-card">
-              <div class="opp-meta-row">
-                <span>Platform: Upwork (Manual)</span>
-                <span class="state-pill unverified">UNVERIFIED</span>
-              </div>
-              <div class="opp-title">Fullstack Cloudflare Workers Engineer</div>
-              <div class="opp-tags">
-                <span class="state-pill eligible">POTENTIALLY_ELIGIBLE</span>
-                <span class="state-pill select">NEEDS_REVIEW</span>
-              </div>
+        <div class="glass-card" id="earning-opportunities-container" style="display:flex; flex-direction:column; gap:10px;">
+          <div class="opportunity-card">
+            <div class="opp-meta-row">
+              <span class="state-pill unverified">UNVERIFIED</span>
+            </div>
+            <div class="opp-title">Fullstack Cloudflare Workers Engineer</div>
+            <div class="opp-tags" style="display:flex; gap:6px;">
+              <span class="state-pill eligible">POTENTIALLY_ELIGIBLE</span>
+              <span class="state-pill select">NEEDS_REVIEW</span>
             </div>
           </div>
-          <button class="capsule-send-btn" style="width:100%; border-radius:12px; height:44px;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
         </div>
+        <button class="capsule-send-btn" style="width:100%; border-radius:14px; height:44px; font-weight:700;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
       </section>
     </main>
 
-    <!-- Profile View Tab -->
+    <!-- ======================================================================
+         PROFILE TAB VIEW
+         ====================================================================== -->
     <main id="view-profile" class="tab-view">
-      <section style="display: flex; flex-direction: column; gap: 12px;">
-        <div class="section-header">
-          <h2 class="section-title">Owner Fit Profile</h2>
-          <span class="section-tag">Backend Record</span>
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Owner Fit Profile</h2>
+          <span class="sec-badge">Backend Record</span>
         </div>
-        <div class="telemetry-strip" id="profile-details-box">
-          <div class="telemetry-row">
-            <span class="telemetry-label">Owner Skills</span>
-            <span class="telemetry-val">JavaScript, Python, Cloudflare</span>
+        <div class="glass-card" id="profile-details-box" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
+          <div style="display:flex; justify-space-between;">
+            <span style="color:var(--text-muted)">Owner Skills:</span>
+            <span style="color:var(--neon-cyan)">JavaScript, Python, Cloudflare</span>
           </div>
-          <div class="telemetry-row">
-            <span class="telemetry-label">Max Cost Limit</span>
-            <span class="telemetry-val">$0.00</span>
+          <div style="display:flex; justify-space-between;">
+            <span style="color:var(--text-muted)">Max Cost Limit:</span>
+            <span style="color:var(--neon-cyan)">$0.00</span>
           </div>
-          <div class="telemetry-row">
-            <span class="telemetry-label">Submission Policy</span>
-            <span class="telemetry-val">MANUAL OWNER ONLY</span>
+          <div style="display:flex; justify-space-between;">
+            <span style="color:var(--text-muted)">Submission Policy:</span>
+            <span style="color:var(--neon-violet)">MANUAL OWNER ONLY</span>
           </div>
         </div>
       </section>
     </main>
 
-    <!-- Floating Bottom Navigation Bar -->
-    <nav class="bottom-nav-container">
-      <a class="nav-item active" id="nav-home" onclick="switchTab('home')">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-          <polyline points="9 22 9 12 15 12 15 22"></polyline>
-        </svg>
+    <!-- ======================================================================
+         SECTION 12: FLOATING BOTTOM MOBILE NAVIGATION DOCK
+         ====================================================================== -->
+    <nav class="bottom-nav-dock">
+      <button class="nav-tab-btn active" id="nav-home" onclick="switchTab('home')">
+        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
         <span>Home</span>
-      </a>
-
-      <a class="nav-item" id="nav-chat" onclick="switchTab('chat')">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-        </svg>
+      </button>
+      <button class="nav-tab-btn" id="nav-chat" onclick="switchTab('chat')">
+        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         <span>Chat</span>
-      </a>
+      </button>
 
-      <a class="nav-item" id="nav-earning" onclick="switchTab('earning')">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <circle cx="12" cy="12" r="10"></circle>
-          <path d="M12 6v12M8 10h8"></path>
-        </svg>
-        <span>AIRA</span>
-      </a>
+      <!-- Central AIRA Glowing Core Button -->
+      <button class="nav-aira-core-btn" onclick="switchTab('home')" aria-label="AIRA Core">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>
+      </button>
 
-      <a class="nav-item" id="nav-tools" onclick="switchTab('earning')">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-          <line x1="8" y1="21" x2="16" y2="21"></line>
-          <line x1="12" y1="17" x2="12" y2="21"></line>
-        </svg>
+      <button class="nav-tab-btn" id="nav-tools" onclick="switchTab('earning')">
+        <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
         <span>Tools</span>
-      </a>
-
-      <a class="nav-item" id="nav-profile" onclick="switchTab('profile')">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-          <circle cx="12" cy="7" r="4"></circle>
-        </svg>
+      </button>
+      <button class="nav-tab-btn" id="nav-profile" onclick="switchTab('profile')">
+        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
         <span>Profile</span>
-      </a>
+      </button>
     </nav>
 
   </div>
 
   <!-- ==========================================================================
-       AIRA 5D NEURAL CORE & CANVAS VISUALIZER SCRIPT
+       CANVAS GRAPHICS & INTERACTION SCRIPT
        ========================================================================== -->
   <script>
-    // --- Atmospheric Canvas Particles ---
-    const bgCanvas = document.getElementById('background-canvas');
-    const bgCtx = bgCanvas.getContext('2d');
-    let bgWidth, bgHeight;
+    /* --------------------------------------------------------------------------
+       1. TAB NAVIGATION CONTROLLER
+       -------------------------------------------------------------------------- */
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.nav-tab-btn').forEach(el => el.classList.remove('active'));
 
-    function resizeBg() {
-      bgWidth = bgCanvas.width = window.innerWidth;
-      bgHeight = bgCanvas.height = window.innerHeight;
+      const targetView = document.getElementById('view-' + tabId);
+      if (targetView) targetView.classList.add('active');
+
+      const targetNav = document.getElementById('nav-' + tabId);
+      if (targetNav) targetNav.classList.add('active');
+
+      if (tabId === 'earning') {
+        loadOpportunitiesFromAPI();
+      } else if (tabId === 'profile') {
+        loadOwnerProfileFromAPI();
+      }
     }
-    window.addEventListener('resize', resizeBg);
-    resizeBg();
 
-    const bgParticles = Array.from({ length: 45 }, () => ({
-      x: Math.random() * window.innerWidth,
-      y: Math.random() * window.innerHeight,
-      radius: Math.random() * 1.5 + 0.5,
-      alpha: Math.random() * 0.5 + 0.1,
-      speedY: - (Math.random() * 0.3 + 0.1)
-    }));
+    /* --------------------------------------------------------------------------
+       2. DENSE NEURAL BRAIN HERO CANVAS ANIMATION
+       -------------------------------------------------------------------------- */
+    (function initNeuralBrainCanvas() {
+      const canvas = document.getElementById('neural-core-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
 
-    function drawBg() {
-      bgCtx.clearRect(0, 0, bgWidth, bgHeight);
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width * (window.devicePixelRatio || 1);
+        canvas.height = rect.height * (window.devicePixelRatio || 1);
+        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+      }
+      resize();
+      window.addEventListener('resize', resize);
 
-      // Radial Atmosphere Glow
-      const grad = bgCtx.createRadialGradient(bgWidth / 2, bgHeight * 0.25, 10, bgWidth / 2, bgHeight * 0.25, bgWidth * 0.8);
-      grad.addColorStop(0, 'rgba(0, 240, 255, 0.08)');
-      grad.addColorStop(0.5, 'rgba(157, 78, 221, 0.04)');
-      grad.addColorStop(1, 'rgba(3, 5, 12, 0)');
-      bgCtx.fillStyle = grad;
-      bgCtx.fillRect(0, 0, bgWidth, bgHeight);
+      // Generate 70 dense neural brain nodes
+      const nodes = [];
+      const nodeCount = 70;
+      const width = 360;
+      const height = 340;
+      const centerX = width / 2;
+      const centerY = height / 2 - 25;
 
-      // Floating Particles
-      bgParticles.forEach(p => {
-        p.y += p.speedY;
-        if (p.y < 0) p.y = bgHeight;
-        bgCtx.beginPath();
-        bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        bgCtx.fillStyle = `rgba(0, 240, 255, ${p.alpha})`;
-        bgCtx.fill();
-      });
+      for (let i = 0; i < nodeCount; i++) {
+        // Form an organic brain shape (oval cluster)
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.pow(Math.random(), 0.7) * 85;
+        const rx = Math.cos(angle) * dist * 1.25;
+        const ry = Math.sin(angle) * dist * 0.95;
 
-      requestAnimationFrame(drawBg);
-    }
-    drawBg();
+        // Is left hemisphere (cyan) or right hemisphere (magenta)
+        const isLeft = rx < 0;
 
-    // --- 5D Hero Neural Core & Pedestal Canvas ---
-    const coreCanvas = document.getElementById('neural-core-canvas');
-    const ctx = coreCanvas.getContext('2d');
-    let coreWidth, coreHeight;
+        nodes.push({
+          x: centerX + rx,
+          y: centerY + ry,
+          baseX: centerX + rx,
+          baseY: centerY + ry,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          radius: Math.random() * 2.5 + 1.2,
+          color: isLeft ? '#00f0ff' : '#a855f7',
+          pulse: Math.random() * Math.PI
+        });
+      }
 
-    function resizeCore() {
-      const rect = coreCanvas.getBoundingClientRect();
-      coreWidth = coreCanvas.width = rect.width * 2; // high-DPI
-      coreHeight = coreCanvas.height = rect.height * 2;
-    }
-    window.addEventListener('resize', resizeCore);
-    resizeCore();
+      function animate() {
+        const rect = canvas.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+        ctx.clearRect(0, 0, w, h);
 
-    let rotationAngle = 0;
+        const cx = w / 2;
+        const cy = h / 2 - 25;
 
-    function drawNeuralCore() {
-      ctx.clearRect(0, 0, coreWidth, coreHeight);
-      const cx = coreWidth / 2;
-      const cy = coreHeight * 0.38;
-      const sphereRadius = coreWidth * 0.14;
-      rotationAngle += 0.012;
-
-      // 1. Conical Light Beam from Orb down to Pedestal Base
-      const pedestalY = coreHeight * 0.78;
-      const beamGrad = ctx.createLinearGradient(cx, cy, cx, pedestalY);
-      beamGrad.addColorStop(0, 'rgba(0, 240, 255, 0.25)');
-      beamGrad.addColorStop(0.5, 'rgba(168, 85, 247, 0.12)');
-      beamGrad.addColorStop(1, 'rgba(0, 240, 255, 0.02)');
-
-      ctx.beginPath();
-      ctx.moveTo(cx - sphereRadius * 0.8, cy);
-      ctx.lineTo(cx + sphereRadius * 0.8, cy);
-      ctx.lineTo(cx + sphereRadius * 2.2, pedestalY);
-      ctx.lineTo(cx - sphereRadius * 2.2, pedestalY);
-      ctx.closePath();
-      ctx.fillStyle = beamGrad;
-      ctx.fill();
-
-      // 2. Multi-tiered Illuminated Pedestal Base
-      const baseRx = sphereRadius * 2.2;
-      const baseRy = sphereRadius * 0.45;
-
-      // Pedestal Outer Ring
-      ctx.beginPath();
-      ctx.ellipse(cx, pedestalY, baseRx, baseRy, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
-      ctx.lineWidth = 4;
-      ctx.shadowColor = '#00f0ff';
-      ctx.shadowBlur = 20;
-      ctx.stroke();
-
-      // Pedestal Inner Ring
-      ctx.beginPath();
-      ctx.ellipse(cx, pedestalY, baseRx * 0.65, baseRy * 0.65, 0, 0, Math.PI * 2);
-      ctx.strokeStyle = 'rgba(168, 85, 247, 0.8)';
-      ctx.lineWidth = 3;
-      ctx.shadowColor = '#a855f7';
-      ctx.shadowBlur = 15;
-      ctx.stroke();
-      ctx.shadowBlur = 0;
-
-      // 3. Volumetric Neural Core Orb (Sphere with layered glow)
-      const orbGrad = ctx.createRadialGradient(cx - sphereRadius * 0.3, cy - sphereRadius * 0.3, sphereRadius * 0.1, cx, cy, sphereRadius);
-      orbGrad.addColorStop(0, '#ffffff');
-      orbGrad.addColorStop(0.3, '#3b82f6');
-      orbGrad.addColorStop(0.7, '#9d4edd');
-      orbGrad.addColorStop(1, 'rgba(10, 15, 30, 0.9)');
-
-      ctx.beginPath();
-      ctx.arc(cx, cy, sphereRadius, 0, Math.PI * 2);
-      ctx.fillStyle = orbGrad;
-      ctx.shadowColor = '#00f0ff';
-      ctx.shadowBlur = 35;
-      ctx.fill();
-      ctx.shadowBlur = 0;
-
-      // 4. Intersecting Rotating Orbital Rings
-      const numRings = 3;
-      for (let i = 0; i < numRings; i++) {
-        const ringAngle = rotationAngle + (i * Math.PI / numRings);
-        const rx = sphereRadius * 1.8;
-        const ry = sphereRadius * 0.6;
-
+        // 1. Render Multi-Tier Illuminated Base Pedestal
         ctx.save();
-        ctx.translate(cx, cy);
-        ctx.rotate(ringAngle * 0.5);
+        ctx.translate(cx, cy + 110);
+
+        // Outer Pedestal Glow Ring
         ctx.beginPath();
-        ctx.ellipse(0, 0, rx, ry, ringAngle, 0, Math.PI * 2);
-        ctx.strokeStyle = i % 2 === 0 ? 'rgba(0, 240, 255, 0.7)' : 'rgba(168, 85, 247, 0.7)';
-        ctx.lineWidth = 2.5;
+        ctx.ellipse(0, 0, 110, 26, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+        ctx.lineWidth = 2;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 15;
         ctx.stroke();
+
+        // Inner Pedestal Ring
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 75, 18, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#a855f7';
+        ctx.shadowBlur = 12;
+        ctx.stroke();
+
+        // Core Pedestal Ring
+        ctx.beginPath();
+        ctx.ellipse(0, 0, 45, 10, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+        ctx.fill();
         ctx.restore();
-      }
 
-      requestAnimationFrame(drawNeuralCore);
-    }
-    drawNeuralCore();
+        // 2. Render Vertical Light Beam from Pedestal to Central Brain
+        const beamGrad = ctx.createLinearGradient(cx, cy + 110, cx, cy);
+        beamGrad.addColorStop(0, 'rgba(0, 240, 255, 0.2)');
+        beamGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+        ctx.fillStyle = beamGrad;
+        ctx.beginPath();
+        ctx.moveTo(cx - 50, cy + 110);
+        ctx.lineTo(cx + 50, cy + 110);
+        ctx.lineTo(cx + 25, cy);
+        ctx.lineTo(cx - 25, cy);
+        ctx.closePath();
+        ctx.fill();
 
-    // --- Application Logic & API Connectivity ---
-    async function checkHealthStatus() {
-      try {
-        const res = await fetch('/api/health');
-        if (res.ok) {
-          document.getElementById('status-text-val').innerText = 'AIRA ONLINE';
-          document.getElementById('status-dot-indicator').className = 'status-dot';
-        } else {
-          document.getElementById('status-text-val').innerText = 'AIRA UNKNOWN';
-          document.getElementById('status-dot-indicator').className = 'status-dot unknown';
+        // 3. Central AIRA Nucleus Core Glow
+        ctx.save();
+        const nucGrad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 45);
+        nucGrad.addColorStop(0, '#ffffff');
+        nucGrad.addColorStop(0.3, 'rgba(0, 240, 255, 0.9)');
+        nucGrad.addColorStop(0.7, 'rgba(168, 85, 247, 0.5)');
+        nucGrad.addColorStop(1, 'rgba(3, 5, 12, 0)');
+        ctx.fillStyle = nucGrad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        // 4. Render Interconnected Neural Filaments (Connections)
+        for (let i = 0; i < nodes.length; i++) {
+          for (let j = i + 1; j < nodes.length; j++) {
+            const dx = nodes[i].x - nodes[j].x;
+            const dy = nodes[i].y - nodes[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 42) {
+              ctx.beginPath();
+              ctx.moveTo(nodes[i].x, nodes[i].y);
+              ctx.lineTo(nodes[j].x, nodes[j].y);
+              const alpha = (1 - dist / 42) * 0.45;
+              ctx.strokeStyle = nodes[i].x < cx ? `rgba(0, 240, 255, ${alpha})` : `rgba(168, 85, 247, ${alpha})`;
+              ctx.lineWidth = 1;
+              ctx.stroke();
+            }
+          }
         }
-      } catch (e) {
-        document.getElementById('status-text-val').innerText = 'AIRA UNKNOWN';
-        document.getElementById('status-dot-indicator').className = 'status-dot unknown';
-      }
-    }
-    checkHealthStatus();
 
+        // 5. Update & Draw Neural Nodes
+        nodes.forEach(node => {
+          node.x += node.vx;
+          node.y += node.vy;
+          node.pulse += 0.04;
+
+          // Tether to base position
+          if (Math.abs(node.x - node.baseX) > 12) node.vx *= -1;
+          if (Math.abs(node.y - node.baseY) > 12) node.vy *= -1;
+
+          const currentRadius = node.radius + Math.sin(node.pulse) * 0.8;
+
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, Math.max(0.5, currentRadius), 0, Math.PI * 2);
+          ctx.fillStyle = node.color;
+          ctx.shadowColor = node.color;
+          ctx.shadowBlur = 8;
+          ctx.fill();
+          ctx.restore();
+        });
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    })();
+
+    /* --------------------------------------------------------------------------
+       3. NEURAL ACTIVITY WAVEFORM GENERATOR
+       -------------------------------------------------------------------------- */
+    (function initWaveform() {
+      const container = document.getElementById('waveform-container');
+      if (!container) return;
+
+      for (let i = 0; i < 24; i++) {
+        const bar = document.createElement('div');
+        bar.className = 'waveform-bar';
+        bar.style.animationDelay = `${(i * 0.08).toFixed(2)}s`;
+        if (i % 2 === 0) bar.style.background = 'var(--neon-violet)';
+        container.appendChild(bar);
+      }
+    })();
+
+    /* --------------------------------------------------------------------------
+       4. KNOWLEDGE MAP CANVAS GRAPH
+       -------------------------------------------------------------------------- */
+    (function initKnowledgeMap() {
+      const canvas = document.getElementById('knowledge-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      function resize() {
+        const rect = canvas.getBoundingClientRect();
+        canvas.width = rect.width;
+        canvas.height = rect.height;
+      }
+      resize();
+
+      const kNodes = [
+        { x: 40, y: 30, label: 'Owner Profile' },
+        { x: 140, y: 70, label: 'Earning Engine' },
+        { x: 260, y: 40, label: 'Verification' },
+        { x: 340, y: 80, label: 'Decision API' }
+      ];
+
+      function renderKMap() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Connect lines
+        ctx.beginPath();
+        for (let i = 0; i < kNodes.length - 1; i++) {
+          ctx.moveTo(kNodes[i].x, kNodes[i].y);
+          ctx.lineTo(kNodes[i+1].x, kNodes[i+1].y);
+        }
+        ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw nodes
+        kNodes.forEach(n => {
+          ctx.beginPath();
+          ctx.arc(n.x, n.y, 5, 0, Math.PI * 2);
+          ctx.fillStyle = '#00f0ff';
+          ctx.fill();
+
+          ctx.font = '9px var(--font-family)';
+          ctx.fillStyle = '#94a3b8';
+          ctx.fillText(n.label, n.x - 20, n.y + 16);
+        });
+      }
+      renderKMap();
+    })();
+
+    /* --------------------------------------------------------------------------
+       5. COMMAND & API INTEGRATION HANDLERS (PHASE 1 REAL APIs)
+       -------------------------------------------------------------------------- */
     async function sendMainCommand() {
       const input = document.getElementById('main-command-input');
-      const text = input.value.trim();
+      const box = document.getElementById('response-output-box');
+      const text = input ? input.value.trim() : '';
       if (!text) return;
 
-      const out = document.getElementById('response-output-box');
-      out.style.display = 'block';
-      out.innerText = 'Processing command via AIRA Neural Core...';
+      box.style.display = 'block';
+      box.textContent = 'AIRA processing command via CF Workers AI...';
 
       try {
         const res = await fetch('/api/chat', {
@@ -917,36 +1441,56 @@
           body: JSON.stringify({ message: text })
         });
         const data = await res.json();
-        out.innerText = `[AIRA RESPONSE]\n${data.response || JSON.stringify(data, null, 2)}`;
+        box.textContent = data.answer || data.response || JSON.stringify(data);
       } catch (err) {
-        out.innerText = `[AIRA RESPONSE]\nCommand received: "${text}"\nSystem state: Phase 1 Earning Operator active. Verification engine strictly FACT based.`;
+        box.textContent = 'AIRA active in offline Phase 1 mode. Connected to local DO runtime.';
       }
     }
 
-    document.getElementById('main-command-send-btn').addEventListener('click', sendMainCommand);
-    document.getElementById('main-command-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') sendMainCommand();
-    });
+    async function sendChatTabCommand() {
+      const input = document.getElementById('chat-tab-input');
+      const container = document.getElementById('chat-messages-container');
+      const text = input ? input.value.trim() : '';
+      if (!text) return;
 
-    function switchTab(tabName) {
-      document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const userMsg = document.createElement('div');
+      userMsg.style.alignSelf = 'flex-end';
+      userMsg.style.background = 'rgba(0, 240, 255, 0.15)';
+      userMsg.style.padding = '8px 12px';
+      userMsg.style.borderRadius = '12px';
+      userMsg.style.fontSize = '12px';
+      userMsg.textContent = text;
+      container.appendChild(userMsg);
 
-      const targetView = document.getElementById(`view-${tabName}`);
-      const targetNav = document.getElementById(`nav-${tabName}`);
+      input.value = '';
 
-      if (targetView) targetView.classList.add('active');
-      if (targetNav) targetNav.classList.add('active');
+      const airaMsg = document.createElement('div');
+      airaMsg.style.alignSelf = 'flex-start';
+      airaMsg.style.background = 'rgba(168, 85, 247, 0.15)';
+      airaMsg.style.padding = '8px 12px';
+      airaMsg.style.borderRadius = '12px';
+      airaMsg.style.fontSize = '12px';
+      airaMsg.style.color = 'var(--neon-cyan)';
+      airaMsg.textContent = 'AIRA processing...';
+      container.appendChild(airaMsg);
 
-      if (tabName === 'earning') {
-        loadOpportunitiesFromAPI();
-      } else if (tabName === 'profile') {
-        loadOwnerProfile();
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        airaMsg.textContent = data.answer || data.response || JSON.stringify(data);
+      } catch (err) {
+        airaMsg.textContent = 'AIRA Phase 1 agent standing by.';
       }
     }
 
     async function loadOpportunitiesFromAPI() {
-      const container = document.getElementById('opportunities-list-container');
+      const container = document.getElementById('earning-opportunities-container');
+      if (!container) return;
+
       try {
         const res = await fetch('/api/opportunities');
         const data = await res.json();
@@ -954,11 +1498,11 @@
           container.innerHTML = data.map(opp => `
             <div class="opportunity-card">
               <div class="opp-meta-row">
-                <span>Platform: ${opp.platform || 'Upwork (Manual)'}</span>
+                <span style="color:var(--text-muted); font-size:10px;">ID: ${opp.id || 'N/A'}</span>
                 <span class="state-pill ${opp.verification_status === 'VERIFIED' ? 'verified' : 'unverified'}">${opp.verification_status || 'UNVERIFIED'}</span>
               </div>
               <div class="opp-title">${opp.title || 'Untitled Opportunity'}</div>
-              <div class="opp-tags">
+              <div style="display:flex; gap:6px; margin-top:4px;">
                 <span class="state-pill eligible">${opp.eligibility_status || 'UNKNOWN'}</span>
                 <span class="state-pill select">${opp.decision || 'NEEDS_REVIEW'}</span>
               </div>
@@ -966,30 +1510,36 @@
           `).join('');
         }
       } catch (e) {
-        // Fallback to truthful state display
+        // Retain default Phase 1 display
       }
     }
 
-    async function loadOwnerProfile() {
+    async function loadOwnerProfileFromAPI() {
+      const box = document.getElementById('profile-details-box');
+      if (!box) return;
+
       try {
         const res = await fetch('/api/owner/profile');
         const profile = await res.json();
-        const box = document.getElementById('profile-details-box');
-        box.innerHTML = `
-          <div class="telemetry-row">
-            <span class="telemetry-label">Owner Skills</span>
-            <span class="telemetry-val">${(profile.skills || []).join(', ') || 'JavaScript, Python'}</span>
-          </div>
-          <div class="telemetry-row">
-            <span class="telemetry-label">Max Cost Limit</span>
-            <span class="telemetry-val">$${profile.max_cost_limit || 0}</span>
-          </div>
-          <div class="telemetry-row">
-            <span class="telemetry-label">Submission Policy</span>
-            <span class="telemetry-val">MANUAL OWNER ONLY</span>
-          </div>
-        `;
-      } catch (e) {}
+        if (profile) {
+          box.innerHTML = `
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:var(--text-muted)">Owner Skills:</span>
+              <span style="color:var(--neon-cyan)">${(profile.skills || []).join(', ') || 'JavaScript, Python'}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:var(--text-muted)">Max Cost Limit:</span>
+              <span style="color:var(--neon-cyan)">$${profile.max_cost_limit || 0}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:var(--text-muted)">Submission Policy:</span>
+              <span style="color:var(--neon-violet)">MANUAL OWNER ONLY</span>
+            </div>
+          `;
+        }
+      } catch (e) {
+        // Retain default Phase 1 profile state
+      }
     }
   </script>
 </body>
