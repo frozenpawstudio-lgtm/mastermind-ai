@@ -993,7 +993,7 @@
       <section class="section-block">
         <div class="section-header-title">
           <h2 class="sec-title">Neural Activity</h2>
-          <span class="sec-badge">Live Visualizer</span>
+          <span class="sec-badge">VISUALIZATION</span>
         </div>
         <div class="glass-card">
           <div class="activity-container" id="waveform-container">
@@ -1328,13 +1328,16 @@
 
         // 5. Update & Draw Neural Nodes
         nodes.forEach(node => {
-          node.x += node.vx;
-          node.y += node.vy;
+          node.offsetX += node.vx;
+          node.offsetY += node.vy;
           node.pulse += 0.04;
 
           // Tether to base position
-          if (Math.abs(node.x - node.baseX) > 12) node.vx *= -1;
-          if (Math.abs(node.y - node.baseY) > 12) node.vy *= -1;
+          if (Math.abs(node.offsetX) > 12) node.vx *= -1;
+          if (Math.abs(node.offsetY) > 12) node.vy *= -1;
+
+          node.x = cx + node.relX + node.offsetX;
+          node.y = cy + node.relY + node.offsetY;
 
           const currentRadius = node.radius + Math.sin(node.pulse) * 0.8;
 
@@ -1425,6 +1428,26 @@
     /* --------------------------------------------------------------------------
        5. COMMAND & API INTEGRATION HANDLERS (PHASE 1 REAL APIs)
        -------------------------------------------------------------------------- */
+    async function checkSystemHealth() {
+      const el = document.getElementById('system-health-value');
+      if (!el) return;
+      try {
+        const res = await fetch('/api/health');
+        if (res.ok) {
+          const data = await res.json();
+          el.textContent = (data.status === 'ok' || data.status === 'healthy') ? 'HEALTHY' : (data.status || 'UNKNOWN');
+          el.style.color = '#10b981';
+        } else {
+          el.textContent = 'NOT CONNECTED';
+          el.style.color = '#ef4444';
+        }
+      } catch (err) {
+        el.textContent = 'UNKNOWN';
+        el.style.color = 'var(--text-muted)';
+      }
+    }
+    checkSystemHealth();
+
     async function sendMainCommand() {
       const input = document.getElementById('main-command-input');
       const box = document.getElementById('response-output-box');
