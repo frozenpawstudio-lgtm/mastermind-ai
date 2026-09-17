@@ -294,7 +294,7 @@
     .neural-hero-section {
       position: relative;
       width: 100%;
-      min-height: 380px;
+      min-height: 420px; margin: 12px 0;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -305,7 +305,7 @@
     .neural-canvas-container {
       position: relative;
       width: 100%;
-      height: 340px;
+      height: 380px;
     }
 
     #neural-core-canvas {
@@ -929,11 +929,11 @@
           </div>
           <div class="status-card">
             <span class="status-label">Today</span>
-            <span class="status-value">READY</span>
+            <span class="status-value" style="font-size:10px;">DATA NOT AVAILABLE</span>
           </div>
           <div class="status-card">
             <span class="status-label">System Health</span>
-            <span class="status-value">ONLINE</span>
+            <span class="status-value" id="system-health-value">UNKNOWN</span>
           </div>
         </div>
       </section>
@@ -1062,7 +1062,7 @@
            ==================================================================== -->
       <section class="cinematic-banner">
         <div class="banner-quote">"A smarter you. A brighter tomorrow."</div>
-        <div class="banner-sub">AIRA Autonomous Operating System • Phase 1 Core</div>
+        <div class="banner-sub">AIRA • PHASE 1 EARNING OPERATOR</div>
       </section>
 
     </main>
@@ -1199,9 +1199,9 @@
        2. DENSE NEURAL BRAIN HERO CANVAS ANIMATION
        -------------------------------------------------------------------------- */
     (function initNeuralBrainCanvas() {
-      const canvas = document.getElementById('neural-core-canvas');
+      const canvas = document.getElementById("neural-core-canvas");
       if (!canvas) return;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
 
       function resize() {
         const rect = canvas.getBoundingClientRect();
@@ -1210,36 +1210,42 @@
         ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
       }
       resize();
-      window.addEventListener('resize', resize);
+      window.addEventListener("resize", resize);
 
-      // Generate 70 dense neural brain nodes
+      // Generate 140 dense, anatomically curved neural brain nodes
       const nodes = [];
-      const nodeCount = 70;
-      const width = 360;
-      const height = 340;
-      const centerX = width / 2;
-      const centerY = height / 2 - 25;
+      const nodeCount = 140;
 
       for (let i = 0; i < nodeCount; i++) {
-        // Form an organic brain shape (oval cluster)
-        const angle = Math.random() * Math.PI * 2;
-        const dist = Math.pow(Math.random(), 0.7) * 85;
-        const rx = Math.cos(angle) * dist * 1.25;
-        const ry = Math.sin(angle) * dist * 0.95;
+        // Create dual hemisphere brain shape (left < 0, right > 0)
+        const isLeft = Math.random() < 0.5;
+        const sideMultiplier = isLeft ? -1 : 1;
 
-        // Is left hemisphere (cyan) or right hemisphere (magenta)
-        const isLeft = rx < 0;
+        // Polar coordinates relative to hemisphere centers
+        const u = Math.random();
+        const v = Math.random();
+        const radius = 20 + Math.pow(u, 0.5) * 85;
+        const angle = v * Math.PI * 2;
+
+        // Base relative offset shaping a realistic brain silhouette
+        let rx = sideMultiplier * (15 + Math.abs(Math.cos(angle)) * (radius * 0.75));
+        let ry = Math.sin(angle) * (radius * 0.65);
+
+        // Adjust for frontal lobe, occipital lobe, and temporal curve
+        if (ry < -20) rx *= 1.15; // Top expansion
+        if (ry > 20) ry *= 0.85;  // Base flat curve for brainstem
 
         nodes.push({
-          x: centerX + rx,
-          y: centerY + ry,
-          baseX: centerX + rx,
-          baseY: centerY + ry,
-          vx: (Math.random() - 0.5) * 0.4,
-          vy: (Math.random() - 0.5) * 0.4,
-          radius: Math.random() * 2.5 + 1.2,
-          color: isLeft ? '#00f0ff' : '#a855f7',
-          pulse: Math.random() * Math.PI
+          relX: rx,
+          relY: ry,
+          offsetX: 0,
+          offsetY: 0,
+          vx: (Math.random() - 0.5) * 0.35,
+          vy: (Math.random() - 0.5) * 0.35,
+          radius: Math.random() * 2.8 + 1.2,
+          color: isLeft ? "#00f0ff" : "#a855f7",
+          pulse: Math.random() * Math.PI * 2,
+          pulseSpeed: 0.03 + Math.random() * 0.04
         });
       }
 
@@ -1250,103 +1256,107 @@
         ctx.clearRect(0, 0, w, h);
 
         const cx = w / 2;
-        const cy = h / 2 - 25;
+        const cy = h / 2 - 20;
 
         // 1. Render Multi-Tier Illuminated Base Pedestal
         ctx.save();
-        ctx.translate(cx, cy + 110);
+        ctx.translate(cx, cy + 115);
 
         // Outer Pedestal Glow Ring
         ctx.beginPath();
-        ctx.ellipse(0, 0, 110, 26, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+        ctx.ellipse(0, 0, 125, 28, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(0, 240, 255, 0.45)";
         ctx.lineWidth = 2;
-        ctx.shadowColor = '#00f0ff';
-        ctx.shadowBlur = 15;
+        ctx.shadowColor = "#00f0ff";
+        ctx.shadowBlur = 18;
         ctx.stroke();
 
         // Inner Pedestal Ring
         ctx.beginPath();
-        ctx.ellipse(0, 0, 75, 18, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(168, 85, 247, 0.5)';
+        ctx.ellipse(0, 0, 85, 20, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = "rgba(168, 85, 247, 0.55)";
         ctx.lineWidth = 1.5;
-        ctx.shadowColor = '#a855f7';
-        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#a855f7";
+        ctx.shadowBlur = 14;
         ctx.stroke();
 
-        // Core Pedestal Ring
+        // Core Pedestal Disk
         ctx.beginPath();
-        ctx.ellipse(0, 0, 45, 10, 0, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(0, 240, 255, 0.15)';
+        ctx.ellipse(0, 0, 50, 12, 0, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(0, 240, 255, 0.2)";
         ctx.fill();
         ctx.restore();
 
         // 2. Render Vertical Light Beam from Pedestal to Central Brain
-        const beamGrad = ctx.createLinearGradient(cx, cy + 110, cx, cy);
-        beamGrad.addColorStop(0, 'rgba(0, 240, 255, 0.2)');
-        beamGrad.addColorStop(1, 'rgba(168, 85, 247, 0)');
+        const beamGrad = ctx.createLinearGradient(cx, cy + 115, cx, cy);
+        beamGrad.addColorStop(0, "rgba(0, 240, 255, 0.25)");
+        beamGrad.addColorStop(1, "rgba(168, 85, 247, 0)");
         ctx.fillStyle = beamGrad;
         ctx.beginPath();
-        ctx.moveTo(cx - 50, cy + 110);
-        ctx.lineTo(cx + 50, cy + 110);
-        ctx.lineTo(cx + 25, cy);
-        ctx.lineTo(cx - 25, cy);
+        ctx.moveTo(cx - 55, cy + 115);
+        ctx.lineTo(cx + 55, cy + 115);
+        ctx.lineTo(cx + 30, cy);
+        ctx.lineTo(cx - 30, cy);
         ctx.closePath();
         ctx.fill();
 
         // 3. Central AIRA Nucleus Core Glow
         ctx.save();
-        const nucGrad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 45);
-        nucGrad.addColorStop(0, '#ffffff');
-        nucGrad.addColorStop(0.3, 'rgba(0, 240, 255, 0.9)');
-        nucGrad.addColorStop(0.7, 'rgba(168, 85, 247, 0.5)');
-        nucGrad.addColorStop(1, 'rgba(3, 5, 12, 0)');
+        const nucGrad = ctx.createRadialGradient(cx, cy, 6, cx, cy, 55);
+        nucGrad.addColorStop(0, "#ffffff");
+        nucGrad.addColorStop(0.25, "rgba(0, 240, 255, 0.95)");
+        nucGrad.addColorStop(0.65, "rgba(168, 85, 247, 0.6)");
+        nucGrad.addColorStop(1, "rgba(3, 5, 12, 0)");
         ctx.fillStyle = nucGrad;
         ctx.beginPath();
-        ctx.arc(cx, cy, 45, 0, Math.PI * 2);
+        ctx.arc(cx, cy, 55, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
 
-        // 4. Render Interconnected Neural Filaments (Connections)
+        // 4. Update Node Positions
+        nodes.forEach(node => {
+          node.offsetX += node.vx;
+          node.offsetY += node.vy;
+          node.pulse += node.pulseSpeed;
+
+          // Tether to base position
+          if (Math.abs(node.offsetX) > 10) node.vx *= -1;
+          if (Math.abs(node.offsetY) > 10) node.vy *= -1;
+
+          node.x = cx + node.relX + node.offsetX;
+          node.y = cy + node.relY + node.offsetY;
+        });
+
+        // 5. Render Interconnected Neural Filaments (Connections)
         for (let i = 0; i < nodes.length; i++) {
           for (let j = i + 1; j < nodes.length; j++) {
             const dx = nodes[i].x - nodes[j].x;
             const dy = nodes[i].y - nodes[j].y;
             const dist = Math.sqrt(dx * dx + dy * dy);
 
-            if (dist < 42) {
+            if (dist < 48) {
               ctx.beginPath();
               ctx.moveTo(nodes[i].x, nodes[i].y);
               ctx.lineTo(nodes[j].x, nodes[j].y);
-              const alpha = (1 - dist / 42) * 0.45;
-              ctx.strokeStyle = nodes[i].x < cx ? `rgba(0, 240, 255, ${alpha})` : `rgba(168, 85, 247, ${alpha})`;
+              const alpha = (1 - dist / 48) * 0.55;
+              const isCyan = nodes[i].relX < 0;
+              ctx.strokeStyle = isCyan ? "rgba(0, 240, 255, " + alpha + ")" : "rgba(168, 85, 247, " + alpha + ")";
               ctx.lineWidth = 1;
               ctx.stroke();
             }
           }
         }
 
-        // 5. Update & Draw Neural Nodes
+        // 6. Draw Neural Nodes
         nodes.forEach(node => {
-          node.offsetX += node.vx;
-          node.offsetY += node.vy;
-          node.pulse += 0.04;
-
-          // Tether to base position
-          if (Math.abs(node.offsetX) > 12) node.vx *= -1;
-          if (Math.abs(node.offsetY) > 12) node.vy *= -1;
-
-          node.x = cx + node.relX + node.offsetX;
-          node.y = cy + node.relY + node.offsetY;
-
-          const currentRadius = node.radius + Math.sin(node.pulse) * 0.8;
+          const currentRadius = node.radius + Math.sin(node.pulse) * 0.9;
 
           ctx.save();
           ctx.beginPath();
-          ctx.arc(node.x, node.y, Math.max(0.5, currentRadius), 0, Math.PI * 2);
+          ctx.arc(node.x, node.y, Math.max(0.6, currentRadius), 0, Math.PI * 2);
           ctx.fillStyle = node.color;
           ctx.shadowColor = node.color;
-          ctx.shadowBlur = 8;
+          ctx.shadowBlur = 10;
           ctx.fill();
           ctx.restore();
         });
