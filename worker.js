@@ -163,6 +163,21 @@ function detectIntent(message) {
     intents.push("planning");
   }
 
+  if (
+    text.includes("kamai") ||
+    text.includes("कमाई") ||
+    text.includes("earning") ||
+    text.includes("earn") ||
+    text.includes("money") ||
+    text.includes("paisae") ||
+    text.includes("पैसे") ||
+    text.includes("income") ||
+    text.includes("job") ||
+    text.includes("freelance")
+  ) {
+    intents.push("earning");
+  }
+
   if (intents.length === 0) {
     intents.push("general");
   }
@@ -268,6 +283,17 @@ ${context.research.content}
 `
     : "";
 
+  const earningContextText = context.earningSummary
+    ? `
+EARNING OPERATOR ORCHESTRATION CONTEXT:
+${context.earningSummary}
+
+DISCOVERY STATE:
+Status: ${context.discoveryState?.status || 'NOT_CONNECTED'}
+Message: ${context.discoveryState?.message || ''}
+`
+    : "";
+
   const prompt = `
 ${SYSTEM_PROMPT}
 
@@ -278,16 +304,18 @@ DETECTED INTENTS:
 ${(context.intents || []).join(", ")}
 
 ${researchText}
+${earningContextText}
 
 USER REQUEST:
 ${userMessage}
 
 Instructions:
-- Answer in the user's language.
-- Make a practical plan when the request is complex.
-- If a required tool is not connected, clearly say so.
-- Never pretend that an external action happened.
-- If research is supplied, use only the supplied research as factual evidence.
+- Answer in the user's language (Hindi / Hinglish / English as requested).
+- When an earning request is detected, act as the AIRA Phase-1 Earning Operator.
+- Summarize the current Earning Agent state, Discovery status (NOT_CONNECTED if no credentials exist), active database opportunities, and Next 1–3 Actions.
+- Emphasize safety rules: Upwork/Fiverr submissions strictly require manual Owner review and action (never auto-submitted).
+- If a required tool/discovery integration is not connected, clearly state so without pretending to search external sites.
+- Never pretend that an external action happened or convert unverified opportunities into earnings.
 `;
 
   try {
@@ -1205,8 +1233,87 @@ export class MasterMindAgent extends Agent {
     return true;
   }
 
+  orchestrateEarningWorkflow(userPrompt = "") {
+    this.initDb();
+    const profile = this.getOwnerProfile();
+    const list = this.listOpportunities({});
+
+    // Evaluate decision for each opportunity
+    const evaluatedOpportunities = list.map(opp => {
+      try {
+        const dec = this.evaluateDecision(opp.id);
+        return {
+          ...opp,
+          decision: dec.decision,
+          score: dec.score,
+          factors: dec.factors,
+          reasons: dec.reasons,
+          unknowns: dec.unknowns
+        };
+      } catch (err) {
+        return opp;
+      }
+    });
+
+    const selectedOpps = evaluatedOpportunities.filter(o => o.decision === "SELECT");
+    const reviewOpps = evaluatedOpportunities.filter(o => o.decision === "NEEDS_REVIEW");
+    const hasOpps = evaluatedOpportunities.length > 0;
+
+    let discoveryStatus = "NOT_CONNECTED";
+    let discoveryMessage = "External marketplace discovery search is NOT_CONNECTED / UNAVAILABLE. Automated scraping or unauthenticated external site searching is disabled.";
+
+    let summaryText = "";
+
+    if (!hasOpps) {
+      summaryText = "AIRA Phase 1 Earning Operator initialized.\n\n" +
+        "1. RESEARCH & DISCOVERY: External automated marketplace discovery is currently NOT_CONNECTED / UNAVAILABLE. No external marketplace credentials/APIs are linked.\n" +
+        "2. VERIFICATION & ELIGIBILITY: No active opportunities exist in the persistent SQLite database.\n" +
+        "3. OWNER FIT & DECISION: Standing by for structured opportunity ingestion via POST /api/opportunities or POST /api/opportunities/discover.\n\n" +
+        "ACTION REQUIRED: Submit a verified opportunity URL or structured payload to begin the automated Verification, Eligibility, Owner Fit, and Decision Engine evaluation pipeline.";
+    } else {
+      summaryText = `AIRA Phase 1 Earning Operator evaluated ${evaluatedOpportunities.length} stored opportunity record(s).\n\n` +
+        `• SELECT (Approved to Prepare): ${selectedOpps.length}\n` +
+        `• NEEDS_REVIEW (Information Missing): ${reviewOpps.length}\n` +
+        `• REJECTED / DISQUALIFIED: ${evaluatedOpportunities.length - selectedOpps.length - reviewOpps.length}\n\n` +
+        `SAFETY & SUBMISSION LOCK: Upwork/Fiverr final application submission requires manual Owner review and action. AIRA will prepare proposals and checklists, but will NEVER auto-submit.`;
+    }
+
+    return {
+      ok: true,
+      workflow: "EARNING_OPERATOR_PHASE_1",
+      userPrompt,
+      summary: summaryText,
+      ownerProfile: profile,
+      discoveryState: {
+        status: discoveryStatus,
+        message: discoveryMessage,
+        connected: false
+      },
+      evaluation: {
+        totalEvaluated: evaluatedOpportunities.length,
+        selectedCount: selectedOpps.length,
+        needsReviewCount: reviewOpps.length,
+        opportunities: evaluatedOpportunities
+      },
+      locks: {
+        upworkFiverrManualSubmissionOnly: true,
+        noSilentSpending: true,
+        factVerificationRequiredForSelect: true
+      }
+    };
+  }
+
   async onRequest(request) {
     const url = new URL(request.url);
+
+    if (url.pathname.includes("/earning/orchestrate") && request.method === "POST") {
+      let body = {};
+      try {
+        body = await request.json();
+      } catch (e) {}
+      const result = this.orchestrateEarningWorkflow(body.prompt || "");
+      return Response.json({ ok: true, data: result });
+    }
 
     if (
       url.pathname.endsWith("/health") &&
@@ -1820,6 +1927,51 @@ async function handleAPI(request, env) {
             env,
             match[0]
           );
+      }
+    }
+
+    // Check if earning intent detected
+    if (intents.includes("earning") && env.MasterMindAgent) {
+      const id = env.MasterMindAgent.idFromName("default");
+      const stub = env.MasterMindAgent.get(id);
+
+      let earningData = null;
+      try {
+        const orchestrateUrl = new URL("http://agent/agents/master-mind-agent/default/earning/orchestrate");
+        const agentRequest = new Request(orchestrateUrl.toString(), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: message })
+        });
+        const agentRes = await stub.fetch(agentRequest);
+        if (agentRes.ok) {
+          const resJson = await agentRes.json();
+          earningData = resJson.data || resJson;
+        }
+      } catch (e) {
+        // Fallback to direct prompt run
+      }
+
+      if (earningData) {
+        const aiContext = {
+          intents,
+          research,
+          earningSummary: earningData.summary,
+          earningEvaluation: earningData.evaluation,
+          discoveryState: earningData.discoveryState
+        };
+        const aiResult = await runAI(env, message, aiContext);
+
+        return cors(
+          json({
+            ok: true,
+            answer: aiResult.answer || earningData.summary,
+            mode: "earning-agent-orchestrated",
+            intents,
+            workflow: "EARNING_OPERATOR_PHASE_1",
+            earningOperator: earningData
+          })
+        );
       }
     }
 
