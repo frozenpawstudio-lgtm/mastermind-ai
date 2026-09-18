@@ -38,8 +38,13 @@ async function runTests() {
   assert.strictEqual(createdOpp.title, createPayload.title);
   assert.strictEqual(createdOpp.source, createPayload.source);
   assert.strictEqual(createdOpp.verification_status, "UNVERIFIED");
-  assert.strictEqual(createdOpp.score, 88.5);
-  console.log("✓ Opportunity creation passed:", createdOpp.id);
+  // Client-supplied score must NOT be trusted; the deterministic engine owns it.
+  assert.strictEqual(createdOpp.score, 0, "Client-supplied score must be ignored on create");
+  assert.strictEqual(createdOpp.decision, "NEEDS_REVIEW", "Decision defaults to NEEDS_REVIEW until evaluated");
+  // Raw status vocabulary is normalized to a V9 truth state.
+  assert.strictEqual(createdOpp.eligibility_status, "ELIGIBLE");
+  assert.strictEqual(createdOpp.owner_fit_status, "FIT");
+  console.log("✓ Opportunity creation passed (client score rejected, statuses normalized):", createdOpp.id);
 
   // 3. Get Opportunity
   const getRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`);
@@ -74,8 +79,9 @@ async function runTests() {
   const updateJson = await updateRes.json();
   assert.strictEqual(updateJson.ok, true);
   assert.strictEqual(updateJson.data.title, updatePayload.title);
-  assert.strictEqual(updateJson.data.score, 95);
-  console.log("✓ Update opportunity passed");
+  // A client PATCH must not be able to raise the decision score.
+  assert.strictEqual(updateJson.data.score, 0, "Client-supplied score must be ignored on update");
+  console.log("✓ Update opportunity passed (client score rejected)");
 
   // 6. Delete Opportunity
   const deleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {

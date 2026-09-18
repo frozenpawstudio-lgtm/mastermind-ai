@@ -2,6 +2,164 @@ import { Agent, routeAgentRequest } from "agents";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
+/*
+ * V9 truth states. Only these values may be stored or displayed.
+ * Anything unrecognised collapses to UNKNOWN instead of being persisted.
+ */
+const TRUTH_STATES = [
+  "CONNECTED",
+  "NOT_CONNECTED",
+  "NOT_CONFIGURED",
+  "PARTIALLY_CONNECTED",
+  "NEEDS_REAUTH",
+  "EXPIRED",
+  "REJECTED",
+  "UNAVAILABLE",
+  "PLANNED"
+];
+
+const VERIFICATION_STATES = ["VERIFIED", "PARTIALLY_VERIFIED", "UNVERIFIED", "REJECTED"];
+const ELIGIBILITY_STATES = ["ELIGIBLE", "POTENTIALLY_ELIGIBLE", "NOT_ELIGIBLE", "UNKNOWN"];
+const OWNER_FIT_STATES = ["FIT", "POTENTIAL_FIT", "NOT_FIT", "UNKNOWN"];
+const DECISION_STATES = ["SELECT", "NEEDS_REVIEW", "REJECT"];
+
+const VOICE_STATES = [
+  "VOICE_ACTIVE",
+  "VOICE_NOT_CONFIGURED",
+  "VOICE_NOT_CONNECTED",
+  "VOICE_UNAVAILABLE",
+  "VOICE_NEEDS_REAUTH",
+  "VOICE_ERROR"
+];
+
+const ELIGIBILITY_ALIASES = {
+  ELIGIBLE: "ELIGIBLE",
+  POTENTIALLY_ELIGIBLE: "POTENTIALLY_ELIGIBLE",
+  POTENTIALLYELIGIBLE: "POTENTIALLY_ELIGIBLE",
+  MAYBE: "POTENTIALLY_ELIGIBLE",
+  NOT_ELIGIBLE: "NOT_ELIGIBLE",
+  INELIGIBLE: "NOT_ELIGIBLE",
+  UNKNOWN: "UNKNOWN",
+  PENDING: "UNKNOWN"
+};
+
+const OWNER_FIT_ALIASES = {
+  FIT: "FIT",
+  POTENTIAL_FIT: "POTENTIAL_FIT",
+  POTENTIALFIT: "POTENTIAL_FIT",
+  MAYBE: "POTENTIAL_FIT",
+  NOT_FIT: "NOT_FIT",
+  UNFIT: "NOT_FIT",
+  UNKNOWN: "UNKNOWN",
+  PENDING: "UNKNOWN"
+};
+
+function normalizeFromAliases(value, aliases) {
+  if (value === null || value === undefined) return "UNKNOWN";
+  const key = String(value).trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return aliases[key] || "UNKNOWN";
+}
+
+function normalizeEligibility(value) {
+  return normalizeFromAliases(value, ELIGIBILITY_ALIASES);
+}
+
+function normalizeOwnerFit(value) {
+  return normalizeFromAliases(value, OWNER_FIT_ALIASES);
+}
+
+function normalizeVerification(value) {
+  const key = String(value === null || value === undefined ? "" : value).trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return VERIFICATION_STATES.includes(key) ? key : "UNVERIFIED";
+}
+
+function normalizeDecision(value) {
+  const key = String(value === null || value === undefined ? "" : value).trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return DECISION_STATES.includes(key) ? key : "NEEDS_REVIEW";
+}
+
+/*
+ * Permission boundary: SERVICE -> CAPABILITY -> SCOPE -> RISK -> APPROVAL.
+ * Mutations that change Owner-controlled state require an explicit Owner
+ * credential (OWNER_API_TOKEN). Reads never do.
+ */
+const RISK = { READ: "READ", MUTATE: "MUTATE", OWNER_CONTROLLED: "OWNER_CONTROLLED" };
+
+function hasOwnerToken(env) {
+  return !!(env && typeof env.OWNER_API_TOKEN === "string" && env.OWNER_API_TOKEN.trim().length > 0);
+}
+
+function tokensMatch(provided, expected) {
+  if (typeof provided !== "string" || typeof expected !== "string") return false;
+  if (provided.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < provided.length; i++) {
+    diff |= provided.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function extractOwnerToken(request) {
+  const auth = request.headers.get("Authorization") || "";
+  const bearer = auth.toLowerCase().startsWith("bearer ") ? auth.slice(7).trim() : "";
+  return bearer || request.headers.get("X-Owner-Token") || "";
+}
+
+function isSameOriginRequest(request) {
+  const origin = request.headers.get("Origin");
+  if (!origin) return false;
+  try {
+    const o = new URL(origin);
+    const u = new URL(request.url);
+    return o.protocol === u.protocol && o.host === u.host;
+  } catch {
+    return false;
+  }
+}
+
+/*
+ * Returns null when the request may proceed, otherwise an error Response.
+ * Services that are not configured are reported as NOT_CONFIGURED, never
+ * silently treated as if a real capability existed.
+ */
+function authorizeRequest(request, env, risk) {
+  if (risk === RISK.READ) return null;
+
+  const method = request.method.toUpperCase();
+  if (method === "GET" || method === "OPTIONS" || method === "HEAD") return null;
+
+  const configured = hasOwnerToken(env);
+  const presented = extractOwnerToken(request);
+
+  // No credential configured at runtime: authorization is NOT_CONFIGURED.
+  // The state is reported truthfully instead of pretending the boundary is
+  // enforced. The Owner must configure OWNER_API_TOKEN to activate it.
+  if (!configured) return null;
+
+  if (tokensMatch(presented, env.OWNER_API_TOKEN)) return null;
+
+  // Owner-controlled actions never fall back to same-origin alone: a
+  // consequential mutation must present the Owner credential.
+  const denied = json(
+    {
+      ok: false,
+      error:
+        risk === RISK.OWNER_CONTROLLED
+          ? "Owner authorization required. This Owner-controlled action is DENIED."
+          : "Owner authorization required for this action.",
+      authorization: "CONFIGURED",
+      action: "DENIED"
+    },
+    401
+  );
+
+  if (risk === RISK.OWNER_CONTROLLED) return denied;
+
+  // Ordinary mutations accept a same-origin Owner browser session.
+  if (isSameOriginRequest(request)) return null;
+  return denied;
+}
+
 const SYSTEM_PROMPT = `
 You are MasterMind AI, a personal AI agent.
 
@@ -19,47 +177,404 @@ Your job:
 - Give practical next steps.
 `;
 
-const TOOLS = {
-  web_research: {
-    name: "Web Research",
-    connected: true
+/*
+ * Connection foundation (Phase 1 supporting foundation).
+ *
+ * A listed service is NOT a connected service. Each entry declares only its
+ * declared support level; the live state is resolved at runtime by
+ * resolveServiceState(), which may only return CONNECTED when an actual
+ * verified runtime binding exists.
+ */
+const SERVICE_REGISTRY = {
+  workers_ai: {
+    name: "Cloudflare Workers AI",
+    kind: "ai",
+    supported: true,
+    binding: "AI"
   },
-
-  browser: {
-    name: "Browser Agent",
-    connected: true
+  browser_run: {
+    name: "Cloudflare Browser Rendering",
+    kind: "browser",
+    supported: true,
+    binding: "BROWSER"
   },
-
-  github: {
-    name: "GitHub",
-    connected: false
+  durable_object: {
+    name: "Cloudflare Durable Object (MasterMindAgent)",
+    kind: "storage",
+    supported: true,
+    binding: "MasterMindAgent"
   },
-
-  cloudflare: {
-    name: "Cloudflare",
-    connected: false
+  web_search: {
+    name: "Web Search",
+    kind: "search",
+    supported: false,
+    binding: null
   },
-
-  youtube: {
-    name: "YouTube",
-    connected: false
-  },
-
-  facebook: {
-    name: "Facebook",
-    connected: false
-  },
-
-  whatsapp: {
-    name: "WhatsApp",
-    connected: false
-  },
-
-  files: {
-    name: "Files",
-    connected: false
+  github: { name: "GitHub", kind: "source_control", supported: false, binding: null },
+  cloudflare: { name: "Cloudflare Account API", kind: "cloud", supported: false, binding: null },
+  openhands: { name: "OpenHands", kind: "engineering", supported: false, binding: null },
+  jules: { name: "Jules", kind: "engineering", supported: false, binding: null },
+  google_ai_studio: { name: "Google AI Studio / Gemini API", kind: "ai", supported: false, binding: null },
+  email: { name: "Email", kind: "communication", supported: false, binding: null },
+  calendar: { name: "Calendar", kind: "communication", supported: false, binding: null },
+  youtube: { name: "YouTube", kind: "media", supported: false, binding: null },
+  upwork: { name: "Upwork", kind: "earning_platform", supported: false, binding: null },
+  fiverr: { name: "Fiverr", kind: "earning_platform", supported: false, binding: null },
+  voice_provider: {
+    name: "Voice Provider",
+    kind: "voice",
+    supported: false,
+    binding: "VOICE"
   }
 };
+
+/*
+ * Resolve the honest runtime state of a service.
+ * CONNECTED requires the declared runtime binding to actually exist.
+ */
+function resolveServiceState(env, key) {
+  const entry = SERVICE_REGISTRY[key];
+  if (!entry) {
+    return { service: key, state: "UNAVAILABLE", verified: false, reason: "Unknown service" };
+  }
+
+  if (!entry.supported || !entry.binding) {
+    return {
+      service: key,
+      name: entry.name,
+      state: "NOT_CONFIGURED",
+      verified: false,
+      reason: "No supported connection adapter is configured for this service."
+    };
+  }
+
+  const binding = env ? env[entry.binding] : undefined;
+  if (!binding) {
+    return {
+      service: key,
+      name: entry.name,
+      state: "NOT_CONNECTED",
+      verified: false,
+      reason: `Runtime binding ${entry.binding} is not available.`
+    };
+  }
+
+  if (key === "workers_ai") {
+    if (typeof binding.run !== "function") {
+      return { service: key, name: entry.name, state: "UNAVAILABLE", verified: false, reason: "AI binding has no run() capability." };
+    }
+    return { service: key, name: entry.name, state: "CONNECTED", verified: true, reason: "AI binding exposes run()." };
+  }
+
+  if (key === "browser_run") {
+    if (typeof binding.quickAction !== "function") {
+      return { service: key, name: entry.name, state: "UNAVAILABLE", verified: false, reason: "Browser binding has no quickAction() capability." };
+    }
+    return { service: key, name: entry.name, state: "CONNECTED", verified: true, reason: "Browser binding exposes quickAction()." };
+  }
+
+  if (key === "durable_object") {
+    if (typeof binding.idFromName !== "function") {
+      return { service: key, name: entry.name, state: "UNAVAILABLE", verified: false, reason: "Durable Object binding is not usable." };
+    }
+    return { service: key, name: entry.name, state: "CONNECTED", verified: true, reason: "Durable Object namespace binding is usable." };
+  }
+
+  return { service: key, name: entry.name, state: "UNAVAILABLE", verified: false, reason: "No verification routine for this service." };
+}
+
+function connectionReport(env) {
+  const services = Object.keys(SERVICE_REGISTRY).map((key) => resolveServiceState(env, key));
+  return {
+    states: TRUTH_STATES,
+    services,
+    connectedCount: services.filter((s) => s.state === "CONNECTED").length,
+    note: "Listing a service does not mean it is connected. Only a verified runtime binding reports CONNECTED."
+  };
+}
+
+/*
+ * Voice foundation (Phase 1 supporting foundation).
+ * Voice is only VOICE_ACTIVE when a real verified voice binding exists.
+ * Without a configured provider the honest state is VOICE_NOT_CONFIGURED.
+ */
+function resolveVoiceState(env) {
+  const configured = !!(env && env.VOICE && typeof env.VOICE === "object");
+
+  if (!configured) {
+    return {
+      state: "VOICE_NOT_CONFIGURED",
+      verified: false,
+      provider: "NOT_CONFIGURED",
+      capabilities: { speech_input: false, speech_output: false },
+      limitations: [
+        "No voice provider binding is configured.",
+        "Microphone capture, speech recognition and voice response are not available.",
+        "Voice actions are BLOCKED until a provider is configured and verified."
+      ]
+    };
+  }
+
+  return {
+    state: "VOICE_NOT_CONNECTED",
+    verified: false,
+    provider: "CONFIGURED_BUT_UNVERIFIED",
+    capabilities: { speech_input: false, speech_output: false },
+    limitations: [
+      "A voice binding exists but no runtime verification routine has confirmed it.",
+      "VOICE_ACTIVE is only reported after verified runtime evidence."
+    ]
+  };
+}
+
+/*
+ * Earning-intent detection.
+ *
+ * Only explicit earning objectives enter the earning-operation workflow.
+ * Informational questions ("I want to learn JavaScript", "What does freelance
+ * work involve?", "Tell me about my yearly earnings report") must NOT trigger it.
+ */
+/*
+ * Earning vocabulary is tiered so generic engineering words cannot
+ * over-trigger. "project", "client", "files", "build" and bare "काम" are
+ * deliberately NOT earning objects, so "Show me my project files" and
+ * "Start the project build" never enter the earning workflow.
+ */
+const EARNING_STRONG_OBJECTS = [
+  "kamai",
+  "kamaai",
+  "kamana",
+  "kamane",
+  "paisa kamana",
+  "paise kamane",
+  "paise kamana",
+  "earning",
+  "earn money",
+  "earn income",
+  "make money",
+  "online income",
+  "income",
+  "freelance",
+  "freelancing",
+  "gig",
+  "gigs",
+  "side hustle",
+  "part time",
+  "part-time",
+  "कमाई",
+  "कमाना",
+  "कमाने",
+  "पैसे",
+  "आमदनी",
+  "फ्रीलांस"
+];
+
+/* Earning-adjacent nouns: only an earning operation alongside an action verb. */
+const EARNING_MEDIUM_OBJECTS = [
+  "job",
+  "jobs",
+  "नौकरी",
+  "opportunity",
+  "opportunities",
+  "ऑपर्च्युनिटी",
+  "मौका",
+  "मौके"
+];
+/*
+ * Real earning action verbs only. Generic engineering verbs ("start", "karo",
+ * "शुरू", "दिखाओ") are excluded so unrelated commands do not over-trigger.
+ */
+const EARNING_ACTION_MARKERS = [
+  "find",
+  "search",
+  "discover",
+  "dhundo",
+  "dhundh",
+  "dhoondo",
+  "dhoondh",
+  "talash",
+  "khoj",
+  "khojo",
+  "chahiye",
+  "chahiyen",
+  "apply",
+  "get me",
+  "show me",
+  "list",
+  "track",
+  "kamai karni",
+  "kamai karna",
+  "ढूंढो",
+  "ढूँो",
+  "खोजो",
+  "चाहिए",
+  "चाहिये"
+];
+
+const EARNING_OPERATION_PHRASES = [
+  "earning agent",
+  "earning operator",
+  "earning workflow",
+  "earning operation",
+  "earning opportunities",
+  "find opportunities",
+  "discover opportunities",
+  "opportunity discovery",
+  "kamai karni",
+  "kamai karna",
+  "kamai karni hai",
+  "paise kamane",
+  "online income",
+  "freelance work dhundo",
+  "freelance dhundo",
+  "earning opportunities find",
+  "earning opportunities dhoondo",
+  "kaam chahiye",
+  "काम चाहिए",
+  "job chahiye",
+  "नौकरी चाहिए",
+  "मुझे कमाई",
+  "कमाई करनी",
+  "कमाई करना"
+];
+
+/*
+ * Informational / learning / reporting intents that mention earning words but
+ * are questions rather than earning operations.
+ */
+const INFORMATIONAL_MARKERS = [
+  "what is",
+  "what are",
+  "what does",
+  "what do",
+  "how do",
+  "how does",
+  "how should",
+  "how to",
+  "how can",
+  "tell me about",
+  "explain",
+  "learn",
+  "learning",
+  "study",
+  "documentation",
+  "documented",
+  "guide",
+  "tutorial",
+  "difference between",
+  "meaning of",
+  "kya hai",
+  "kya hota",
+  "kaise",
+  "kaise kar",
+  "samjhao",
+  "batao",
+  "sikho",
+  "sikhna",
+  "seekhna",
+  "report",
+  "yearly",
+  "annual",
+  "summary of",
+  "क्या है",
+  "कैसे",
+  "समझाओ",
+  "बताओ",
+  "सीखना",
+  "सीखो",
+  "रिपोर्ट"
+];
+
+function containsAny(text, list) {
+  return list.some((marker) => text.includes(marker));
+}
+
+function detectEarningIntent(message) {
+  const raw = String(message || "");
+  const text = raw.toLowerCase();
+  const negativeExamples = [];
+
+  const isQuestion = text.includes("?") || containsAny(text, INFORMATIONAL_MARKERS);
+  const hasActionMarker = containsAny(text, EARNING_ACTION_MARKERS);
+
+  // Informational framing without a real earning action is never an operation.
+  // This gate runs first so "What are earning opportunities?" stays a question
+  // even though it contains an explicit earning-operation phrase.
+  if (isQuestion && !hasActionMarker) {
+    negativeExamples.push("Informational question containing an earning keyword.");
+    return { isEarningIntent: false, reason: "Informational question, not an earning operation.", negativeExamples };
+  }
+
+  // Unambiguous earning-operation phrases stand on their own, including
+  // Hinglish forms such as "kaam chahiye" that use no tiered earning noun.
+  if (containsAny(text, EARNING_OPERATION_PHRASES)) {
+    return { isEarningIntent: true, reason: "Explicit earning-operation phrase.", negativeExamples };
+  }
+
+  const hasStrongObject = containsAny(text, EARNING_STRONG_OBJECTS);
+  const hasMediumObject = containsAny(text, EARNING_MEDIUM_OBJECTS);
+
+  if (!hasStrongObject && !hasMediumObject) {
+    return { isEarningIntent: false, reason: "No earning object present.", negativeExamples };
+  }
+
+  // Strong earning language only needs the absence of informational framing;
+  // medium nouns (job/opportunity) additionally require an actionable request.
+  if (hasStrongObject) {
+    return { isEarningIntent: true, reason: "Explicit earning objective.", negativeExamples };
+  }
+
+  if (hasActionMarker) {
+    return { isEarningIntent: true, reason: "Earning object combined with an action request.", negativeExamples };
+  }
+
+  return { isEarningIntent: false, reason: "Earning object without an action request.", negativeExamples };
+}
+
+/*
+ * Build the authoritative status context handed to the model.
+ * Values are read fresh from persisted state; nothing is inferred or invented.
+ */
+function buildEarningContext(agent) {
+  const opportunities = agent.listOpportunities();
+  const states = opportunities.map((o) => ({
+    id: o.id,
+    title: o.title,
+    verification: normalizeVerification(o.verification_status),
+    eligibility: normalizeEligibility(o.eligibility_status),
+    ownerFit: normalizeOwnerFit(o.owner_fit_status),
+    score: typeof o.score === "number" ? o.score : 0,
+    decision: normalizeDecision(o.decision)
+  }));
+
+  const profile = agent.getOwnerProfile();
+
+  return {
+    authority: "PERSISTED_STATE",
+    opportunityCount: states.length,
+    opportunities: states.slice(0, 20),
+    ownerProfile: profile
+      ? {
+          skills: profile.skills || "",
+          experience: profile.experience || "",
+          location: profile.location || "",
+          max_cost: profile.max_cost || "",
+          max_effort: profile.max_effort || "",
+          updated_at: profile.updated_at || ""
+        }
+      : null,
+    connections: connectionReport(agent.env).services.map((s) => ({
+      service: s.service,
+      state: s.state,
+      verified: s.verified
+    })),
+    voice: resolveVoiceState(agent.env).state,
+    submissionPolicy: "MANUAL_OWNER_ONLY",
+    earnedRevenue: "DATA NOT AVAILABLE",
+    confirmedPayments: "DATA NOT AVAILABLE"
+  };
+}
+
 
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -71,18 +586,52 @@ function json(data, status = 200) {
   });
 }
 
-function cors(response) {
-  const headers = new Headers(response.headers);
+function allowedOrigin(request, env) {
+  const origin = request.headers.get("Origin");
+  if (!origin) return null;
 
-  headers.set("Access-Control-Allow-Origin", "*");
-  headers.set(
-    "Access-Control-Allow-Methods",
-    "GET,POST,PUT,PATCH,DELETE,OPTIONS"
-  );
-  headers.set(
-    "Access-Control-Allow-Headers",
-    "Content-Type"
-  );
+  let requestOrigin = null;
+  try {
+    const u = new URL(request.url);
+    requestOrigin = `${u.protocol}//${u.host}`;
+  } catch {
+    return null;
+  }
+
+  if (origin === requestOrigin) return origin;
+
+  const extra = env && typeof env.ALLOWED_ORIGINS === "string" ? env.ALLOWED_ORIGINS : "";
+  const allowList = extra
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (allowList.includes(origin)) return origin;
+
+  return null;
+}
+
+/*
+ * CORS is restricted to the deployment's own origin (plus an optional
+ * ALLOWED_ORIGINS allow-list). It no longer reflects every origin with "*",
+ * which would have let any site drive the Owner's mutation endpoints.
+ */
+function applyCors(response, request, env) {
+  const headers = new Headers(response.headers);
+  const origin = allowedOrigin(request, env);
+
+  if (origin) {
+    headers.set("Access-Control-Allow-Origin", origin);
+    headers.set("Vary", "Origin");
+    headers.set(
+      "Access-Control-Allow-Methods",
+      "GET,POST,PUT,PATCH,DELETE,OPTIONS"
+    );
+    headers.set(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization, X-Owner-Token"
+    );
+  }
 
   return new Response(response.body, {
     status: response.status,
@@ -233,27 +782,8 @@ async function runAI(env, userMessage, context = {}) {
     };
   }
 
-  const dynamicTools = {
-    ...TOOLS,
-    web_research: {
-      name: "Web Research",
-      connected: !!(env.BROWSER && typeof env.BROWSER.quickAction === "function")
-    },
-    browser: {
-      name: "Browser Agent",
-      connected: !!(env.BROWSER && typeof env.BROWSER.quickAction === "function")
-    }
-  };
-
-  const toolsText = Object.entries(dynamicTools)
-    .map(
-      ([key, tool]) =>
-        `${key}: ${
-          tool.connected
-            ? "CONNECTED"
-            : "NOT CONNECTED"
-        }`
-    )
+  const toolsText = connectionReport(env)
+    .services.map((s) => `${s.service}: ${s.state}`)
     .join("\n");
 
   const researchText = context.research
@@ -268,15 +798,34 @@ ${context.research.content}
 `
     : "";
 
+  const statusText = context.status
+    ? `
+AUTHORITATIVE STATUS (${context.status.authority}):
+${JSON.stringify(context.status, null, 2)}
+`
+    : "";
+
+  const voiceText = context.voice
+    ? `
+VOICE STATE:
+${context.voice.state}
+VERIFIED: ${context.voice.verified}
+`
+    : "";
+
   const prompt = `
 ${SYSTEM_PROMPT}
 
-AVAILABLE TOOLS:
+SERVICE CONNECTION STATES:
 ${toolsText}
 
 DETECTED INTENTS:
 ${(context.intents || []).join(", ")}
 
+EARNING OPERATION: ${context.earningIntent ? "YES" : "NO"}
+
+${statusText}
+${voiceText}
 ${researchText}
 
 USER REQUEST:
@@ -288,6 +837,16 @@ Instructions:
 - If a required tool is not connected, clearly say so.
 - Never pretend that an external action happened.
 - If research is supplied, use only the supplied research as factual evidence.
+- The AUTHORITATIVE STATUS block above is the only source of truth for
+  decision, score, verification, eligibility, owner fit, discovery status,
+  opportunity status, connection status and voice status.
+- Never claim VERIFIED, CONNECTED, SELECTED, SUBMITTED, EARNED or PAID unless
+  the AUTHORITATIVE STATUS block shows that exact verified state.
+- Never report revenue, customers, applications, submissions or metrics that
+  are not present in the AUTHORITATIVE STATUS block.
+- Values shown as UNKNOWN, NOT_CONNECTED, NOT_CONFIGURED, UNAVAILABLE or
+  DATA NOT AVAILABLE must be repeated as such; never upgrade them.
+- Upwork/Fiverr final submission is a manual Owner action and is never automatic.
 `;
 
   try {
@@ -347,6 +906,7 @@ export class MasterMindAgent extends Agent {
         eligibility_status TEXT NOT NULL DEFAULT 'UNKNOWN',
         owner_fit_status TEXT NOT NULL DEFAULT 'UNKNOWN',
         score REAL NOT NULL DEFAULT 0,
+        decision TEXT NOT NULL DEFAULT 'NEEDS_REVIEW',
         earning_model TEXT NOT NULL DEFAULT '',
         risk TEXT NOT NULL DEFAULT '',
         effort TEXT NOT NULL DEFAULT '',
@@ -375,6 +935,9 @@ export class MasterMindAgent extends Agent {
       if (!existingColumns.includes("discovered_at")) {
         this.sql`ALTER TABLE opportunities ADD COLUMN discovered_at TEXT NOT NULL DEFAULT '';`;
       }
+      if (!existingColumns.includes("decision")) {
+        this.sql`ALTER TABLE opportunities ADD COLUMN decision TEXT NOT NULL DEFAULT 'NEEDS_REVIEW';`;
+      }
       this.sql`CREATE TABLE IF NOT EXISTS evidence (
         id TEXT PRIMARY KEY,
         opportunity_id TEXT NOT NULL,
@@ -401,23 +964,11 @@ export class MasterMindAgent extends Agent {
   }
 
   normalizeEligibilityStatus(status) {
-    if (!status) return "UNKNOWN";
-    const s = String(status).trim().toUpperCase();
-    if (s === "ELIGIBLE") return "ELIGIBLE";
-    if (s === "POTENTIALLY_ELIGIBLE") return "POTENTIALLY_ELIGIBLE";
-    if (s === "NOT_ELIGIBLE" || s === "INELIGIBLE") return "NOT_ELIGIBLE";
-    if (s === "UNKNOWN" || s === "PENDING") return "UNKNOWN";
-    return "UNKNOWN";
+    return normalizeEligibility(status);
   }
 
   normalizeOwnerFitStatus(status) {
-    if (!status) return "UNKNOWN";
-    const s = String(status).trim().toUpperCase();
-    if (s === "FIT") return "FIT";
-    if (s === "POTENTIAL_FIT") return "POTENTIAL_FIT";
-    if (s === "NOT_FIT" || s === "UNFIT") return "NOT_FIT";
-    if (s === "UNKNOWN" || s === "PENDING") return "UNKNOWN";
-    return "UNKNOWN";
+    return normalizeOwnerFit(status);
   }
 
   getOwnerProfile() {
@@ -822,7 +1373,7 @@ export class MasterMindAgent extends Agent {
       reasons.push("Decision threshold evaluated to NEEDS_REVIEW: key information is missing, pending, unverified, or requires Owner review.");
     }
 
-    this.sql`UPDATE opportunities SET score = ${totalScore}, updated_at = ${new Date().toISOString()} WHERE id = ${opportunityId};`;
+    this.sql`UPDATE opportunities SET score = ${totalScore}, decision = ${decision}, updated_at = ${new Date().toISOString()} WHERE id = ${opportunityId};`;
 
     return {
       opportunityId,
@@ -854,20 +1405,19 @@ export class MasterMindAgent extends Agent {
     const platform = String(data.platform || "").trim();
     const description = String(data.description || "").trim();
 
-    let verification_status = data.verification_status
-      ? this.validateVerificationStatus(data.verification_status)
-      : "UNVERIFIED";
+    // Newly ingested work is always UNVERIFIED. A VERIFIED state can only be
+    // reached through createEvidence()/verifyOpportunity() against evidence
+    // that already exists, so no create path can short-circuit the truth rule.
+    const verification_status = "UNVERIFIED";
 
-    if (verification_status === "VERIFIED") {
-      const hasFact = this.hasFactEvidence(id);
-      if (!hasFact) {
-        throw new Error("Cannot set status to VERIFIED without at least one FACT evidence record.");
-      }
-    }
+    const eligibility_status = normalizeEligibility(data.eligibility_status);
+    const owner_fit_status = normalizeOwnerFit(data.owner_fit_status);
 
-    const eligibility_status = String(data.eligibility_status || "pending").trim();
-    const owner_fit_status = String(data.owner_fit_status || "pending").trim();
-    const score = typeof data.score === "number" ? data.score : 0;
+    // Score and decision are derived only by evaluateDecision(). Client-supplied
+    // values are deliberately discarded so the deterministic engine owns them.
+    const score = 0;
+    const decision = "NEEDS_REVIEW";
+
     const earning_model = String(data.earning_model || "").trim();
     const risk = String(data.risk || "").trim();
     const effort = String(data.effort || "").trim();
@@ -881,12 +1431,12 @@ export class MasterMindAgent extends Agent {
     this.sql`INSERT INTO opportunities (
       id, source, title, url, platform, description,
       verification_status, eligibility_status, owner_fit_status,
-      score, earning_model, risk, effort, cost, earning_potential, discovered_at,
+      score, decision, earning_model, risk, effort, cost, earning_potential, discovered_at,
       created_at, updated_at
     ) VALUES (
       ${id}, ${source}, ${title}, ${url}, ${platform}, ${description},
       ${verification_status}, ${eligibility_status}, ${owner_fit_status},
-      ${score}, ${earning_model}, ${risk}, ${effort}, ${cost}, ${earning_potential}, ${discovered_at},
+      ${score}, ${decision}, ${earning_model}, ${risk}, ${effort}, ${cost}, ${earning_potential}, ${discovered_at},
       ${created_at}, ${updated_at}
     );`;
 
@@ -909,14 +1459,20 @@ export class MasterMindAgent extends Agent {
       rows = rows.filter(r => r.platform === filters.platform);
     }
     if (filters.verification_status) {
-      const norm = String(filters.verification_status).trim().toUpperCase();
-      rows = rows.filter(r => String(r.verification_status).toUpperCase() === norm);
+      const norm = normalizeVerification(filters.verification_status);
+      rows = rows.filter(r => normalizeVerification(r.verification_status) === norm);
     }
     if (filters.eligibility_status) {
-      rows = rows.filter(r => r.eligibility_status === filters.eligibility_status);
+      const norm = normalizeEligibility(filters.eligibility_status);
+      rows = rows.filter(r => normalizeEligibility(r.eligibility_status) === norm);
     }
     if (filters.owner_fit_status) {
-      rows = rows.filter(r => r.owner_fit_status === filters.owner_fit_status);
+      const norm = normalizeOwnerFit(filters.owner_fit_status);
+      rows = rows.filter(r => normalizeOwnerFit(r.owner_fit_status) === norm);
+    }
+    if (filters.decision) {
+      const norm = normalizeDecision(filters.decision);
+      rows = rows.filter(r => normalizeDecision(r.decision) === norm);
     }
     return rows;
   }
@@ -949,9 +1505,11 @@ export class MasterMindAgent extends Agent {
       verification_status = requestedStatus;
     }
 
-    const eligibility_status = data.eligibility_status !== undefined ? String(data.eligibility_status).trim() : existing.eligibility_status;
-    const owner_fit_status = data.owner_fit_status !== undefined ? String(data.owner_fit_status).trim() : existing.owner_fit_status;
-    const score = typeof data.score === "number" ? data.score : existing.score;
+    const eligibility_status = data.eligibility_status !== undefined ? normalizeEligibility(data.eligibility_status) : normalizeEligibility(existing.eligibility_status);
+    const owner_fit_status = data.owner_fit_status !== undefined ? normalizeOwnerFit(data.owner_fit_status) : normalizeOwnerFit(existing.owner_fit_status);
+    // Score and decision are engine-owned. Client-supplied values are ignored.
+    const score = existing.score;
+    const decision = normalizeDecision(existing.decision);
     const earning_model = data.earning_model !== undefined ? String(data.earning_model).trim() : (existing.earning_model || "");
     const risk = data.risk !== undefined ? String(data.risk).trim() : (existing.risk || "");
     const effort = data.effort !== undefined ? String(data.effort).trim() : (existing.effort || "");
@@ -970,6 +1528,7 @@ export class MasterMindAgent extends Agent {
       eligibility_status = ${eligibility_status},
       owner_fit_status = ${owner_fit_status},
       score = ${score},
+      decision = ${decision},
       earning_model = ${earning_model},
       risk = ${risk},
       effort = ${effort},
@@ -1159,10 +1718,9 @@ export class MasterMindAgent extends Agent {
           url: item.url || "",
           platform: item.platform || "",
           description: item.description || "",
-          verification_status: item.verification_status || "UNVERIFIED",
-          eligibility_status: item.eligibility_status || "pending",
-          owner_fit_status: item.owner_fit_status || "pending",
-          score: typeof item.score === "number" ? item.score : 0,
+          verification_status: "UNVERIFIED",
+          eligibility_status: normalizeEligibility(item.eligibility_status),
+          owner_fit_status: normalizeOwnerFit(item.owner_fit_status),
           earning_model: item.earning_model || "",
           risk: item.risk || "",
           effort: item.effort || "",
@@ -1228,9 +1786,63 @@ export class MasterMindAgent extends Agent {
       });
     }
 
+    if (
+      url.pathname.endsWith("/connections") &&
+      request.method === "GET"
+    ) {
+      return Response.json({ ok: true, data: connectionReport(this.env) });
+    }
+
+    if (
+      url.pathname.endsWith("/voice") &&
+      request.method === "GET"
+    ) {
+      return Response.json({
+        ok: true,
+        data: {
+          states: VOICE_STATES,
+          ...resolveVoiceState(this.env)
+        }
+      });
+    }
+
+    if (
+      url.pathname.endsWith("/permissions") &&
+      request.method === "GET"
+    ) {
+      return Response.json({
+        ok: true,
+        data: {
+          authorizationConfigured: hasOwnerToken(this.env),
+          authorizationState: hasOwnerToken(this.env) ? "CONFIGURED" : "NOT_CONFIGURED",
+          model: [
+            "SERVICE",
+            "CAPABILITY",
+            "SCOPE",
+            "RISK",
+            "APPROVAL_REQUIREMENT",
+            "AUTHORIZED_ACTION",
+            "EXECUTION",
+            "VERIFICATION",
+            "AUDIT"
+          ],
+          rules: [
+            { capability: "read opportunities/evidence/owner profile", risk: RISK.READ, approval: "NONE" },
+            { capability: "create/update/delete opportunity and evidence", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
+            { capability: "owner profile update", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
+            { capability: "upwork/fiverr final submission", risk: RISK.OWNER_CONTROLLED, approval: "MANUAL_OWNER_ONLY" }
+          ],
+          note: "Connection does not grant capability. Authorization does not grant execution. Execution does not imply verified success."
+        }
+      });
+    }
+
     if (url.pathname.includes("/opportunities")) {
       const parts = url.pathname.split("/opportunities");
       const subpath = parts[1] || "";
+
+      const mutationDenied = authorizeRequest(request, this.env, RISK.MUTATE);
+      if (mutationDenied) return mutationDenied;
 
       // Route: GET/POST /opportunities/discover
       if (subpath === "/discover" || subpath.startsWith("/discover?")) {
@@ -1446,6 +2058,8 @@ export class MasterMindAgent extends Agent {
         const profile = this.getOwnerProfile();
         return Response.json({ ok: true, data: profile });
       }
+      const denied = authorizeRequest(request, this.env, RISK.MUTATE);
+      if (denied) return denied;
       if (request.method === "POST" || request.method === "PUT") {
         let body = {};
         try {
@@ -1463,6 +2077,9 @@ export class MasterMindAgent extends Agent {
       const subpath = parts[1] || "";
       const idMatch = subpath.match(/^\/([^\/]+)$/);
       const targetId = idMatch ? idMatch[1] : null;
+
+      const evidenceDenied = authorizeRequest(request, this.env, RISK.MUTATE);
+      if (evidenceDenied) return evidenceDenied;
 
       if (request.method === "GET") {
         if (targetId) {
@@ -1536,6 +2153,10 @@ export class MasterMindAgent extends Agent {
       }
 
       const intents = detectIntent(message);
+      const earningIntent = detectEarningIntent(message);
+      if (earningIntent.isEarningIntent) {
+        intents.push("earning");
+      }
 
       let research = null;
 
@@ -1554,12 +2175,19 @@ export class MasterMindAgent extends Agent {
         }
       }
 
+      // Status is read fresh on every request so the model never receives
+      // stale decision/verification/connection values.
+      const status = buildEarningContext(this);
+
       const result = await runAI(
         this.env,
         message,
         {
           intents,
-          research
+          research,
+          earningIntent: earningIntent.isEarningIntent,
+          status,
+          voice: resolveVoiceState(this.env)
         }
       );
 
@@ -1596,7 +2224,11 @@ export class MasterMindAgent extends Agent {
         mode: "mastermind-agent",
         agent: "MasterMindAgent",
         intents,
+        earningIntent: earningIntent.isEarningIntent,
+        earningIntentReason: earningIntent.reason,
         researched: !!research?.ok,
+        connectionStates: status.connections,
+        voiceState: status.voice,
         memoryMessages:
           updatedMessages.length
       });
@@ -1616,8 +2248,63 @@ export class MasterMindAgent extends Agent {
  * EXISTING API + AGENT ROUTER
  */
 
+/*
+ * Legacy /api/chat has no direct agent instance, so persisted status is read
+ * through the DO stub. If the stub is unavailable the status is reported as
+ * unavailable rather than guessed.
+ */
+async function buildEarningContextForEnv(env) {
+  const base = {
+    authority: "PERSISTED_STATE",
+    connections: connectionReport(env).services.map((s) => ({
+      service: s.service,
+      state: s.state,
+      verified: s.verified
+    })),
+    voice: resolveVoiceState(env).state,
+    submissionPolicy: "MANUAL_OWNER_ONLY",
+    earnedRevenue: "DATA NOT AVAILABLE",
+    confirmedPayments: "DATA NOT AVAILABLE"
+  };
+
+  if (!env || !env.MasterMindAgent) {
+    return { ...base, opportunityCount: "DATA NOT AVAILABLE", opportunities: [], ownerProfile: null };
+  }
+
+  try {
+    const id = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(id);
+    const [oppsRes, profileRes] = await Promise.all([
+      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/opportunities")),
+      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/owner/profile"))
+    ]);
+
+    const oppsJson = await oppsRes.json();
+    const profileJson = await profileRes.json();
+    const rows = Array.isArray(oppsJson.data) ? oppsJson.data : [];
+
+    return {
+      ...base,
+      opportunityCount: rows.length,
+      opportunities: rows.slice(0, 20).map((o) => ({
+        id: o.id,
+        title: o.title,
+        verification: normalizeVerification(o.verification_status),
+        eligibility: normalizeEligibility(o.eligibility_status),
+        ownerFit: normalizeOwnerFit(o.owner_fit_status),
+        score: typeof o.score === "number" ? o.score : 0,
+        decision: normalizeDecision(o.decision)
+      })),
+      ownerProfile: profileJson.data || null
+    };
+  } catch {
+    return { ...base, opportunityCount: "DATA NOT AVAILABLE", opportunities: [], ownerProfile: null };
+  }
+}
+
 async function handleAPI(request, env) {
   const url = new URL(request.url);
+  const cors = (response) => applyCors(response, request, env);
 
   if (request.method === "OPTIONS") {
     return cors(
@@ -1641,12 +2328,108 @@ async function handleAPI(request, env) {
     return cors(agentResponse);
   }
 
+  if (url.pathname === "/api/connections" && request.method === "GET") {
+    return cors(json({ ok: true, data: connectionReport(env) }));
+  }
+
+  if (url.pathname === "/api/voice" && request.method === "GET") {
+    return cors(
+      json({ ok: true, data: { states: VOICE_STATES, ...resolveVoiceState(env) } })
+    );
+  }
+
+  /*
+   * Voice command flow: OWNER SPEAKS -> SPEECH PROCESSING -> AIRA UNDERSTANDS.
+   * Without a verified voice provider the runtime cannot transcribe audio, so
+   * the request is rejected with an explicit NOT_CONFIGURED state instead of
+   * faking recognition.
+   */
+  if (url.pathname === "/api/voice/command" && request.method === "POST") {
+    const voice = resolveVoiceState(env);
+
+    if (voice.state !== "VOICE_ACTIVE") {
+      return cors(
+        json(
+          {
+            ok: false,
+            error: "Voice is not available. Speech input cannot be processed.",
+            voice,
+            action: "BLOCKED"
+          },
+          503
+        )
+      );
+    }
+
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return cors(json({ ok: false, error: "Invalid JSON." }, 400));
+    }
+
+    const transcript = String(body.transcript || "").trim();
+    if (!transcript) {
+      return cors(
+        json({ ok: false, error: "No transcript supplied." }, 400)
+      );
+    }
+
+    const earningIntent = detectEarningIntent(transcript);
+    const args = authorizeRequest(request, env, RISK.MUTATE);
+    if (args) return cors(args);
+
+    return cors(
+      json({
+        ok: true,
+        voice,
+        transcript,
+        earningIntent: earningIntent.isEarningIntent,
+        earningIntentReason: earningIntent.reason,
+        intents: detectIntent(transcript),
+        note: "Voice execution is only performed by an authorized capability."
+      })
+    );
+  }
+
+  if (url.pathname === "/api/permissions" && request.method === "GET") {
+    return cors(
+      json({
+        ok: true,
+        data: {
+          authorizationConfigured: hasOwnerToken(env),
+          authorizationState: hasOwnerToken(env) ? "CONFIGURED" : "NOT_CONFIGURED",
+          model: [
+            "SERVICE",
+            "CAPABILITY",
+            "SCOPE",
+            "RISK",
+            "APPROVAL_REQUIREMENT",
+            "AUTHORIZED_ACTION",
+            "EXECUTION",
+            "VERIFICATION",
+            "AUDIT"
+          ],
+          rules: [
+            { capability: "read opportunities/evidence/owner profile", risk: RISK.READ, approval: "NONE" },
+            { capability: "create/update/delete opportunity and evidence", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
+            { capability: "owner profile update", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
+            { capability: "upwork/fiverr final submission", risk: RISK.OWNER_CONTROLLED, approval: "MANUAL_OWNER_ONLY" }
+          ],
+          note: "Connection does not grant capability. Authorization does not grant execution. Execution does not imply verified success."
+        }
+      })
+    );
+  }
+
   if (url.pathname.startsWith("/api/owner/profile")) {
     if (!env.MasterMindAgent) {
       return cors(
         json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
       );
     }
+    const denied = authorizeRequest(request, env, RISK.MUTATE);
+    if (denied) return cors(denied);
     const id = env.MasterMindAgent.idFromName("default");
     const stub = env.MasterMindAgent.get(id);
 
@@ -1663,6 +2446,8 @@ async function handleAPI(request, env) {
         json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
       );
     }
+    const denied = authorizeRequest(request, env, RISK.MUTATE);
+    if (denied) return cors(denied);
     const id = env.MasterMindAgent.idFromName("default");
     const stub = env.MasterMindAgent.get(id);
 
@@ -1682,7 +2467,7 @@ async function handleAPI(request, env) {
         ok: true,
         service: "MasterMind AI",
         status: "online",
-        version: "agent-core-3",
+        version: "agent-core-4",
         aiConnected:
           !!env.AI &&
           typeof env.AI.run === "function",
@@ -1691,7 +2476,9 @@ async function handleAPI(request, env) {
           typeof env.BROWSER.quickAction ===
             "function",
         realAgent:
-          "MasterMindAgent"
+          "MasterMindAgent",
+        authorization: hasOwnerToken(env) ? "CONFIGURED" : "NOT_CONFIGURED",
+        voice: resolveVoiceState(env).state
       })
     );
   }
@@ -1804,6 +2591,13 @@ async function handleAPI(request, env) {
     const intents =
       detectIntent(message);
 
+    const earningIntent =
+      detectEarningIntent(message);
+
+    if (earningIntent.isEarningIntent) {
+      intents.push("earning");
+    }
+
     let research = null;
 
     if (
@@ -1829,7 +2623,10 @@ async function handleAPI(request, env) {
         message,
         {
           intents,
-          research
+          research,
+          earningIntent: earningIntent.isEarningIntent,
+          status: buildEarningContextForEnv(env),
+          voice: resolveVoiceState(env)
         }
       );
 
@@ -1838,6 +2635,8 @@ async function handleAPI(request, env) {
         ...result,
         mode: "legacy-api",
         intents,
+        earningIntent: earningIntent.isEarningIntent,
+        earningIntentReason: earningIntent.reason,
         researched:
           !!research?.ok
       })
@@ -1857,24 +2656,33 @@ async function handleAPI(request, env) {
             env.AI &&
             typeof env.AI.run === "function"
               ? "PASS"
-              : "FAIL",
+              : "NOT_CONFIGURED",
 
           browser_binding:
             env.BROWSER &&
             typeof env.BROWSER.quickAction ===
               "function"
               ? "PASS"
-              : "FAIL",
+              : "NOT_CONFIGURED",
 
           agent_class: "PASS",
 
           durable_object_binding:
             env.MasterMindAgent
               ? "AVAILABLE"
-              : "CHECK_BINDING",
+              : "NOT_CONFIGURED",
+
+          owner_authorization:
+            hasOwnerToken(env)
+              ? "CONFIGURED"
+              : "NOT_CONFIGURED",
+
+          voice:
+            resolveVoiceState(env).state,
 
           api: "PASS"
-        }
+        },
+        connections: connectionReport(env).services
       })
     );
   }

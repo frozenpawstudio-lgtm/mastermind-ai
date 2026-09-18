@@ -894,7 +894,7 @@
               </div>
               <div class="node-pill right-node">
                 <span class="node-dot"></span>
-                <span>Automated Actions</span>
+                <span>Automation (PLANNED)</span>
               </div>
               <div class="node-pill right-node">
                 <span class="node-dot"></span>
@@ -902,7 +902,7 @@
               </div>
               <div class="node-pill right-node">
                 <span class="node-dot"></span>
-                <span>Completed Tasks</span>
+                <span>Task Tracking (UNAVAILABLE)</span>
               </div>
             </div>
           </div>
@@ -968,13 +968,6 @@
                 <span class="progress-state">UNKNOWN</span>
               </div>
               <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-meta">
-                <span class="progress-name">Decision Accuracy</span>
-                <span class="progress-state">FACT RULE ACTIVE</span>
-              </div>
-              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 100%"></div></div>
             </div>
             <div class="progress-item">
               <div class="progress-meta">
@@ -1100,16 +1093,7 @@
           <span class="sec-badge">Real Phase 1 API</span>
         </div>
         <div class="glass-card" id="earning-opportunities-container" style="display:flex; flex-direction:column; gap:10px;">
-          <div class="opportunity-card">
-            <div class="opp-meta-row">
-              <span class="state-pill unverified">UNVERIFIED</span>
-            </div>
-            <div class="opp-title">Fullstack Cloudflare Workers Engineer</div>
-            <div class="opp-tags" style="display:flex; gap:6px;">
-              <span class="state-pill eligible">POTENTIALLY_ELIGIBLE</span>
-              <span class="state-pill select">NEEDS_REVIEW</span>
-            </div>
-          </div>
+          <div class="opp-title" id="earning-opportunities-state">LOADING</div>
         </div>
         <button class="capsule-send-btn" style="width:100%; border-radius:14px; height:44px; font-weight:700;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
       </section>
@@ -1125,18 +1109,65 @@
           <span class="sec-badge">Backend Record</span>
         </div>
         <div class="glass-card" id="profile-details-box" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
-          <div style="display:flex; justify-space-between;">
+          <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-muted)">Owner Skills:</span>
-            <span style="color:var(--neon-cyan)">JavaScript, Python, Cloudflare</span>
+            <span id="profile-skills" style="color:var(--neon-cyan)">DATA NOT AVAILABLE</span>
           </div>
-          <div style="display:flex; justify-space-between;">
+          <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-muted)">Max Cost Limit:</span>
-            <span style="color:var(--neon-cyan)">$0.00</span>
+            <span id="profile-max-cost" style="color:var(--neon-cyan)">DATA NOT AVAILABLE</span>
           </div>
-          <div style="display:flex; justify-space-between;">
+          <div style="display:flex; justify-content:space-between;">
             <span style="color:var(--text-muted)">Submission Policy:</span>
             <span style="color:var(--neon-violet)">MANUAL OWNER ONLY</span>
           </div>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">AIRA Voice</h2>
+          <span class="sec-badge">Phase 1 Foundation</span>
+        </div>
+        <div class="glass-card" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Voice State:</span>
+            <span id="voice-state" style="color:var(--neon-cyan)">UNKNOWN</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Speech Input:</span>
+            <span id="voice-input-cap" style="color:var(--text-muted)">UNAVAILABLE</span>
+          </div>
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Speech Output:</span>
+            <span id="voice-output-cap" style="color:var(--text-muted)">UNAVAILABLE</span>
+          </div>
+          <div id="voice-limitations" style="color:var(--text-muted); font-size:11px;">DATA NOT AVAILABLE</div>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Connection Foundation</h2>
+          <span class="sec-badge">Truthful States</span>
+        </div>
+        <div class="glass-card" id="connections-list" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
+          <div style="color:var(--text-muted)">LOADING</div>
+        </div>
+        <button class="capsule-send-btn" style="width:100%; border-radius:14px; height:44px; font-weight:700;" onclick="loadConnectionsFromAPI()">Refresh Connections</button>
+      </section>
+
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Permission Foundation</h2>
+          <span class="sec-badge">Owner Authorization</span>
+        </div>
+        <div class="glass-card" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
+          <div style="display:flex; justify-content:space-between;">
+            <span style="color:var(--text-muted)">Owner Authorization:</span>
+            <span id="auth-state" style="color:var(--neon-violet)">UNKNOWN</span>
+          </div>
+          <div id="permission-rules" style="color:var(--text-muted); font-size:11px;">DATA NOT AVAILABLE</div>
         </div>
       </section>
     </main>
@@ -1192,6 +1223,9 @@
         loadOpportunitiesFromAPI();
       } else if (tabId === 'profile') {
         loadOwnerProfileFromAPI();
+        loadVoiceStateFromAPI();
+        loadConnectionsFromAPI();
+        loadPermissionsFromAPI();
       }
     }
 
@@ -1445,15 +1479,17 @@
         const res = await fetch('/api/health');
         if (res.ok) {
           const data = await res.json();
-          el.textContent = (data.status === 'ok' || data.status === 'healthy') ? 'HEALTHY' : (data.status || 'UNKNOWN');
-          el.style.color = '#10b981';
+          // Report the backend's real response instead of a decorative label.
+          const backend = data && data.ok === true ? 'HEALTHY' : 'UNKNOWN';
+          el.textContent = backend;
+          el.style.color = backend === 'HEALTHY' ? '#10b981' : 'var(--text-muted)';
         } else {
           el.textContent = 'NOT CONNECTED';
           el.style.color = '#ef4444';
         }
       } catch (err) {
-        el.textContent = 'UNKNOWN';
-        el.style.color = 'var(--text-muted)';
+        el.textContent = 'NOT CONNECTED';
+        el.style.color = '#ef4444';
       }
     }
     checkSystemHealth();
@@ -1465,7 +1501,7 @@
       if (!text) return;
 
       box.style.display = 'block';
-      box.textContent = 'AIRA processing command via CF Workers AI...';
+      box.textContent = 'AIRA processing command...';
 
       try {
         const res = await fetch('/api/chat', {
@@ -1474,9 +1510,16 @@
           body: JSON.stringify({ message: text })
         });
         const data = await res.json();
-        box.textContent = data.answer || data.response || JSON.stringify(data);
+
+        // Never present fabricated output: if the model is unavailable or the
+        // request failed, report the real state instead of an invented answer.
+        if (data.ok === false) {
+          box.textContent = data.error || 'UNAVAILABLE';
+        } else {
+          box.textContent = data.answer || data.response || 'DATA NOT AVAILABLE';
+        }
       } catch (err) {
-        box.textContent = 'AIRA active in offline Phase 1 mode. Connected to local DO runtime.';
+        box.textContent = 'NOT CONNECTED — AIRA backend could not be reached.';
       }
     }
 
@@ -1514,10 +1557,33 @@
           body: JSON.stringify({ message: text })
         });
         const data = await res.json();
-        airaMsg.textContent = data.answer || data.response || JSON.stringify(data);
+        if (data.ok === false) {
+          airaMsg.textContent = data.error || 'UNAVAILABLE';
+        } else {
+          airaMsg.textContent = data.answer || data.response || 'DATA NOT AVAILABLE';
+        }
       } catch (err) {
-        airaMsg.textContent = 'AIRA Phase 1 agent standing by.';
+        airaMsg.textContent = 'NOT CONNECTED — AIRA backend could not be reached.';
       }
+    }
+
+    // Escape untrusted API values before they reach innerHTML.
+    function escapeHtml(value) {
+      return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function renderEmptyState(container, message) {
+      const state = document.getElementById('earning-opportunities-state');
+      if (state) {
+        state.textContent = message;
+        return;
+      }
+      container.innerHTML = `<div class="opp-title">${escapeHtml(message)}</div>`;
     }
 
     async function loadOpportunitiesFromAPI() {
@@ -1526,52 +1592,160 @@
 
       try {
         const res = await fetch('/api/opportunities');
-        const data = await res.json();
-        if (Array.isArray(data) && data.length > 0) {
-          container.innerHTML = data.map(opp => `
+
+        // The backend wraps results in { ok, data }. An empty list is a real
+        // state (NO OPPORTUNITIES), and a failed request is NOT CONNECTED.
+        if (!res.ok) {
+          renderEmptyState(container, 'NOT CONNECTED — opportunity service unavailable.');
+          return;
+        }
+
+        const payload = await res.json();
+        const rows = Array.isArray(payload) ? payload : (Array.isArray(payload.data) ? payload.data : null);
+
+        if (rows === null) {
+          renderEmptyState(container, 'DATA NOT AVAILABLE');
+          return;
+        }
+
+        if (rows.length === 0) {
+          renderEmptyState(container, 'NO OPPORTUNITIES');
+          return;
+        }
+
+        container.innerHTML = rows.map(opp => `
             <div class="opportunity-card">
               <div class="opp-meta-row">
-                <span style="color:var(--text-muted); font-size:10px;">ID: ${opp.id || 'N/A'}</span>
-                <span class="state-pill ${opp.verification_status === 'VERIFIED' ? 'verified' : 'unverified'}">${opp.verification_status || 'UNVERIFIED'}</span>
+                <span style="color:var(--text-muted); font-size:10px;">ID: ${escapeHtml(opp.id || 'N/A')}</span>
+                <span class="state-pill ${opp.verification_status === 'VERIFIED' ? 'verified' : 'unverified'}">${escapeHtml(opp.verification_status || 'UNVERIFIED')}</span>
               </div>
-              <div class="opp-title">${opp.title || 'Untitled Opportunity'}</div>
+              <div class="opp-title">${escapeHtml(opp.title || 'Untitled Opportunity')}</div>
               <div style="display:flex; gap:6px; margin-top:4px;">
-                <span class="state-pill eligible">${opp.eligibility_status || 'UNKNOWN'}</span>
-                <span class="state-pill select">${opp.decision || 'NEEDS_REVIEW'}</span>
+                <span class="state-pill eligible">${escapeHtml(opp.eligibility_status || 'UNKNOWN')}</span>
+                <span class="state-pill select">${escapeHtml(opp.decision || 'NEEDS_REVIEW')}</span>
               </div>
             </div>
           `).join('');
-        }
       } catch (e) {
-        // Retain default Phase 1 display
+        renderEmptyState(container, 'NOT CONNECTED — opportunity service unreachable.');
       }
     }
 
     async function loadOwnerProfileFromAPI() {
-      const box = document.getElementById('profile-details-box');
-      if (!box) return;
+      const skillsEl = document.getElementById('profile-skills');
+      const costEl = document.getElementById('profile-max-cost');
+      if (!skillsEl || !costEl) return;
+
+      const unavailable = () => {
+        skillsEl.textContent = 'DATA NOT AVAILABLE';
+        costEl.textContent = 'DATA NOT AVAILABLE';
+      };
 
       try {
         const res = await fetch('/api/owner/profile');
-        const profile = await res.json();
-        if (profile) {
-          box.innerHTML = `
-            <div style="display:flex; justify-content:space-between;">
-              <span style="color:var(--text-muted)">Owner Skills:</span>
-              <span style="color:var(--neon-cyan)">${(profile.skills || []).join(', ') || 'JavaScript, Python'}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between;">
-              <span style="color:var(--text-muted)">Max Cost Limit:</span>
-              <span style="color:var(--neon-cyan)">$${profile.max_cost_limit || 0}</span>
-            </div>
-            <div style="display:flex; justify-content:space-between;">
-              <span style="color:var(--text-muted)">Submission Policy:</span>
-              <span style="color:var(--neon-violet)">MANUAL OWNER ONLY</span>
-            </div>
-          `;
+        if (!res.ok) {
+          unavailable();
+          return;
         }
+
+        const payload = await res.json();
+        const profile = payload && payload.data ? payload.data : null;
+
+        if (!profile) {
+          unavailable();
+          return;
+        }
+
+        // Render only real persisted values. No fabricated defaults.
+        const skills = profile.skills ? String(profile.skills) : '';
+        skillsEl.textContent = skills || 'NOT CONFIGURED';
+        costEl.textContent = profile.max_cost ? String(profile.max_cost) : 'NOT CONFIGURED';
       } catch (e) {
-        // Retain default Phase 1 profile state
+        unavailable();
+      }
+    }
+
+    async function loadVoiceStateFromAPI() {
+      const stateEl = document.getElementById('voice-state');
+      const inputEl = document.getElementById('voice-input-cap');
+      const outputEl = document.getElementById('voice-output-cap');
+      const limEl = document.getElementById('voice-limitations');
+      if (!stateEl) return;
+
+      try {
+        const res = await fetch('/api/voice');
+        if (!res.ok) {
+          stateEl.textContent = 'VOICE_UNAVAILABLE';
+          return;
+        }
+        const payload = await res.json();
+        const voice = payload && payload.data ? payload.data : null;
+        if (!voice) {
+          stateEl.textContent = 'VOICE_NOT_CONFIGURED';
+          return;
+        }
+        stateEl.textContent = voice.state || 'VOICE_NOT_CONFIGURED';
+        inputEl.textContent = voice.capabilities && voice.capabilities.speech_input ? 'AVAILABLE' : 'UNAVAILABLE';
+        outputEl.textContent = voice.capabilities && voice.capabilities.speech_output ? 'AVAILABLE' : 'UNAVAILABLE';
+        limEl.textContent = Array.isArray(voice.limitations) ? voice.limitations.join(' ') : 'DATA NOT AVAILABLE';
+      } catch (e) {
+        stateEl.textContent = 'VOICE_UNAVAILABLE';
+      }
+    }
+
+    async function loadConnectionsFromAPI() {
+      const container = document.getElementById('connections-list');
+      if (!container) return;
+
+      try {
+        const res = await fetch('/api/connections');
+        if (!res.ok) {
+          container.innerHTML = '<div style="color:var(--text-muted)">NOT CONNECTED</div>';
+          return;
+        }
+        const payload = await res.json();
+        const report = payload && payload.data ? payload.data : null;
+        const services = report && Array.isArray(report.services) ? report.services : null;
+
+        if (!services || services.length === 0) {
+          container.innerHTML = '<div style="color:var(--text-muted)">DATA NOT AVAILABLE</div>';
+          return;
+        }
+
+        container.innerHTML = services.map(svc => `
+          <div style="display:flex; justify-content:space-between; gap:8px;">
+            <span style="color:var(--text-muted)">${escapeHtml(svc.name || svc.service)}</span>
+            <span style="color:${svc.state === 'CONNECTED' ? '#10b981' : 'var(--text-muted)'}">${escapeHtml(svc.state)}</span>
+          </div>
+        `).join('');
+      } catch (e) {
+        container.innerHTML = '<div style="color:var(--text-muted)">NOT CONNECTED</div>';
+      }
+    }
+
+    async function loadPermissionsFromAPI() {
+      const stateEl = document.getElementById('auth-state');
+      const rulesEl = document.getElementById('permission-rules');
+      if (!stateEl) return;
+
+      try {
+        const res = await fetch('/api/permissions');
+        if (!res.ok) {
+          stateEl.textContent = 'UNKNOWN';
+          return;
+        }
+        const payload = await res.json();
+        const data = payload && payload.data ? payload.data : null;
+        if (!data) {
+          stateEl.textContent = 'UNKNOWN';
+          return;
+        }
+        stateEl.textContent = data.authorizationState || 'UNKNOWN';
+        rulesEl.textContent = Array.isArray(data.rules)
+          ? data.rules.map(r => `${r.capability}: ${r.approval}`).join(' | ')
+          : 'DATA NOT AVAILABLE';
+      } catch (e) {
+        stateEl.textContent = 'UNKNOWN';
       }
     }
   </script>
