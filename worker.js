@@ -163,18 +163,17 @@ function detectIntent(message) {
     intents.push("planning");
   }
 
-  if (
-    text.includes("kamai") ||
-    text.includes("कमाई") ||
-    text.includes("earning") ||
-    text.includes("earn") ||
-    text.includes("money") ||
-    text.includes("paisae") ||
-    text.includes("पैसे") ||
-    text.includes("income") ||
-    text.includes("job") ||
-    text.includes("freelance")
-  ) {
+  const explicitEarningWords = [
+    "kamai", "कमाई", "earning", "earn", "money", "paisae", "पैसे", "income"
+  ];
+  const contextualWords = ["job", "freelance", "gig", "work"];
+  const actionWords = ["get", "find", "search", "chahiye", "karni", "want", "opportunities", "opportunity", "make", "chahiye", "do", "karna"];
+
+  const hasExplicitEarning = explicitEarningWords.some(w => text.includes(w));
+  const hasContextual = contextualWords.some(cw => text.includes(cw));
+  const hasAction = actionWords.some(aw => text.includes(aw));
+
+  if (hasExplicitEarning || (hasContextual && hasAction)) {
     intents.push("earning");
   }
 
@@ -283,11 +282,20 @@ ${context.research.content}
 `
     : "";
 
+  let earningEvaluationText = "";
+  if (context.earningEvaluation && Array.isArray(context.earningEvaluation.opportunities) && context.earningEvaluation.opportunities.length > 0) {
+    const oppSummaryList = context.earningEvaluation.opportunities.map((o, idx) => {
+      return `Opportunity #${idx + 1}: Title="${o.title || 'Untitled'}", Platform="${o.platform || 'N/A'}", Decision="${o.decision || 'NEEDS_REVIEW'}", Score=${o.score || 0}, Verification="${o.verification_status || 'UNVERIFIED'}", Eligibility="${o.eligibility_status || 'UNKNOWN'}", OwnerFit="${o.owner_fit_status || 'UNKNOWN'}"`;
+    }).join("\n");
+    earningEvaluationText = `\nEVALUATED OPPORTUNITIES DATA:\n${oppSummaryList}\n`;
+  }
+
   const earningContextText = context.earningSummary
     ? `
 EARNING OPERATOR ORCHESTRATION CONTEXT:
 ${context.earningSummary}
 
+${earningEvaluationText}
 DISCOVERY STATE:
 Status: ${context.discoveryState?.status || 'NOT_CONNECTED'}
 Message: ${context.discoveryState?.message || ''}
@@ -1251,7 +1259,14 @@ export class MasterMindAgent extends Agent {
           unknowns: dec.unknowns
         };
       } catch (err) {
-        return opp;
+        return {
+          ...opp,
+          decision: "NEEDS_REVIEW",
+          score: 0,
+          evaluationError: err.message || String(err),
+          reasons: [`Evaluation error: ${err.message || String(err)}`],
+          unknowns: ["Decision evaluation threw an error; treated safely as NEEDS_REVIEW."]
+        };
       }
     });
 
