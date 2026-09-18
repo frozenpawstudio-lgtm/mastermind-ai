@@ -2,8 +2,14 @@ import assert from "node:assert";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:8787";
 
+// A unique run id keeps this suite isolated and repeatable: every synthetic
+// URL/title is unique per run, so a previously failed run can never leave
+// behind state that changes this run's outcome.
+const RUN_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
 async function runDiscoveryTests() {
   console.log(`Starting Opportunity Discovery API tests against ${BASE_URL}...`);
+  console.log(`Run id: ${RUN_ID}`);
 
   // 1. Health Check
   const healthRes = await fetch(`${BASE_URL}/api/health`);
@@ -28,8 +34,8 @@ async function runDiscoveryTests() {
     opportunities: [
       {
         source: "discovery_test",
-        title: "Synthetic Discovery Test - Build Cloudflare Workers AI Plugin",
-        url: "https://test.synthetic.example/job/discover-101",
+        title: `Synthetic Discovery Test - Build Cloudflare Workers AI Plugin ${RUN_ID}`,
+        url: `https://test.synthetic.example/job/discover-101-${RUN_ID}`,
         platform: "SyntheticPlatform",
         description: "Synthetic test data: Need a skilled engineer to build an AI integration plugin on Workers.",
         earning_model: "Fixed Price",
@@ -57,12 +63,15 @@ async function runDiscoveryTests() {
 
   const discoveredOpp = postDiscoverJson.discovered[0];
   assert.ok(discoveredOpp.id, "Discovered opportunity should have an ID");
-  assert.strictEqual(discoveredOpp.title, "Synthetic Discovery Test - Build Cloudflare Workers AI Plugin");
-  assert.strictEqual(discoveredOpp.url, "https://test.synthetic.example/job/discover-101");
+  assert.strictEqual(discoveredOpp.title, `Synthetic Discovery Test - Build Cloudflare Workers AI Plugin ${RUN_ID}`);
+  assert.strictEqual(discoveredOpp.url, `https://test.synthetic.example/job/discover-101-${RUN_ID}`);
   assert.strictEqual(discoveredOpp.platform, "SyntheticPlatform");
   assert.strictEqual(discoveredOpp.verification_status, "UNVERIFIED", "Newly discovered item must preserve UNVERIFIED state");
-  assert.strictEqual(discoveredOpp.eligibility_status, "pending", "Newly discovered item must preserve pending eligibility state");
-  assert.strictEqual(discoveredOpp.owner_fit_status, "pending", "Newly discovered item must preserve pending owner fit state");
+  // Raw vocabulary is normalized: "pending" becomes the V9 truth state UNKNOWN.
+  assert.strictEqual(discoveredOpp.eligibility_status, "UNKNOWN", "Newly discovered item must normalize pending eligibility to UNKNOWN");
+  assert.strictEqual(discoveredOpp.owner_fit_status, "UNKNOWN", "Newly discovered item must normalize pending owner fit to UNKNOWN");
+  assert.strictEqual(discoveredOpp.decision, "NEEDS_REVIEW", "Discovery must not fabricate a decision");
+  assert.strictEqual(discoveredOpp.score, 0, "Discovery must not accept a fabricated score");
   assert.strictEqual(discoveredOpp.earning_model, "Fixed Price");
   assert.strictEqual(discoveredOpp.risk, "Low");
   assert.strictEqual(discoveredOpp.effort, "Medium");
@@ -77,8 +86,8 @@ async function runDiscoveryTests() {
     opportunities: [
       {
         source: "discovery_test",
-        title: "Synthetic Test - Different Title Same URL",
-        url: "https://test.synthetic.example/job/discover-101", // Same URL
+        title: `Synthetic Test - Different Title Same URL ${RUN_ID}`,
+        url: `https://test.synthetic.example/job/discover-101-${RUN_ID}`, // Same URL
         platform: "SyntheticPlatform",
         description: "Synthetic test data: Duplicate check by URL test"
       }
@@ -104,8 +113,8 @@ async function runDiscoveryTests() {
     opportunities: [
       {
         source: "discovery_test",
-        title: "Synthetic Discovery Test - Build Cloudflare Workers AI Plugin", // Same Title
-        url: "https://test.synthetic.example/job/different-url-999", // Different URL
+        title: `Synthetic Discovery Test - Build Cloudflare Workers AI Plugin ${RUN_ID}`, // Same Title
+        url: `https://test.synthetic.example/job/different-url-999-${RUN_ID}`, // Different URL
         platform: "SyntheticPlatform", // Same Platform
         description: "Synthetic test data: Duplicate check by Title + Platform test"
       }
@@ -132,7 +141,7 @@ async function runDiscoveryTests() {
       {
         source: "discovery_test",
         // Missing title!
-        url: "https://test.synthetic.example/job/no-title"
+        url: `https://test.synthetic.example/job/no-title-${RUN_ID}`
       }
     ]
   };
