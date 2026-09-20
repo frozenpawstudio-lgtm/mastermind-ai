@@ -159,17 +159,8 @@ async function runDiscoveryTests() {
 
   // 7. Integration with Verification and Decision Engines
   console.log("\n--- Scenario 6: Integration with Verification Engine & Decision Engine ---");
-  // Update eligibility & owner fit for decision evaluation
-  await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      eligibility_status: "eligible",
-      owner_fit_status: "fit"
-    })
-  });
-
-  // Add FACT evidence
+  // P5-01: the positive verdicts can only be asserted once FACT evidence
+  // exists, so the evidence is recorded first and the statuses second.
   const evidenceRes = await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}/evidence`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -180,6 +171,17 @@ async function runDiscoveryTests() {
     })
   });
   assert.strictEqual(evidenceRes.status, 201);
+
+  // Update eligibility & owner fit for decision evaluation
+  const patchStatusRes = await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      eligibility_status: "eligible",
+      owner_fit_status: "fit"
+    })
+  });
+  assert.strictEqual(patchStatusRes.status, 200, "PATCH to ELIGIBLE/FIT must succeed once FACT evidence exists");
 
   // Run Decision Engine evaluation
   const decisionRes = await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}/decision`, {

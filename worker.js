@@ -1410,8 +1410,18 @@ export class MasterMindAgent extends Agent {
     // that already exists, so no create path can short-circuit the truth rule.
     const verification_status = "UNVERIFIED";
 
-    const eligibility_status = normalizeEligibility(data.eligibility_status);
-    const owner_fit_status = normalizeOwnerFit(data.owner_fit_status);
+    // A create payload cannot assert a positive verdict. ELIGIBLE and FIT are
+    // claimable only with at least one FACT evidence record, which a brand-new
+    // opportunity cannot yet have, so an unsupported assertion is not persisted
+    // and collapses to UNKNOWN instead of inventing evidence.
+    let eligibility_status = normalizeEligibility(data.eligibility_status);
+    if (eligibility_status === "ELIGIBLE" && !this.hasFactEvidence(id)) {
+      eligibility_status = "UNKNOWN";
+    }
+    let owner_fit_status = normalizeOwnerFit(data.owner_fit_status);
+    if (owner_fit_status === "FIT" && !this.hasFactEvidence(id)) {
+      owner_fit_status = "UNKNOWN";
+    }
 
     // Score and decision are derived only by evaluateDecision(). Client-supplied
     // values are deliberately discarded so the deterministic engine owns them.
@@ -1505,8 +1515,24 @@ export class MasterMindAgent extends Agent {
       verification_status = requestedStatus;
     }
 
-    const eligibility_status = data.eligibility_status !== undefined ? normalizeEligibility(data.eligibility_status) : normalizeEligibility(existing.eligibility_status);
-    const owner_fit_status = data.owner_fit_status !== undefined ? normalizeOwnerFit(data.owner_fit_status) : normalizeOwnerFit(existing.owner_fit_status);
+    // Positive verdicts are claimable only with FACT evidence. A PATCH that
+    // asserts ELIGIBLE/FIT without it is rejected, not silently downgraded, so
+    // the caller learns the write did not take effect. Fields the caller did
+    // not supply carry over unchanged and are re-derived by the engine.
+    let eligibility_status = normalizeEligibility(existing.eligibility_status);
+    if (data.eligibility_status !== undefined) {
+      eligibility_status = normalizeEligibility(data.eligibility_status);
+      if (eligibility_status === "ELIGIBLE" && !this.hasFactEvidence(id)) {
+        throw new Error("Cannot set eligibility status to ELIGIBLE without at least one FACT evidence record.");
+      }
+    }
+    let owner_fit_status = normalizeOwnerFit(existing.owner_fit_status);
+    if (data.owner_fit_status !== undefined) {
+      owner_fit_status = normalizeOwnerFit(data.owner_fit_status);
+      if (owner_fit_status === "FIT" && !this.hasFactEvidence(id)) {
+        throw new Error("Cannot set owner fit status to FIT without at least one FACT evidence record.");
+      }
+    }
     // Score and decision are engine-owned. Client-supplied values are ignored.
     const score = existing.score;
     const decision = normalizeDecision(existing.decision);
@@ -1606,7 +1632,10 @@ export class MasterMindAgent extends Agent {
       ${id}, ${opportunityId}, ${classification}, ${source}, ${content}, ${created_at}, ${updated_at}
     );`;
 
-    this.evaluateVerificationStatus(opportunityId);
+    // Adding evidence changes the derived verdicts, so recompute the complete
+    // deterministic chain (verification -> eligibility -> owner fit -> score ->
+    // decision) instead of only verification.
+    this.evaluateDecision(opportunityId);
 
     return this.getEvidence(id);
   }
@@ -1758,7 +1787,10 @@ export class MasterMindAgent extends Agent {
     const opportunityId = existing.opportunity_id;
     this.sql`DELETE FROM evidence WHERE id = ${id};`;
     if (opportunityId && this.getOpportunity(opportunityId)) {
-      this.evaluateVerificationStatus(opportunityId);
+      // Removing evidence invalidates every derived verdict, so recompute the
+      // complete deterministic chain instead of only verification; otherwise a
+      // stale score/SELECT could survive the deletion.
+      this.evaluateDecision(opportunityId);
     }
     return true;
   }

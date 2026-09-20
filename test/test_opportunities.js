@@ -41,10 +41,11 @@ async function runTests() {
   // Client-supplied score must NOT be trusted; the deterministic engine owns it.
   assert.strictEqual(createdOpp.score, 0, "Client-supplied score must be ignored on create");
   assert.strictEqual(createdOpp.decision, "NEEDS_REVIEW", "Decision defaults to NEEDS_REVIEW until evaluated");
-  // Raw status vocabulary is normalized to a V9 truth state.
-  assert.strictEqual(createdOpp.eligibility_status, "ELIGIBLE");
-  assert.strictEqual(createdOpp.owner_fit_status, "FIT");
-  console.log("✓ Opportunity creation passed (client score rejected, statuses normalized):", createdOpp.id);
+  // P5-01: a brand-new opportunity has no FACT evidence, so a create payload
+  // asserting ELIGIBLE/FIT is not persisted; it falls back to UNKNOWN.
+  assert.strictEqual(createdOpp.eligibility_status, "UNKNOWN", "Create cannot persist ELIGIBLE without FACT evidence");
+  assert.strictEqual(createdOpp.owner_fit_status, "UNKNOWN", "Create cannot persist FIT without FACT evidence");
+  console.log("✓ Opportunity creation passed (client score rejected, unsupported ELIGIBLE/FIT fell back to UNKNOWN):", createdOpp.id);
 
   // 3. Get Opportunity
   const getRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`);
@@ -82,6 +83,39 @@ async function runTests() {
   // A client PATCH must not be able to raise the decision score.
   assert.strictEqual(updateJson.data.score, 0, "Client-supplied score must be ignored on update");
   console.log("✓ Update opportunity passed (client score rejected)");
+
+  // 5b. P5-01: PATCH must reject ELIGIBLE/FIT without FACT evidence.
+  const patchEligibleNoFactRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eligibility_status: "eligible" })
+  });
+  assert.strictEqual(patchEligibleNoFactRes.status, 400, "PATCH to ELIGIBLE without FACT evidence must be rejected");
+  const patchEligibleNoFactJson = await patchEligibleNoFactRes.json();
+  assert.strictEqual(patchEligibleNoFactJson.ok, false);
+  assert.ok(patchEligibleNoFactJson.error.includes("without at least one FACT evidence record"));
+
+  const patchFitNoFactRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ owner_fit_status: "fit" })
+  });
+  assert.strictEqual(patchFitNoFactRes.status, 400, "PATCH to FIT without FACT evidence must be rejected");
+  const patchFitNoFactJson = await patchFitNoFactRes.json();
+  assert.strictEqual(patchFitNoFactJson.ok, false);
+  assert.ok(patchFitNoFactJson.error.includes("without at least one FACT evidence record"));
+
+  // UNKNOWN stays UNKNOWN and no rejection is raised for a non-positive state.
+  const patchUnknownRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ eligibility_status: "unknown", owner_fit_status: "unknown" })
+  });
+  assert.strictEqual(patchUnknownRes.status, 200, "PATCH to UNKNOWN must be allowed");
+  const patchUnknownJson = await patchUnknownRes.json();
+  assert.strictEqual(patchUnknownJson.data.eligibility_status, "UNKNOWN");
+  assert.strictEqual(patchUnknownJson.data.owner_fit_status, "UNKNOWN");
+  console.log("✓ PATCH ELIGIBLE/FIT without FACT evidence rejected; UNKNOWN preserved");
 
   // 6. Delete Opportunity
   const deleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
