@@ -79,6 +79,110 @@ function normalizeDecision(value) {
 }
 
 /*
+ * COMPARE (Phase-1 Earning Operator, COMPARE stage).
+ *
+ * Pure, read-only ranking over already-persisted engine outputs. It never
+ * writes and never re-derives state: an opportunity that has not been
+ * evaluated by the engine remains UNVERIFIED / UNKNOWN / score 0 /
+ * NEEDS_REVIEW, and is ranked and labelled as such rather than upgraded.
+ *
+ * Ordering uses only existing engine-owned facts:
+ *   decision rank (SELECT > NEEDS_REVIEW > REJECT) -> engine score desc ->
+ *   verification -> eligibility -> owner fit. The final tie-break is the
+ *   stable opportunity id (lexicographic), so ties are deterministic and no
+ *   business preference is invented. No new weights are introduced.
+ */
+const COMPARE_DECISION_RANK = { SELECT: 3, NEEDS_REVIEW: 2, REJECT: 1 };
+const COMPARE_VERIFICATION_RANK = { VERIFIED: 4, PARTIALLY_VERIFIED: 3, UNVERIFIED: 2, REJECTED: 1 };
+const COMPARE_ELIGIBILITY_RANK = { ELIGIBLE: 4, POTENTIALLY_ELIGIBLE: 3, UNKNOWN: 2, NOT_ELIGIBLE: 1 };
+const COMPARE_OWNER_FIT_RANK = { FIT: 4, POTENTIAL_FIT: 3, UNKNOWN: 2, NOT_FIT: 1 };
+
+function comparePersistedOpportunities(rows) {
+  const comparison = (Array.isArray(rows) ? rows : []).map((row) => {
+    const decision = normalizeDecision(row.decision);
+    const verification = normalizeVerification(row.verification_status);
+    const eligibility = normalizeEligibility(row.eligibility_status);
+    const ownerFit = normalizeOwnerFit(row.owner_fit_status);
+    // score is engine-owned; a non-numeric legacy value is reported as 0
+    // rather than guessed upward.
+    const score = typeof row.score === "number" && isFinite(row.score) ? row.score : 0;
+    return {
+      id: row.id,
+      title: row.title,
+      platform: row.platform || "",
+      source: row.source || "",
+      verification_status: verification,
+      eligibility_status: eligibility,
+      owner_fit_status: ownerFit,
+      score,
+      decision
+    };
+  });
+
+  comparison.sort((a, b) => {
+    const byDecision = COMPARE_DECISION_RANK[b.decision] - COMPARE_DECISION_RANK[a.decision];
+    if (byDecision !== 0) return byDecision;
+    if (b.score !== a.score) return b.score - a.score;
+    const byVerification = COMPARE_VERIFICATION_RANK[b.verification_status] - COMPARE_VERIFICATION_RANK[a.verification_status];
+    if (byVerification !== 0) return byVerification;
+    const byEligibility = COMPARE_ELIGIBILITY_RANK[b.eligibility_status] - COMPARE_ELIGIBILITY_RANK[a.eligibility_status];
+    if (byEligibility !== 0) return byEligibility;
+    const byOwnerFit = COMPARE_OWNER_FIT_RANK[b.owner_fit_status] - COMPARE_OWNER_FIT_RANK[a.owner_fit_status];
+    if (byOwnerFit !== 0) return byOwnerFit;
+    return String(a.id).localeCompare(String(b.id));
+  });
+
+  const ranked = comparison.map((entry, index) => {
+    const top = comparison[0];
+    const tiedForTop =
+      !!top &&
+      entry !== top &&
+      top.decision === entry.decision &&
+      top.score === entry.score &&
+      top.verification_status === entry.verification_status &&
+      top.eligibility_status === entry.eligibility_status &&
+      top.owner_fit_status === entry.owner_fit_status;
+    return {
+      ...entry,
+      rank: index + 1,
+      tiedWithLeader: tiedForTop,
+      reason: comparisonReason(entry, index === 0)
+    };
+  });
+
+  return {
+    comparable: comparison.length,
+    ranked,
+    topOpportunityId: ranked.length > 0 ? ranked[0].id : null,
+    tiedAtTop: ranked.slice(1).some((entry) => entry.tiedWithLeader),
+    criteria: [
+      "engine decision (SELECT > NEEDS_REVIEW > REJECT)",
+      "engine score (descending)",
+      "verification status (VERIFIED > PARTIALLY_VERIFIED > UNVERIFIED > REJECTED)",
+      "eligibility status (ELIGIBLE > POTENTIALLY_ELIGIBLE > UNKNOWN > NOT_ELIGIBLE)",
+      "owner fit status (FIT > POTENTIAL_FIT > UNKNOWN > NOT_FIT)",
+      "stable opportunity id (lexicographic)"
+    ],
+    note: "Read-only ranking over persisted engine outputs. COMPARE never mutates opportunities, evidence, owner profile, score, decision or any other state, and never upgrades an unverified opportunity."
+  };
+}
+
+function comparisonReason(entry, isLeader) {
+  let reason;
+  if (entry.decision === "SELECT") {
+    reason = "Engine decision SELECT with engine score " + entry.score + ".";
+  } else if (entry.decision === "REJECT") {
+    reason = "Engine decision REJECT (explicit disqualification); not a candidate to prefer.";
+  } else {
+    reason = "Engine decision NEEDS_REVIEW at engine score " + entry.score + "; pending verification/eligibility/owner-fit review.";
+  }
+  if (!isLeader) {
+    reason += " Ranked below a stronger persisted state.";
+  }
+  return reason;
+}
+
+/*
  * Permission boundary: SERVICE -> CAPABILITY -> SCOPE -> RISK -> APPROVAL.
  * Mutations that change Owner-controlled state require an explicit Owner
  * credential (OWNER_API_TOKEN). Reads never do.
@@ -1907,6 +2011,15 @@ export class MasterMindAgent extends Agent {
           }
           return Response.json(result);
         }
+      }
+
+      // Route: GET /opportunities/compare (read-only COMPARE stage)
+      if (subpath === "/compare" || subpath.startsWith("/compare?")) {
+        if (request.method === "GET") {
+          const rows = this.listOpportunities();
+          return Response.json({ ok: true, data: comparePersistedOpportunities(rows) });
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
       }
 
       // Route: GET/POST /opportunities/:id/decision

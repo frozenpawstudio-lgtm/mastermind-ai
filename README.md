@@ -43,6 +43,7 @@ allowed.
 | `/api/opportunities/:id` | GET/PATCH/DELETE | Opportunity record |
 | `/api/opportunities/discover` | GET/POST | Discovery intake (truthful NOT_CONNECTED state) |
 | `/api/opportunities/:id/decision` | POST | Deterministic decision evaluation |
+| `/api/opportunities/compare` | GET | Read-only deterministic ranking of persisted opportunities (COMPARE) |
 | `/api/evidence` | GET/POST | Structured evidence records |
 | `/api/owner/profile` | GET/POST | Owner profile record |
 | `/api/chat` | POST | AIRA conversation |
