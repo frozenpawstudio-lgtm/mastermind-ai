@@ -40,6 +40,20 @@ async function runDecisionEngineTests() {
   });
   assert.strictEqual(factEvidenceRes.status, 201);
 
+  // P5-01: a create payload cannot persist ELIGIBLE/FIT without FACT evidence,
+  // so the positive verdicts are asserted after FACT evidence exists, through
+  // the dedicated eligibility / owner-fit endpoints.
+  await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/eligibility`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "ELIGIBLE" })
+  });
+  await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/owner-fit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "FIT" })
+  });
+
   // Evaluate decision
   const strongDecisionRes = await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/decision`, { method: "POST" });
   assert.strictEqual(strongDecisionRes.status, 200);
@@ -194,6 +208,19 @@ async function runDecisionEngineTests() {
       source: "official_api",
       content: "Verified payment method & contract agreement"
     })
+  });
+
+  // P5-01: as in scenario 1, the ELIGIBLE/FIT verdicts must be asserted after
+  // FACT evidence exists rather than through the create payload.
+  await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/eligibility`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "ELIGIBLE" })
+  });
+  await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/owner-fit`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ status: "FIT" })
   });
 
   const factDecRes = await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/decision`, { method: "POST" });
