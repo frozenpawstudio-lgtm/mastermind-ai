@@ -183,6 +183,379 @@ function comparisonReason(entry, isLeader) {
 }
 
 /*
+ * ============================================================================
+ * PREPARE stage (Phase-1 Earning Operator).
+ *
+ * PREPARATION != SUBMISSION.
+ *
+ * PREPARE assembles an owner-reviewable preparation package from PERSISTED
+ * STATE ONLY (opportunity + evidence + owner profile). It never submits,
+ * contacts a platform or client, creates accounts, spends money, or upgrades
+ * any authoritative state (verification, eligibility, owner-fit, score,
+ * decision).
+ *
+ * The stage is deliberately platform-agnostic. opportunity.platform and
+ * opportunity.source are free-form labels used only as context. No platform is
+ * assumed connected, active, eligible, available or authorized, and there are
+ * no platform-specific branches.
+ *
+ * Any value the persisted record does not hold is emitted as an explicit
+ * OWNER INPUT REQUIRED placeholder. PREPARE never invents Owner skills,
+ * experience, portfolio items, credentials, client history, earnings, results,
+ * certifications or relationships.
+ * ============================================================================
+ */
+const PREPARE_OWNER_INPUT_REQUIRED = "[OWNER INPUT REQUIRED]";
+
+/* The V9 preparation vocabulary, expressed as preparation TYPES only. */
+const PREPARE_TYPES = [
+  "proposal",
+  "cover_letter",
+  "application_answers",
+  "project_description",
+  "portfolio_description",
+  "profile_optimization",
+  "service_package",
+  "offer",
+  "pricing_draft",
+  "outreach_draft",
+  "technical_prep",
+  "interview_prep",
+  "research_prep",
+  "document_checklist",
+  "application_strategy",
+  "work_plan",
+  "client_communication",
+  "content_plan",
+  "affiliate_analysis",
+  "digital_product_plan",
+  "lead_generation_plan",
+  "supporting_material_checklist",
+  "submission_checklist"
+];
+
+/* Default owner-reviewable package when no specific type is requested. */
+const PREPARE_DEFAULT_PACKAGE = [
+  "proposal",
+  "cover_letter",
+  "application_answers",
+  "project_description",
+  "portfolio_description",
+  "pricing_draft",
+  "supporting_material_checklist",
+  "submission_checklist"
+];
+
+function normalizePrepareType(value) {
+  if (value === null || value === undefined) return null;
+  const key = String(value).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return PREPARE_TYPES.includes(key) ? key : null;
+}
+
+function buildPreparation(opportunity, evidenceList, ownerProfile, requestedType) {
+  const records = Array.isArray(evidenceList) ? evidenceList : [];
+  const factContents = records.filter((e) => e.classification === "FACT").map((e) => String(e.content || "").trim()).filter(Boolean);
+  const assumptionContents = records.filter((e) => e.classification === "ASSUMPTION").map((e) => String(e.content || "").trim()).filter(Boolean);
+  const hypothesisContents = records.filter((e) => e.classification === "HYPOTHESIS").map((e) => String(e.content || "").trim()).filter(Boolean);
+
+  const text = (value) => String(value === null || value === undefined ? "" : value).trim();
+  const platform = text(opportunity.platform);
+  const source = text(opportunity.source);
+  const title = text(opportunity.title);
+  const description = text(opportunity.description);
+  const url = text(opportunity.url);
+  const earningModel = text(opportunity.earning_model);
+  const effort = text(opportunity.effort);
+  const cost = text(opportunity.cost);
+  const earningPotential = text(opportunity.earning_potential);
+
+  const profile = ownerProfile || null;
+  const profileField = (name) => (profile ? text(profile[name]) : "");
+  const skills = profileField("skills");
+  const experience = profileField("experience");
+  const location = profileField("location");
+  const maxCost = profileField("max_cost");
+  const maxEffort = profileField("max_effort");
+  const accessibility = profileField("accessibility");
+  const otherCriteria = profileField("other_criteria");
+  const hasProfile = !!(skills || experience || location || maxCost || maxEffort || accessibility || otherCriteria);
+
+  const used = [];
+  const missing = [];
+  const track = (label, value) => { if (value) used.push(label); else missing.push(label); };
+  track("opportunity.title", title);
+  track("opportunity.description", description);
+  track("opportunity.platform", platform);
+  track("opportunity.source", source);
+  track("opportunity.url", url);
+  track("owner_profile.skills", skills);
+  track("owner_profile.experience", experience);
+  track("owner_profile.location", location);
+  track("owner_profile.max_cost", maxCost);
+  track("owner_profile.max_effort", maxEffort);
+  if (factContents.length > 0) used.push(`evidence.FACT (${factContents.length})`); else missing.push("evidence.FACT");
+
+  const known = (label, value) => `${label}: ${value || PREPARE_OWNER_INPUT_REQUIRED}`;
+
+  const ownerContext = [
+    known("Owner skills", skills),
+    known("Owner experience", experience),
+    known("Owner location", location),
+    known("Owner maximum cost", maxCost),
+    known("Owner maximum effort", maxEffort)
+  ];
+
+  const factContext = factContents.length > 0
+    ? factContents.map((c) => `- Verified FACT evidence: ${c}`)
+    : [`- Verified FACT evidence: ${PREPARE_OWNER_INPUT_REQUIRED}`];
+
+  const unconfirmedContext = (assumptionContents.length + hypothesisContents.length) > 0
+    ? [
+        ...assumptionContents.map((c) => `- Unconfirmed ASSUMPTION (must not be presented as fact): ${c}`),
+        ...hypothesisContents.map((c) => `- Unconfirmed HYPOTHESIS (must not be presented as fact): ${c}`)
+      ]
+    : [`- Unconfirmed material: none recorded. ${PREPARE_OWNER_INPUT_REQUIRED}`];
+
+  const opportunityContext = [
+    known("Opportunity title", title),
+    known("Platform label", platform),
+    known("Source label", source),
+    known("Reference URL", url),
+    known("Brief", description),
+    known("Earning model", earningModel),
+    known("Effort", effort),
+    known("Cost", cost),
+    known("Earning potential", earningPotential)
+  ];
+
+  const manualSubmissionRule = "Owner submits manually on the target platform. AIRA does not submit, contact, or apply.";
+
+  const sectionBuilders = {
+    proposal: () => [
+      "Proposal draft — Owner must review and personalise before any use.",
+      ...opportunityContext,
+      "Positioning (persisted Owner profile only):",
+      ...ownerContext,
+      "Evidence available to cite:",
+      ...factContext
+    ],
+    cover_letter: () => [
+      "Cover-letter draft — written only from persisted facts.",
+      `Opening line about the role/opportunity: ${title}`,
+      `Addressed to: ${PREPARE_OWNER_INPUT_REQUIRED} (contact name is not stored)`,
+      "Why this Owner:",
+      ...ownerContext,
+      "Evidence to reference:",
+      ...factContext
+    ],
+    application_answers: () => [
+      "Application-answer preparation — answers must be written by the Owner using real facts.",
+      ...opportunityContext,
+      "Owner facts available for answers:",
+      ...ownerContext,
+      "Evidence available:",
+      ...factContext,
+      "Unconfirmed material:",
+      ...unconfirmedContext
+    ],
+    project_description: () => [
+      "Project description derived from the persisted opportunity record.",
+      ...opportunityContext,
+      "Owner capability context:",
+      ...ownerContext
+    ],
+    portfolio_description: () => [
+      "Portfolio description — built only from persisted Owner data and FACT evidence.",
+      "Do not add portfolio items, clients or results that are not recorded.",
+      ...ownerContext,
+      "Evidence available:",
+      ...factContext
+    ],
+    profile_optimization: () => [
+      "Profile optimization suggestions based on the persisted Owner profile only.",
+      ...ownerContext,
+      known("Accessibility notes", accessibility),
+      known("Other Owner criteria", otherCriteria),
+      "Suggested next edits:",
+      known("Confirm target niche", ""),
+      known("Confirm primary skill claims", skills)
+    ],
+    service_package: () => [
+      "Service package draft.",
+      ...ownerContext,
+      known("Earning model", earningModel),
+      known("Effort basis", effort),
+      known("Cost basis", cost)
+    ],
+    offer: () => [
+      "Offer draft.",
+      `Offer anchored to opportunity: ${title}`,
+      known("Platform label (verify manually)", platform),
+      known("Cost basis", cost),
+      known("Earning potential", earningPotential)
+    ],
+    pricing_draft: () => [
+      "Pricing draft — derived only from persisted values; no market data is connected.",
+      known("Recorded cost", cost),
+      known("Recorded earning potential", earningPotential),
+      known("Owner maximum cost", maxCost),
+      known("Owner maximum effort", maxEffort),
+      "No external rate data is available. Verify current market rates manually."
+    ],
+    outreach_draft: () => [
+      "Outreach draft — for Owner review only. AIRA does not send outreach.",
+      `Context: ${description || PREPARE_OWNER_INPUT_REQUIRED}`,
+      "Introduce the Owner using persisted facts:",
+      ...ownerContext
+    ],
+    technical_prep: () => [
+      "Technical preparation outline.",
+      `Based on opportunity requirements: ${description || PREPARE_OWNER_INPUT_REQUIRED}`,
+      "Owner skill areas to revise:",
+      known("Owner skills", skills)
+    ],
+    interview_prep: () => [
+      "Interview preparation outline.",
+      `Opportunity context: ${title}`,
+      "Prepare examples grounded in real work only:",
+      known("Owner experience", experience),
+      known("Owner skills", skills)
+    ],
+    research_prep: () => [
+      "Research preparation checklist.",
+      known("Opportunity brief", description),
+      known("Reference URL", url),
+      "Verify platform legitimacy, current activity, eligibility and authorization manually per opportunity."
+    ],
+    document_checklist: () => [
+      "Document checklist — mark each item only when the Owner actually holds it.",
+      `- Identity/eligibility documents: ${PREPARE_OWNER_INPUT_REQUIRED}`,
+      `- Resume/CV: ${experience ? "Owner experience recorded — attach the real document" : PREPARE_OWNER_INPUT_REQUIRED}`,
+      `- Portfolio links: ${PREPARE_OWNER_INPUT_REQUIRED}`,
+      `- Certifications: ${PREPARE_OWNER_INPUT_REQUIRED}`
+    ],
+    application_strategy: () => [
+      "Application strategy.",
+      "1. Owner reviews this preparation package.",
+      "2. Owner verifies the platform and opportunity independently.",
+      "3. Owner prepares and finalises the real submission material.",
+      "4. Owner submits manually."
+    ],
+    work_plan: () => [
+      "Work plan outline.",
+      ...opportunityContext,
+      "Break the recorded brief into Owner-reviewed steps."
+    ],
+    client_communication: () => [
+      "Client communication templates — for Owner review; AIRA does not contact clients.",
+      `- Acknowledgement: ${PREPARE_OWNER_INPUT_REQUIRED}`,
+      `- Clarifying questions: ${PREPARE_OWNER_INPUT_REQUIRED}`,
+      `- Delivery update: ${PREPARE_OWNER_INPUT_REQUIRED}`
+    ],
+    content_plan: () => [
+      "Content plan outline.",
+      `Anchored to: ${title}`,
+      known("Owner skills", skills),
+      "Produce only content the Owner can actually support."
+    ],
+    affiliate_analysis: () => [
+      "Affiliate/referral analysis outline.",
+      `Opportunity context: ${description || PREPARE_OWNER_INPUT_REQUIRED}`,
+      "Disclose affiliate relationships where applicable.",
+      known("Recorded earning model", earningModel)
+    ],
+    digital_product_plan: () => [
+      "Digital-product plan outline.",
+      `Anchored to: ${title}`,
+      known("Owner skills", skills),
+      "Validate demand manually; no market data is connected."
+    ],
+    lead_generation_plan: () => [
+      "Lead-generation plan outline.",
+      `Anchored to: ${description || PREPARE_OWNER_INPUT_REQUIRED}`,
+      "Respect platform rules and Terms of Service. No automated outreach is performed."
+    ],
+    supporting_material_checklist: () => [
+      "Supporting-material checklist — prepared materials are drafts for Owner review.",
+      "- [ ] Proposal draft reviewed and personalised",
+      "- [ ] Cover letter reviewed",
+      "- [ ] Application answers completed by the Owner with real facts",
+      "- [ ] Project/portfolio description verified against real work",
+      `- [ ] Pricing verified manually: ${cost || PREPARE_OWNER_INPUT_REQUIRED}`,
+      `- [ ] Unconfirmed claims removed: ${(assumptionContents.length + hypothesisContents.length) > 0 ? "yes — unconfirmed evidence present" : "no unconfirmed evidence recorded"}`
+    ],
+    submission_checklist: () => [
+      "Submission checklist — manual Owner action only.",
+      `- [ ] Owner verifies platform legitimacy, activity and eligibility manually`,
+      `- [ ] Owner confirms Terms of Service compliance`,
+      "- [ ] Owner completes any CAPTCHA / MFA / OTP personally — AIRA never bypasses these",
+      "- [ ] Owner confirms any payment or fee personally — AIRA never spends money",
+      `- [ ] ${manualSubmissionRule}`,
+      `- Submission status: NOT_SUBMITTED`
+    ]
+  };
+
+  const selected = requestedType ? [requestedType] : PREPARE_DEFAULT_PACKAGE;
+  const materials = selected.map((type) => {
+    const lines = sectionBuilders[type]();
+    const hasPlaceholder = lines.some((line) => String(line).includes(PREPARE_OWNER_INPUT_REQUIRED));
+    return {
+      type,
+      status: hasPlaceholder ? "DRAFT_NEEDS_OWNER_INPUT" : "DRAFT",
+      basis: "persisted opportunity + evidence + owner profile",
+      ownerReviewRequired: true,
+      submitted: false,
+      lines
+    };
+  });
+
+  const nextActions = [];
+  if (!hasProfile) nextActions.push("Record the Owner profile (POST /api/owner/profile). PREPARE cannot invent Owner facts.");
+  if (!skills) nextActions.push("Record Owner skills so proposal and package text is grounded.");
+  if (!description) nextActions.push("Add an opportunity description so preparation is specific rather than generic.");
+  if (factContents.length === 0) nextActions.push("Attach FACT evidence to strengthen grounding; ASSUMPTION/HYPOTHESIS must not be presented as fact.");
+  if (assumptionContents.length + hypothesisContents.length > 0) nextActions.push("Confirm or discard unconfirmed ASSUMPTION/HYPOTHESIS material before use.");
+  nextActions.push("Owner reviews every prepared section and removes anything not supported by real facts.");
+  nextActions.push(manualSubmissionRule);
+
+  return {
+    stage: "PREPARE",
+    opportunity: { id: opportunity.id, title, platform, source, url },
+    platform,
+    source,
+    platformLabelIsContextOnly: true,
+    platformConnectionState: "NOT_VERIFIED_BY_PREPARE",
+    engineState: {
+      verificationStatus: normalizeVerification(opportunity.verification_status),
+      eligibilityStatus: normalizeEligibility(opportunity.eligibility_status),
+      ownerFitStatus: normalizeOwnerFit(opportunity.owner_fit_status),
+      score: typeof opportunity.score === "number" && isFinite(opportunity.score) ? opportunity.score : 0,
+      decision: normalizeDecision(opportunity.decision)
+    },
+    requestedType: requestedType || null,
+    packageTypes: selected,
+    usedInformation: used,
+    missingInformation: missing,
+    materials,
+    nextActions,
+    ownerReviewRequired: true,
+    submissionStatus: "NOT_SUBMITTED",
+    preparationIsSubmission: false,
+    assumptions: [
+      ...assumptionContents.map((c) => `ASSUMPTION (unconfirmed): ${c}`),
+      ...hypothesisContents.map((c) => `HYPOTHESIS (unconfirmed): ${c}`)
+    ],
+    limitations: [
+      "PREPARE produces owner-reviewable preparation material only. PREPARATION != SUBMISSION.",
+      "No submission, application, client contact, account creation or payment is performed.",
+      "No platform is verified as connected, active, eligible or authorized by PREPARE.",
+      "Owner-fact fields are taken from persisted records only; absent values are marked OWNER INPUT REQUIRED, never invented.",
+      "Model output, if ever used, is derived material and never changes authoritative state."
+    ]
+  };
+}
+
+/*
  * Permission boundary: SERVICE -> CAPABILITY -> SCOPE -> RISK -> APPROVAL.
  * Mutations that change Owner-controlled state require an explicit Owner
  * credential (OWNER_API_TOKEN). Reads never do.
@@ -2018,6 +2391,62 @@ export class MasterMindAgent extends Agent {
         if (request.method === "GET") {
           const rows = this.listOpportunities();
           return Response.json({ ok: true, data: comparePersistedOpportunities(rows) });
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      // Route: POST /opportunities/:id/prepare (read-only, owner-reviewable PREPARE package)
+      // PREPARATION != SUBMISSION. This route composes a draft package from
+      // persisted state only; it never submits, contacts or mutates anything.
+      const prepareMatch = subpath.match(/^\/([^\/]+)\/prepare$/);
+      if (prepareMatch) {
+        const targetId = prepareMatch[1];
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+
+          const opportunity = this.getOpportunity(targetId);
+          if (!opportunity) {
+            return Response.json({ ok: false, error: "Opportunity not found" }, { status: 404 });
+          }
+
+          const rawType = body.type !== undefined && body.type !== null && String(body.type).trim() !== ""
+            ? body.type
+            : null;
+          const requestedType = rawType === null ? null : normalizePrepareType(rawType);
+          if (rawType !== null && requestedType === null) {
+            return Response.json(
+              { ok: false, error: `Unknown preparation type '${rawType}'.`, supportedTypes: PREPARE_TYPES },
+              { status: 400 }
+            );
+          }
+
+          const evidenceList = this.getEvidenceForOpportunity(targetId);
+          const ownerProfile = this.getOwnerProfile();
+          const preparation = buildPreparation(opportunity, evidenceList, ownerProfile, requestedType);
+
+          // A preparation package must never alter authoritative state. Assert
+          // the engine outputs are untouched so a regression cannot silently
+          // mutate them through this route.
+          const after = this.getOpportunity(targetId);
+          if (
+            after.verification_status !== opportunity.verification_status ||
+            after.eligibility_status !== opportunity.eligibility_status ||
+            after.owner_fit_status !== opportunity.owner_fit_status ||
+            after.score !== opportunity.score ||
+            after.decision !== opportunity.decision
+          ) {
+            return Response.json(
+              { ok: false, error: "PREPARE refused: authoritative opportunity state changed." },
+              { status: 500 }
+            );
+          }
+
+          return Response.json({ ok: true, data: preparation });
         }
         return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
       }
