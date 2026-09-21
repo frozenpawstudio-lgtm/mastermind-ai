@@ -44,6 +44,7 @@ allowed.
 | `/api/opportunities/discover` | GET/POST | Discovery intake (truthful NOT_CONNECTED state) |
 | `/api/opportunities/:id/decision` | POST | Deterministic decision evaluation |
 | `/api/opportunities/compare` | GET | Read-only deterministic ranking of persisted opportunities (COMPARE) |
+| `/api/opportunities/:id/prepare` | POST | Owner-reviewable preparation package (PREPARE). Preparation only — never submits |
 | `/api/evidence` | GET/POST | Structured evidence records |
 | `/api/owner/profile` | GET/POST | Owner profile record |
 | `/api/chat` | POST | AIRA conversation |
@@ -66,6 +67,7 @@ node test/test_verification.js
 node test/test_decision.js
 node test/test_discovery.js
 node test/test_eligibility_owner_fit.js
+node test/test_prepare.js
 node test/test_v9_foundations.js
 ```
 
