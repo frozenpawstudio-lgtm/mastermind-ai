@@ -556,6 +556,37 @@ function buildPreparation(opportunity, evidenceList, ownerProfile, requestedType
 }
 
 /*
+ * Deterministic recursive JSON object-key sorting for parameter hashing
+ */
+function normalizeAndSortJSON(obj) {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(normalizeAndSortJSON);
+  return Object.keys(obj).sort().reduce((acc, key) => {
+    acc[key] = normalizeAndSortJSON(obj[key]);
+    return acc;
+  }, {});
+}
+
+/*
+ * Computes standard SHA-256 parameter action fingerprint
+ */
+async function computeActionFingerprint(capability, action_type, target_resource_id, parameters) {
+  const normParams = normalizeAndSortJSON(parameters || {});
+  const rawString = [
+    String(capability || "").trim(),
+    String(action_type || "").trim(),
+    String(target_resource_id || "").trim(),
+    JSON.stringify(normParams)
+  ].join(":");
+
+  const encoder = new TextEncoder();
+  const data = encoder.encode(rawString);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/*
  * Permission boundary: SERVICE -> CAPABILITY -> SCOPE -> RISK -> APPROVAL.
  * Mutations that change Owner-controlled state require an explicit Owner
  * credential (OWNER_API_TOKEN). Reads never do.
@@ -608,16 +639,23 @@ function authorizeRequest(request, env, risk) {
   const configured = hasOwnerToken(env);
   const presented = extractOwnerToken(request);
 
-  // No credential configured at runtime: authorization is NOT_CONFIGURED.
-  // The state is reported truthfully instead of pretending the boundary is
-  // enforced. The Owner must configure OWNER_API_TOKEN to activate it.
-  if (!configured) return null;
+  if (!configured) {
+    // Fail-closed security boundary: when OWNER_API_TOKEN is not configured at runtime,
+    // all state mutations and Owner-controlled actions are DENIED.
+    return json(
+      {
+        ok: false,
+        error: "OWNER_API_TOKEN is not configured on server. Fail-closed policy enforced.",
+        authorization: "NOT_CONFIGURED",
+        action: "DENIED"
+      },
+      401
+    );
+  }
 
   if (tokensMatch(presented, env.OWNER_API_TOKEN)) return null;
 
-  // Owner-controlled actions never fall back to same-origin alone: a
-  // consequential mutation must present the Owner credential.
-  const denied = json(
+  return json(
     {
       ok: false,
       error:
@@ -629,12 +667,6 @@ function authorizeRequest(request, env, risk) {
     },
     401
   );
-
-  if (risk === RISK.OWNER_CONTROLLED) return denied;
-
-  // Ordinary mutations accept a same-origin Owner browser session.
-  if (isSameOriginRequest(request)) return null;
-  return denied;
 }
 
 const SYSTEM_PROMPT = `
@@ -1436,8 +1468,294 @@ export class MasterMindAgent extends Agent {
         other_criteria TEXT NOT NULL DEFAULT '',
         updated_at TEXT NOT NULL
       );`;
+      this.sql`CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        timestamp TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        action TEXT NOT NULL,
+        resource_type TEXT NOT NULL,
+        resource_id TEXT,
+        status TEXT NOT NULL,
+        request_ip TEXT,
+        user_agent TEXT,
+        details TEXT,
+        created_at TEXT NOT NULL
+      );`;
+      this.sql`CREATE TABLE IF NOT EXISTS owner_approvals (
+        id TEXT PRIMARY KEY,
+        capability TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        target_resource_id TEXT,
+        parameters_hash TEXT NOT NULL,
+        parameters_json TEXT NOT NULL,
+        status TEXT NOT NULL,
+        requested_at TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        decided_at TEXT,
+        consumed_at TEXT,
+        decision_notes TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );`;
       this._dbInitialized = true;
     }
+  }
+
+  logAudit(entry) {
+    this.initDb();
+    const id = entry.id || ("aud_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16));
+    const timestamp = entry.timestamp || new Date().toISOString();
+    const created_at = entry.created_at || timestamp;
+    const actor = String(entry.actor || "OWNER").trim();
+    const action = String(entry.action || "UNKNOWN").trim();
+    const resource_type = String(entry.resource_type || "SYSTEM").trim();
+    const resource_id = entry.resource_id ? String(entry.resource_id).trim() : null;
+    const status = String(entry.status || "SUCCESS").trim();
+    const request_ip = entry.request_ip ? String(entry.request_ip).trim() : null;
+    const user_agent = entry.user_agent ? String(entry.user_agent).trim() : null;
+    const details = typeof entry.details === "object" ? JSON.stringify(entry.details) : (entry.details ? String(entry.details) : "");
+
+    // Append-only: INSERT statement only. No UPDATE or DELETE SQL query exists anywhere in the codebase.
+    this.sql`INSERT INTO audit_logs (
+      id, timestamp, actor, action, resource_type, resource_id, status, request_ip, user_agent, details, created_at
+    ) VALUES (
+      ${id}, ${timestamp}, ${actor}, ${action}, ${resource_type}, ${resource_id}, ${status}, ${request_ip}, ${user_agent}, ${details}, ${created_at}
+    );`;
+
+    return { id, timestamp, actor, action, resource_type, resource_id, status, request_ip, user_agent, details, created_at };
+  }
+
+  listAuditLogs(filters = {}) {
+    this.initDb();
+    let rows = [...this.sql`SELECT * FROM audit_logs ORDER BY created_at DESC`];
+    if (filters.action) {
+      const norm = String(filters.action).trim().toUpperCase();
+      rows = rows.filter(r => String(r.action).toUpperCase() === norm);
+    }
+    if (filters.resource_type) {
+      const norm = String(filters.resource_type).trim().toUpperCase();
+      rows = rows.filter(r => String(r.resource_type).toUpperCase() === norm);
+    }
+    if (filters.resource_id) {
+      rows = rows.filter(r => r.resource_id === filters.resource_id);
+    }
+    if (filters.status) {
+      const norm = String(filters.status).trim().toUpperCase();
+      rows = rows.filter(r => String(r.status).toUpperCase() === norm);
+    }
+    return rows;
+  }
+
+  async createApprovalRequest(data) {
+    this.initDb();
+    const capability = String(data.capability || "").trim();
+    if (!capability) throw new Error("capability is required");
+    const action_type = String(data.action_type || "").trim();
+    if (!action_type) throw new Error("action_type is required");
+    const target_resource_id = data.target_resource_id ? String(data.target_resource_id).trim() : null;
+    const parameters = data.parameters || {};
+
+    const parameters_hash = await computeActionFingerprint(capability, action_type, target_resource_id, parameters);
+    const parameters_json = JSON.stringify(normalizeAndSortJSON(parameters));
+
+    const id = data.id || ("appr_" + crypto.randomUUID().replace(/-/g, "").slice(0, 16));
+    const requested_at = data.requested_at || new Date().toISOString();
+    const ttlMs = typeof data.ttl_ms === "number" && data.ttl_ms > 0 ? data.ttl_ms : 3600000;
+    const expires_at = data.expires_at || new Date(Date.now() + ttlMs).toISOString();
+
+    const status = "PENDING";
+    const created_at = requested_at;
+    const updated_at = requested_at;
+
+    this.sql`INSERT INTO owner_approvals (
+      id, capability, action_type, target_resource_id, parameters_hash, parameters_json, status, requested_at, expires_at, created_at, updated_at
+    ) VALUES (
+      ${id}, ${capability}, ${action_type}, ${target_resource_id}, ${parameters_hash}, ${parameters_json}, ${status}, ${requested_at}, ${expires_at}, ${created_at}, ${updated_at}
+    );`;
+
+    this.logAudit({
+      actor: "SYSTEM",
+      action: "APPROVAL_REQUEST_CREATED",
+      resource_type: "OWNER_APPROVAL",
+      resource_id: id,
+      status: "SUCCESS",
+      details: { capability, action_type, target_resource_id, parameters_hash }
+    });
+
+    return this.getApprovalRequest(id);
+  }
+
+  getApprovalRequest(id) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM owner_approvals WHERE id = ${id}`];
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    const now = new Date().toISOString();
+    if (row.status === "PENDING" && row.expires_at < now) {
+      this.sql`UPDATE owner_approvals SET status = 'EXPIRED', updated_at = ${now} WHERE id = ${id};`;
+      row.status = "EXPIRED";
+      row.updated_at = now;
+    }
+    return row;
+  }
+
+  listApprovalRequests(filters = {}) {
+    this.initDb();
+    let rows = [...this.sql`SELECT * FROM owner_approvals ORDER BY requested_at DESC`];
+    const now = new Date().toISOString();
+    rows = rows.map(row => {
+      if (row.status === "PENDING" && row.expires_at < now) {
+        this.sql`UPDATE owner_approvals SET status = 'EXPIRED', updated_at = ${now} WHERE id = ${row.id};`;
+        return { ...row, status: "EXPIRED", updated_at: now };
+      }
+      return row;
+    });
+
+    if (filters.status) {
+      const norm = String(filters.status).trim().toUpperCase();
+      rows = rows.filter(r => r.status === norm);
+    }
+    if (filters.capability) {
+      const norm = String(filters.capability).trim().toLowerCase();
+      rows = rows.filter(r => String(r.capability).toLowerCase() === norm);
+    }
+    if (filters.target_resource_id) {
+      rows = rows.filter(r => r.target_resource_id === filters.target_resource_id);
+    }
+    return rows;
+  }
+
+  decideApprovalRequest(id, decision, notes = "") {
+    this.initDb();
+    const existing = this.getApprovalRequest(id);
+    if (!existing) {
+      throw new Error("Approval request not found");
+    }
+
+    if (existing.status !== "PENDING") {
+      throw new Error(`Cannot decide approval request in status '${existing.status}'. Only PENDING requests can be decided.`);
+    }
+
+    const normDecision = String(decision || "").trim().toUpperCase();
+    if (normDecision !== "APPROVED" && normDecision !== "REJECTED") {
+      throw new Error("Invalid decision. Decision must be 'APPROVED' or 'REJECTED'.");
+    }
+
+    const decided_at = new Date().toISOString();
+    const decision_notes = String(notes || "").trim();
+
+    this.sql`UPDATE owner_approvals SET
+      status = ${normDecision},
+      decided_at = ${decided_at},
+      decision_notes = ${decision_notes},
+      updated_at = ${decided_at}
+    WHERE id = ${id} AND status = 'PENDING';`;
+
+    this.logAudit({
+      actor: "OWNER",
+      action: normDecision === "APPROVED" ? "APPROVAL_GRANTED" : "APPROVAL_REJECTED",
+      resource_type: "OWNER_APPROVAL",
+      resource_id: id,
+      status: "SUCCESS",
+      details: { decision: normDecision, decision_notes }
+    });
+
+    return this.getApprovalRequest(id);
+  }
+
+  async consumeApproval(id, expectedContext) {
+    this.initDb();
+    const existing = this.getApprovalRequest(id);
+    if (!existing) {
+      throw new Error("Approval request not found");
+    }
+
+    if (existing.status !== "APPROVED") {
+      throw new Error(`Approval request cannot be consumed: status is '${existing.status}', expected 'APPROVED'.`);
+    }
+
+    const now = new Date().toISOString();
+    if (existing.expires_at < now) {
+      this.sql`UPDATE owner_approvals SET status = 'EXPIRED', updated_at = ${now} WHERE id = ${id};`;
+      throw new Error("Approval request has EXPIRED.");
+    }
+
+    if (expectedContext) {
+      const computedHash = await computeActionFingerprint(
+        expectedContext.capability || existing.capability,
+        expectedContext.action_type || existing.action_type,
+        expectedContext.target_resource_id !== undefined ? expectedContext.target_resource_id : existing.target_resource_id,
+        expectedContext.parameters !== undefined ? expectedContext.parameters : JSON.parse(existing.parameters_json || "{}")
+      );
+
+      if (computedHash !== existing.parameters_hash) {
+        this.logAudit({
+          actor: "SYSTEM",
+          action: "APPROVAL_BINDING_MISMATCH",
+          resource_type: "OWNER_APPROVAL",
+          resource_id: id,
+          status: "FAILED",
+          details: { expectedHash: computedHash, storedHash: existing.parameters_hash }
+        });
+        throw new Error("Approval binding mismatch: Action parameters do not match approved request fingerprint.");
+      }
+    }
+
+    // Atomic single-use update requiring status = 'APPROVED'
+    const updateResult = this.sql`UPDATE owner_approvals
+      SET status = 'CONSUMED', consumed_at = ${now}, updated_at = ${now}
+      WHERE id = ${id} AND status = 'APPROVED' AND expires_at > ${now};`;
+
+    const rowsAffected = updateResult && typeof updateResult.rowsAffected === "number"
+      ? updateResult.rowsAffected
+      : (updateResult && typeof updateResult.changes === "number" ? updateResult.changes : null);
+
+    if (rowsAffected === 0) {
+      this.logAudit({
+        actor: "SYSTEM",
+        action: "APPROVAL_CONSUMPTION_FAILED",
+        resource_type: "OWNER_APPROVAL",
+        resource_id: id,
+        status: "FAILED",
+        details: { reason: "rowsAffected === 0 (already consumed or expired)" }
+      });
+      throw new Error("Atomic single-use approval transition failed: Approval was already consumed or expired.");
+    }
+
+    const rechecked = this.getApprovalRequest(id);
+
+    this.logAudit({
+      actor: "SYSTEM",
+      action: "APPROVAL_CONSUMED",
+      resource_type: "OWNER_APPROVAL",
+      resource_id: id,
+      status: "SUCCESS",
+      details: { consumed_at: now }
+    });
+
+    return rechecked;
+  }
+
+  async assertExecutionBoundary(actionContext) {
+    const env = this.env;
+    if (!hasOwnerToken(env)) {
+      throw new Error("Execution boundary check failed: OWNER_API_TOKEN is not configured on server.");
+    }
+
+    if (actionContext.service) {
+      const report = connectionReport(env);
+      const svc = report.services ? report.services.find(s => s.service === actionContext.service || s.name === actionContext.service) : null;
+      if (!svc || svc.state !== "CONNECTED") {
+        throw new Error(`Execution boundary check failed: Target service '${actionContext.service}' is not CONNECTED.`);
+      }
+    }
+
+    if (!actionContext.approval_id) {
+      throw new Error("Execution boundary check failed: approval_id is required for high-impact action execution.");
+    }
+
+    const consumed = await this.consumeApproval(actionContext.approval_id, actionContext);
+    return consumed;
   }
 
   normalizeEligibilityStatus(status) {
@@ -2324,6 +2642,7 @@ export class MasterMindAgent extends Agent {
         data: {
           authorizationConfigured: hasOwnerToken(this.env),
           authorizationState: hasOwnerToken(this.env) ? "CONFIGURED" : "NOT_CONFIGURED",
+          enforcement: hasOwnerToken(this.env) ? "ACTIVE" : "FAIL_CLOSED",
           model: [
             "SERVICE",
             "CAPABILITY",
@@ -2337,13 +2656,122 @@ export class MasterMindAgent extends Agent {
           ],
           rules: [
             { capability: "read opportunities/evidence/owner profile", risk: RISK.READ, approval: "NONE" },
-            { capability: "create/update/delete opportunity and evidence", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
-            { capability: "owner profile update", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
+            { capability: "create/update/delete opportunity and evidence", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_REQUIRED" },
+            { capability: "owner profile update", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_REQUIRED" },
             { capability: "upwork/fiverr final submission", risk: RISK.OWNER_CONTROLLED, approval: "MANUAL_OWNER_ONLY" }
           ],
           note: "Connection does not grant capability. Authorization does not grant execution. Execution does not imply verified success."
         }
       });
+    }
+
+    if (url.pathname.includes("/audit-logs")) {
+      const denied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+      if (denied) return denied;
+
+      if (request.method === "GET") {
+        const actionFilter = url.searchParams.get("action");
+        const resourceTypeFilter = url.searchParams.get("resource_type");
+        const resourceIdFilter = url.searchParams.get("resource_id");
+        const statusFilter = url.searchParams.get("status");
+
+        const logs = this.listAuditLogs({
+          action: actionFilter,
+          resource_type: resourceTypeFilter,
+          resource_id: resourceIdFilter,
+          status: statusFilter
+        });
+
+        return Response.json({ ok: true, data: logs });
+      }
+      return Response.json({ ok: false, error: "Method not allowed. audit_logs is append-only and cannot be updated or deleted." }, { status: 405 });
+    }
+
+    if (url.pathname.includes("/approvals")) {
+      const parts = url.pathname.split("/approvals");
+      const subpath = parts[1] || "";
+
+      if (subpath === "" || subpath === "/") {
+        if (request.method === "GET") {
+          const denied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+          if (denied) return denied;
+
+          const statusFilter = url.searchParams.get("status");
+          const capabilityFilter = url.searchParams.get("capability");
+          const targetResourceIdFilter = url.searchParams.get("target_resource_id");
+
+          const approvals = this.listApprovalRequests({
+            status: statusFilter,
+            capability: capabilityFilter,
+            target_resource_id: targetResourceIdFilter
+          });
+
+          return Response.json({ ok: true, data: approvals });
+        }
+
+        if (request.method === "POST") {
+          const denied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+          if (denied) return denied;
+
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+
+          try {
+            const created = await this.createApprovalRequest(body);
+            return Response.json({ ok: true, data: created }, { status: 201 });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      const decideMatch = subpath.match(/^\/([^\/]+)\/decide$/);
+      if (decideMatch) {
+        const approvalId = decideMatch[1];
+        if (request.method === "POST") {
+          const denied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+          if (denied) return denied;
+
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+
+          try {
+            const decided = this.decideApprovalRequest(approvalId, body.decision, body.notes);
+            return Response.json({ ok: true, data: decided });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      const singleMatch = subpath.match(/^\/([^\/]+)$/);
+      if (singleMatch) {
+        const approvalId = singleMatch[1];
+        if (request.method === "GET") {
+          const denied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+          if (denied) return denied;
+
+          const approval = this.getApprovalRequest(approvalId);
+          if (!approval) {
+            return Response.json({ ok: false, error: "Approval request not found" }, { status: 404 });
+          }
+          return Response.json({ ok: true, data: approval });
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
     }
 
     if (url.pathname.includes("/opportunities")) {
@@ -2423,6 +2851,21 @@ export class MasterMindAgent extends Agent {
               { ok: false, error: `Unknown preparation type '${rawType}'.`, supportedTypes: PREPARE_TYPES },
               { status: 400 }
             );
+          }
+
+          if (body.approval_id || body.execute || body.action === "EXECUTE") {
+            try {
+              await this.assertExecutionBoundary({
+                service: opportunity.platform,
+                approval_id: body.approval_id,
+                capability: "external_platform_execution",
+                action_type: "SUBMIT",
+                target_resource_id: targetId,
+                parameters: body
+              });
+            } catch (err) {
+              return Response.json({ ok: false, error: err.message }, { status: 403 });
+            }
           }
 
           const evidenceList = this.getEvidenceForOpportunity(targetId);
@@ -2902,6 +3345,38 @@ async function handleAPI(request, env) {
     return cors(agentResponse);
   }
 
+  if (url.pathname.startsWith("/api/audit-logs")) {
+    if (!env.MasterMindAgent) {
+      return cors(
+        json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
+      );
+    }
+    const id = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(id);
+
+    const subpath = url.pathname.replace(/^\/api\/audit-logs/, "");
+    const agentUrl = new URL(`http://agent/agents/master-mind-agent/default/audit-logs${subpath}${url.search}`);
+    const agentRequest = new Request(agentUrl.toString(), request);
+    const agentResponse = await stub.fetch(agentRequest);
+    return cors(agentResponse);
+  }
+
+  if (url.pathname.startsWith("/api/approvals")) {
+    if (!env.MasterMindAgent) {
+      return cors(
+        json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
+      );
+    }
+    const id = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(id);
+
+    const subpath = url.pathname.replace(/^\/api\/approvals/, "");
+    const agentUrl = new URL(`http://agent/agents/master-mind-agent/default/approvals${subpath}${url.search}`);
+    const agentRequest = new Request(agentUrl.toString(), request);
+    const agentResponse = await stub.fetch(agentRequest);
+    return cors(agentResponse);
+  }
+
   if (url.pathname === "/api/connections" && request.method === "GET") {
     return cors(json({ ok: true, data: connectionReport(env) }));
   }
@@ -2973,6 +3448,7 @@ async function handleAPI(request, env) {
         data: {
           authorizationConfigured: hasOwnerToken(env),
           authorizationState: hasOwnerToken(env) ? "CONFIGURED" : "NOT_CONFIGURED",
+          enforcement: hasOwnerToken(env) ? "ACTIVE" : "FAIL_CLOSED",
           model: [
             "SERVICE",
             "CAPABILITY",
@@ -2986,8 +3462,8 @@ async function handleAPI(request, env) {
           ],
           rules: [
             { capability: "read opportunities/evidence/owner profile", risk: RISK.READ, approval: "NONE" },
-            { capability: "create/update/delete opportunity and evidence", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
-            { capability: "owner profile update", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_OR_SAME_ORIGIN" },
+            { capability: "create/update/delete opportunity and evidence", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_REQUIRED" },
+            { capability: "owner profile update", risk: RISK.MUTATE, approval: "OWNER_CREDENTIAL_REQUIRED" },
             { capability: "upwork/fiverr final submission", risk: RISK.OWNER_CONTROLLED, approval: "MANUAL_OWNER_ONLY" }
           ],
           note: "Connection does not grant capability. Authorization does not grant execution. Execution does not imply verified success."
