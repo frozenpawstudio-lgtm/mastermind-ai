@@ -1,6 +1,10 @@
 import assert from "node:assert";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:8787";
+// Mutations require the Owner credential when the permission foundation is
+// configured (OWNER_API_TOKEN set on the worker). Reads stay public.
+const OWNER_TOKEN = process.env.OWNER_API_TOKEN;
+const authHeaders = OWNER_TOKEN ? { Authorization: `Bearer ${OWNER_TOKEN}` } : {};
 
 async function runVerificationTests() {
   console.log(`Starting Verification Engine API tests against ${BASE_URL}...`);
@@ -21,7 +25,7 @@ async function runVerificationTests() {
 
   const createOppRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(oppPayload)
   });
   assert.strictEqual(createOppRes.status, 201, "Create opportunity failed");
@@ -33,7 +37,7 @@ async function runVerificationTests() {
   // 3. Truth rule check: Attempting to set VERIFIED status directly without evidence must fail (HTTP 400)
   const setVerifiedRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ verification_status: "VERIFIED" })
   });
   assert.strictEqual(setVerifiedRes.status, 400, "Direct VERIFIED status change without evidence should fail with 400");
@@ -45,7 +49,7 @@ async function runVerificationTests() {
   // 4. Create invalid classification evidence must fail
   const invalidEvidenceRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "RUMOR",
       source: "forum",
@@ -58,7 +62,7 @@ async function runVerificationTests() {
   // 5. Add ASSUMPTION evidence -> Status should transition to PARTIALLY_VERIFIED
   const assumptionRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "ASSUMPTION",
       source: "domain_lookup",
@@ -79,7 +83,7 @@ async function runVerificationTests() {
   // 6. Add FACT evidence -> Status should transition to VERIFIED
   const factRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "FACT",
       source: "official_api_verification",
@@ -95,7 +99,7 @@ async function runVerificationTests() {
   // Let's test explicit verify request to VERIFIED now that FACT exists
   const verifyCallRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/verify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ status: "VERIFIED" })
   });
   assert.strictEqual(verifyCallRes.status, 200, "Verify call with FACT evidence failed");
@@ -104,13 +108,17 @@ async function runVerificationTests() {
   console.log("✓ VERIFIED status set successfully after FACT evidence provided");
 
   // 7. Test Evidence Retrieval
-  const getEvidenceListRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/evidence`);
+  const getEvidenceListRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/evidence`, {
+    headers: authHeaders
+  });
   assert.strictEqual(getEvidenceListRes.status, 200);
   const getEvidenceListJson = await getEvidenceListRes.json();
   assert.strictEqual(getEvidenceListJson.data.length, 2, "Should have 2 evidence items");
   console.log("✓ Evidence list retrieval for opportunity passed");
 
-  const getSingleEvidenceRes = await fetch(`${BASE_URL}/api/evidence/${factEvidence.id}`);
+  const getSingleEvidenceRes = await fetch(`${BASE_URL}/api/evidence/${factEvidence.id}`, {
+    headers: authHeaders
+  });
   assert.strictEqual(getSingleEvidenceRes.status, 200);
   const getSingleEvidenceJson = await getSingleEvidenceRes.json();
   assert.strictEqual(getSingleEvidenceJson.data.id, factEvidence.id);
@@ -119,7 +127,7 @@ async function runVerificationTests() {
   // 8. Test Status REJECTED explicitly & confirm evidence additions do NOT overwrite REJECTED
   const rejectRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/verify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ status: "REJECTED" })
   });
   assert.strictEqual(rejectRes.status, 200);
@@ -130,7 +138,7 @@ async function runVerificationTests() {
   // Adding new evidence while REJECTED must preserve REJECTED status
   const postRejectFactRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "FACT",
       source: "audit_log",
@@ -145,22 +153,24 @@ async function runVerificationTests() {
   console.log("✓ REJECTED status preserved when adding new evidence");
 
   // Cleanup post-reject evidence
-  await fetch(`${BASE_URL}/api/evidence/${postRejectEvidence.id}`, { method: "DELETE" });
+  await fetch(`${BASE_URL}/api/evidence/${postRejectEvidence.id}`, { method: "DELETE", headers: authHeaders });
 
   // 9. Reset status to UNVERIFIED and delete remaining evidence to test re-evaluation back to UNVERIFIED
   await fetch(`${BASE_URL}/api/opportunities/${opp.id}/verify`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ status: "UNVERIFIED" })
   });
 
   const deleteFactRes = await fetch(`${BASE_URL}/api/evidence/${factEvidence.id}`, {
-    method: "DELETE"
+    method: "DELETE",
+    headers: authHeaders
   });
   assert.strictEqual(deleteFactRes.status, 200);
 
   const deleteAssumptionRes = await fetch(`${BASE_URL}/api/evidence/${assumptionEvidence.id}`, {
-    method: "DELETE"
+    method: "DELETE",
+    headers: authHeaders
   });
   assert.strictEqual(deleteAssumptionRes.status, 200);
 
@@ -171,7 +181,7 @@ async function runVerificationTests() {
   console.log("✓ Status auto-evaluated back to UNVERIFIED when all evidence deleted");
 
   // Clean up opportunity
-  await fetch(`${BASE_URL}/api/opportunities/${opp.id}`, { method: "DELETE" });
+  await fetch(`${BASE_URL}/api/opportunities/${opp.id}`, { method: "DELETE", headers: authHeaders });
 
   console.log("ALL VERIFICATION ENGINE TESTS PASSED SUCCESSFULLY!");
 }

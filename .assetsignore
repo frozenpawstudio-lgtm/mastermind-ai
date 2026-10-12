@@ -4,6 +4,8 @@ node_modules/
 .gitignore
 .wrangler
 .wrangler/
+.dev.vars
+.dev.vars.*
 test
 test/
 package.json

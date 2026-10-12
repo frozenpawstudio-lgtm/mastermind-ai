@@ -319,21 +319,28 @@ async function runPrepareTests() {
     );
 
     // --- 11. Read-only / snapshot integrity -------------------------------
-    const snapshot = async () => JSON.stringify({
-      opportunities: (await getJson("/api/opportunities")).body.data,
-      evidence: (await getJson("/api/evidence")).body.data,
-      ownerProfile: (await getJson("/api/owner/profile")).body.data
+    // Seed a distinctive profile so this snapshot verifies real Owner data and
+    // cannot pass vacuously by comparing null to null.
+    const seededProfile = await postJson("/api/owner/profile", {
+      skills: "Snapshot Integrity Skill",
+      experience: "snapshot_integrity_experience",
+      location: "snapshot_integrity_location",
+      max_cost: "4242",
+      max_effort: "snapshot_integrity_effort"
     });
-    // Ignore updated_at churn by comparing the authoritative engine fields and
-    // record identities only.
+    assert.strictEqual(seededProfile.res.status, 200, "Owner profile seed must respond 200");
+    // Compare the authoritative engine fields, record identities and the profile
+    // row's updated_at: PREPARE must touch none of them.
     const coreSnapshot = async () => {
       const opps = (await getJson("/api/opportunities")).body.data;
-      const ev = (await getJson("/api/evidence")).body.data;
+      const ev = (await getJson("/api/evidence", { headers: authHeaders })).body.data;
       const prof = (await getJson("/api/owner/profile")).body.data;
+      assert.ok(prof, "Owner profile must be present (non-null) for a meaningful read-only check");
+      assert.strictEqual(prof.skills, "Snapshot Integrity Skill", "Owner profile must expose the seeded real data");
       return JSON.stringify({
         opps: opps.map((o) => [o.id, o.verification_status, o.eligibility_status, o.owner_fit_status, o.score, o.decision]),
         ev: ev.map((e) => [e.id, e.classification, e.content]),
-        prof: prof ? [prof.skills, prof.experience, prof.location, prof.max_cost, prof.max_effort] : null
+        prof: [prof.skills, prof.experience, prof.location, prof.max_cost, prof.max_effort, prof.updated_at]
       });
     };
 

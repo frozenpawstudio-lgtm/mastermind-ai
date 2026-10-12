@@ -1,6 +1,10 @@
 import assert from "node:assert";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:8787";
+// Mutations require the Owner credential when the permission foundation is
+// configured (OWNER_API_TOKEN set on the worker). Reads stay public.
+const OWNER_TOKEN = process.env.OWNER_API_TOKEN;
+const authHeaders = OWNER_TOKEN ? { Authorization: `Bearer ${OWNER_TOKEN}` } : {};
 
 async function runDecisionEngineTests() {
   console.log(`Starting Earning Decision Engine API tests against ${BASE_URL}...`);
@@ -14,7 +18,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 1: Strong verified opportunity -> SELECT ---");
   const strongOppRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       source: "upwork",
       title: "Senior Full-Stack Cloudflare Engineer Needed",
@@ -31,7 +35,7 @@ async function runDecisionEngineTests() {
   // Add FACT evidence to enable VERIFIED status
   const factEvidenceRes = await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "FACT",
       source: "platform_api",
@@ -45,17 +49,17 @@ async function runDecisionEngineTests() {
   // the dedicated eligibility / owner-fit endpoints.
   await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/eligibility`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ status: "ELIGIBLE" })
   });
   await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/owner-fit`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ status: "FIT" })
   });
 
   // Evaluate decision
-  const strongDecisionRes = await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/decision`, { method: "POST" });
+  const strongDecisionRes = await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/decision`, { method: "POST", headers: authHeaders });
   assert.strictEqual(strongDecisionRes.status, 200);
   const strongDecisionJson = await strongDecisionRes.json();
   assert.strictEqual(strongDecisionJson.ok, true);
@@ -72,7 +76,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 2: Unsuitable / rejected opportunity -> REJECT ---");
   const rejectedOppRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       source: "spam",
       title: "Unfit Malicious Task",
@@ -82,7 +86,7 @@ async function runDecisionEngineTests() {
   });
   const rejectedOpp = (await rejectedOppRes.json()).data;
 
-  const rejectedDecisionRes = await fetch(`${BASE_URL}/api/opportunities/${rejectedOpp.id}/decision`, { method: "POST" });
+  const rejectedDecisionRes = await fetch(`${BASE_URL}/api/opportunities/${rejectedOpp.id}/decision`, { method: "POST", headers: authHeaders });
   assert.strictEqual(rejectedDecisionRes.status, 200);
   const rejectedDec = (await rejectedDecisionRes.json()).data;
 
@@ -95,7 +99,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 3: Missing critical information -> NEEDS_REVIEW ---");
   const missingInfoOppRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       source: "inbound",
       title: "Unclear Consulting Inquiry",
@@ -105,7 +109,7 @@ async function runDecisionEngineTests() {
   });
   const missingInfoOpp = (await missingInfoOppRes.json()).data;
 
-  const missingDecisionRes = await fetch(`${BASE_URL}/api/opportunities/${missingInfoOpp.id}/decision`, { method: "POST" });
+  const missingDecisionRes = await fetch(`${BASE_URL}/api/opportunities/${missingInfoOpp.id}/decision`, { method: "POST", headers: authHeaders });
   assert.strictEqual(missingDecisionRes.status, 200);
   const missingDec = (await missingDecisionRes.json()).data;
 
@@ -117,7 +121,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 4: Truth Rule: Unverified cannot receive false VERIFIED status ---");
   const falseVerifyRes = await fetch(`${BASE_URL}/api/opportunities/${missingInfoOpp.id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ verification_status: "VERIFIED" })
   });
   assert.strictEqual(falseVerifyRes.status, 400, "Direct status change to VERIFIED without FACT evidence must fail");
@@ -127,7 +131,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 5: Assumption-only evidence does not become VERIFIED ---");
   const assumptionOppRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       source: "blog",
       title: "Potential Freelance Gig",
@@ -139,7 +143,7 @@ async function runDecisionEngineTests() {
 
   const addAssumptionRes = await fetch(`${BASE_URL}/api/opportunities/${assumptionOpp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "ASSUMPTION",
       source: "client_profile_guess",
@@ -148,7 +152,7 @@ async function runDecisionEngineTests() {
   });
   assert.strictEqual(addAssumptionRes.status, 201);
 
-  const assumptionDecRes = await fetch(`${BASE_URL}/api/opportunities/${assumptionOpp.id}/decision`, { method: "POST" });
+  const assumptionDecRes = await fetch(`${BASE_URL}/api/opportunities/${assumptionOpp.id}/decision`, { method: "POST", headers: authHeaders });
   const assumptionDec = (await assumptionDecRes.json()).data;
   assert.strictEqual(assumptionDec.verificationStatus, "PARTIALLY_VERIFIED");
   assert.notStrictEqual(assumptionDec.verificationStatus, "VERIFIED", "Assumption-only evidence must NOT yield VERIFIED status");
@@ -159,7 +163,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 6: Hypothesis-only evidence does not become VERIFIED ---");
   const hypothesisOppRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       source: "forum",
       title: "Hypothetical Project Opportunity",
@@ -171,7 +175,7 @@ async function runDecisionEngineTests() {
 
   await fetch(`${BASE_URL}/api/opportunities/${hypothesisOpp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "HYPOTHESIS",
       source: "forum_post",
@@ -179,7 +183,7 @@ async function runDecisionEngineTests() {
     })
   });
 
-  const hypothesisDecRes = await fetch(`${BASE_URL}/api/opportunities/${hypothesisOpp.id}/decision`, { method: "POST" });
+  const hypothesisDecRes = await fetch(`${BASE_URL}/api/opportunities/${hypothesisOpp.id}/decision`, { method: "POST", headers: authHeaders });
   const hypothesisDec = (await hypothesisDecRes.json()).data;
   assert.strictEqual(hypothesisDec.verificationStatus, "PARTIALLY_VERIFIED");
   assert.notStrictEqual(hypothesisDec.verificationStatus, "VERIFIED");
@@ -190,7 +194,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 7: FACT evidence handled correctly ---");
   const factOnlyOppRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       source: "upwork",
       title: "Direct Verified Client Job",
@@ -202,7 +206,7 @@ async function runDecisionEngineTests() {
 
   await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "FACT",
       source: "official_api",
@@ -214,16 +218,16 @@ async function runDecisionEngineTests() {
   // FACT evidence exists rather than through the create payload.
   await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/eligibility`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ status: "ELIGIBLE" })
   });
   await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/owner-fit`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ status: "FIT" })
   });
 
-  const factDecRes = await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/decision`, { method: "POST" });
+  const factDecRes = await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/decision`, { method: "POST", headers: authHeaders });
   const factDec = (await factDecRes.json()).data;
   assert.strictEqual(factDec.verificationStatus, "VERIFIED");
   assert.strictEqual(factDec.decision, "SELECT");
@@ -233,7 +237,7 @@ async function runDecisionEngineTests() {
   console.log("\n--- Scenario 8: Mixed FACT + non-FACT evidence follows verification rules ---");
   await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "ASSUMPTION",
       source: "user_note",
@@ -241,16 +245,18 @@ async function runDecisionEngineTests() {
     })
   });
 
-  const mixedDecRes = await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/decision`, { method: "POST" });
+  const mixedDecRes = await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}/decision`, { method: "POST", headers: authHeaders });
   const mixedDec = (await mixedDecRes.json()).data;
   assert.strictEqual(mixedDec.verificationStatus, "PARTIALLY_VERIFIED", "Mixed FACT + non-FACT should evaluate to PARTIALLY_VERIFIED");
   assert.strictEqual(mixedDec.decision, "NEEDS_REVIEW", "Mixed evidence opportunity should require review");
   console.log("✓ Mixed FACT + non-FACT evidence correctly evaluated to PARTIALLY_VERIFIED / NEEDS_REVIEW");
 
   // TEST SCENARIOS 9 & 10: Score determinism & reproducibility
+  // Evaluation is POST-only, so reproducibility is asserted by two identical
+  // POST evaluations rather than by mixing GET and POST.
   console.log("\n--- Scenarios 9 & 10: Deterministic scoring & Reproducibility ---");
-  const eval1 = (await (await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/decision`, { method: "POST" })).json()).data;
-  const eval2 = (await (await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/decision`, { method: "GET" })).json()).data;
+  const eval1 = (await (await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/decision`, { method: "POST", headers: authHeaders })).json()).data;
+  const eval2 = (await (await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}/decision`, { method: "POST", headers: authHeaders })).json()).data;
 
   assert.strictEqual(eval1.score, eval2.score, "Score must be identical");
   assert.strictEqual(eval1.decision, eval2.decision, "Decision must be identical");
@@ -275,12 +281,12 @@ async function runDecisionEngineTests() {
   console.log("✓ Confirmed no invented earning values or fake capabilities");
 
   // Cleanup created opportunities
-  await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}`, { method: "DELETE" });
-  await fetch(`${BASE_URL}/api/opportunities/${rejectedOpp.id}`, { method: "DELETE" });
-  await fetch(`${BASE_URL}/api/opportunities/${missingInfoOpp.id}`, { method: "DELETE" });
-  await fetch(`${BASE_URL}/api/opportunities/${assumptionOpp.id}`, { method: "DELETE" });
-  await fetch(`${BASE_URL}/api/opportunities/${hypothesisOpp.id}`, { method: "DELETE" });
-  await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}`, { method: "DELETE" });
+  await fetch(`${BASE_URL}/api/opportunities/${strongOpp.id}`, { method: "DELETE", headers: authHeaders });
+  await fetch(`${BASE_URL}/api/opportunities/${rejectedOpp.id}`, { method: "DELETE", headers: authHeaders });
+  await fetch(`${BASE_URL}/api/opportunities/${missingInfoOpp.id}`, { method: "DELETE", headers: authHeaders });
+  await fetch(`${BASE_URL}/api/opportunities/${assumptionOpp.id}`, { method: "DELETE", headers: authHeaders });
+  await fetch(`${BASE_URL}/api/opportunities/${hypothesisOpp.id}`, { method: "DELETE", headers: authHeaders });
+  await fetch(`${BASE_URL}/api/opportunities/${factOnlyOpp.id}`, { method: "DELETE", headers: authHeaders });
 
   console.log("\nALL EARNING DECISION ENGINE TESTS PASSED SUCCESSFULLY!");
 }

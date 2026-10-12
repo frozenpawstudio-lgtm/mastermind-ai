@@ -25,6 +25,9 @@ runtime secrets (`wrangler secret put OWNER_API_TOKEN` or an uncommitted
 `.dev.vars`). When it is absent, the permission foundation reports
 `NOT_CONFIGURED` and authorization is not enforced.
 
+`.dev.vars` and `.dev.vars.*` are listed in `.gitignore` and `.assetsignore` so
+local secrets are neither committed nor served as static assets.
+
 `ALLOWED_ORIGINS` is an optional comma-separated allow-list of extra browser
 origins permitted to call the mutation APIs. Same-origin requests are always
 allowed.
@@ -42,12 +45,22 @@ allowed.
 | `/api/opportunities` | GET/POST | Opportunity list / create |
 | `/api/opportunities/:id` | GET/PATCH/DELETE | Opportunity record |
 | `/api/opportunities/discover` | GET/POST | Discovery intake (truthful NOT_CONNECTED state) |
-| `/api/opportunities/:id/decision` | POST | Deterministic decision evaluation |
+| `/api/opportunities/:id/decision` | POST | Deterministic decision evaluation. POST-only; GET returns 405 and does not mutate |
+| `/api/opportunities/:id/eligibility` | POST | Eligibility evaluation. POST-only; GET returns 405 and does not mutate |
+| `/api/opportunities/:id/owner-fit` | POST | Owner-fit evaluation. POST-only; GET returns 405 and does not mutate |
 | `/api/opportunities/compare` | GET | Read-only deterministic ranking of persisted opportunities (COMPARE) |
 | `/api/opportunities/:id/prepare` | POST | Owner-reviewable preparation package (PREPARE). Preparation only — never submits |
-| `/api/evidence` | GET/POST | Structured evidence records |
+| `/api/evidence` | GET/POST/DELETE | Owner-only structured evidence records (valid Owner credential required) |
 | `/api/owner/profile` | GET/POST | Owner profile record |
+| `/api/audit-logs` | GET | Owner-only append-only audit log |
+| `/api/approvals`, `/api/approvals/:id`, `/api/approvals/:id/decide` | GET/POST | Owner-only approval records and decisions |
 | `/api/chat` | POST | AIRA conversation |
+
+Authorization is applied by each route's declared risk, not by HTTP method.
+Opportunity list, a single opportunity, COMPARE and discovery status are public
+reads. Every other endpoint — including audit logs, approval records, evidence
+reads, and all state-changing evaluations — requires a valid Owner credential.
+State-changing evaluations are POST-only and never mutate state through GET.
 
 Decision score and decision are owned by the deterministic decision engine.
 Client-supplied values are ignored.

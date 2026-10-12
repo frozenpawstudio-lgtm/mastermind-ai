@@ -1,6 +1,10 @@
 import assert from "node:assert";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:8787";
+// Mutations require the Owner credential when the permission foundation is
+// configured (OWNER_API_TOKEN set on the worker). Reads stay public.
+const OWNER_TOKEN = process.env.OWNER_API_TOKEN;
+const authHeaders = OWNER_TOKEN ? { Authorization: `Bearer ${OWNER_TOKEN}` } : {};
 
 // A unique run id keeps this suite isolated and repeatable: every synthetic
 // URL/title is unique per run, so a previously failed run can never leave
@@ -50,7 +54,7 @@ async function runDiscoveryTests() {
 
   const postDiscoverRes = await fetch(`${BASE_URL}/api/opportunities/discover`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(discoveryInput)
   });
   assert.strictEqual(postDiscoverRes.status, 200, "POST /discover failed");
@@ -96,7 +100,7 @@ async function runDiscoveryTests() {
 
   const dupUrlRes = await fetch(`${BASE_URL}/api/opportunities/discover`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(duplicateUrlInput)
   });
   assert.strictEqual(dupUrlRes.status, 200);
@@ -123,7 +127,7 @@ async function runDiscoveryTests() {
 
   const dupTitleRes = await fetch(`${BASE_URL}/api/opportunities/discover`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(duplicateTitlePlatformInput)
   });
   assert.strictEqual(dupTitleRes.status, 200);
@@ -148,7 +152,7 @@ async function runDiscoveryTests() {
 
   const invalidRes = await fetch(`${BASE_URL}/api/opportunities/discover`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(invalidInput)
   });
   assert.strictEqual(invalidRes.status, 400, "Missing title in single item discover POST should return 400 error");
@@ -163,7 +167,7 @@ async function runDiscoveryTests() {
   // exists, so the evidence is recorded first and the statuses second.
   const evidenceRes = await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}/evidence`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       classification: "FACT",
       source: "synthetic_test_verifier",
@@ -175,7 +179,7 @@ async function runDiscoveryTests() {
   // Update eligibility & owner fit for decision evaluation
   const patchStatusRes = await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({
       eligibility_status: "eligible",
       owner_fit_status: "fit"
@@ -185,7 +189,8 @@ async function runDiscoveryTests() {
 
   // Run Decision Engine evaluation
   const decisionRes = await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}/decision`, {
-    method: "POST"
+    method: "POST",
+    headers: authHeaders
   });
   assert.strictEqual(decisionRes.status, 200);
   const decisionJson = await decisionRes.json();
@@ -197,7 +202,8 @@ async function runDiscoveryTests() {
   // 8. Cleanup
   console.log("\n--- Scenario 7: Cleanup ---");
   const deleteRes = await fetch(`${BASE_URL}/api/opportunities/${discoveredOpp.id}`, {
-    method: "DELETE"
+    method: "DELETE",
+    headers: authHeaders
   });
   assert.strictEqual(deleteRes.status, 200);
   console.log("✓ Discovered test opportunity cleaned up");

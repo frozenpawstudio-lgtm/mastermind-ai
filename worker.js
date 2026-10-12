@@ -634,7 +634,10 @@ function authorizeRequest(request, env, risk) {
   if (risk === RISK.READ) return null;
 
   const method = request.method.toUpperCase();
-  if (method === "GET" || method === "OPTIONS" || method === "HEAD") return null;
+  // Only CORS preflight is exempt: it carries no credentials and cannot read or
+  // mutate state. Every other method, GET included, is authorised by the
+  // route's declared risk instead of by HTTP method alone.
+  if (method === "OPTIONS") return null;
 
   const configured = hasOwnerToken(env);
   const presented = extractOwnerToken(request);
@@ -2778,7 +2781,26 @@ export class MasterMindAgent extends Agent {
       const parts = url.pathname.split("/opportunities");
       const subpath = parts[1] || "";
 
-      const mutationDenied = authorizeRequest(request, this.env, RISK.MUTATE);
+      // Declared public READ surface: opportunity list, a single record,
+      // COMPARE, and discovery status. GET on the three evaluation routes is
+      // also let through the guard so the route itself answers 405 (they are
+      // POST-only and never mutate on GET). Everything else is MUTATE and
+      // requires the Owner credential. Evidence reads are deliberately NOT
+      // public and remain Owner-only.
+      const isPublicRead =
+        request.method === "GET" &&
+        (subpath === "" ||
+          subpath === "/" ||
+          /^\/[^\/]+$/.test(subpath) ||
+          subpath === "/compare" ||
+          subpath.startsWith("/compare?") ||
+          subpath === "/discover" ||
+          subpath.startsWith("/discover?") ||
+          /^\/[^\/]+\/decision$/.test(subpath) ||
+          /^\/[^\/]+\/eligibility$/.test(subpath) ||
+          /^\/[^\/]+\/owner-fit$/.test(subpath) ||
+          /^\/[^\/]+\/prepare$/.test(subpath));
+      const mutationDenied = authorizeRequest(request, this.env, isPublicRead ? RISK.READ : RISK.MUTATE);
       if (mutationDenied) return mutationDenied;
 
       // Route: GET/POST /opportunities/discover
@@ -2894,11 +2916,12 @@ export class MasterMindAgent extends Agent {
         return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
       }
 
-      // Route: GET/POST /opportunities/:id/decision
+      // Route: POST /opportunities/:id/decision (POST-only; it persists
+      // verification/eligibility/owner-fit/score/decision, so GET must not run it)
       const decisionMatch = subpath.match(/^\/([^\/]+)\/decision$/);
       if (decisionMatch) {
         const targetId = decisionMatch[1];
-        if (request.method === "POST" || request.method === "GET") {
+        if (request.method === "POST") {
           try {
             const decisionResult = this.evaluateDecision(targetId);
             return Response.json({ ok: true, data: decisionResult });
@@ -2907,6 +2930,7 @@ export class MasterMindAgent extends Agent {
             return Response.json({ ok: false, error: err.message }, { status });
           }
         }
+        return Response.json({ ok: false, error: "Method not allowed. Decision evaluation is POST-only and mutates state." }, { status: 405 });
       }
 
       // Route: POST /opportunities/:id/verify
@@ -2927,19 +2951,11 @@ export class MasterMindAgent extends Agent {
         }
       }
 
-      // Route: GET/POST /opportunities/:id/eligibility
+      // Route: POST /opportunities/:id/eligibility (POST-only; it persists the
+      // eligibility verdict, so GET must not run it)
       const eligibilityMatch = subpath.match(/^\/([^\/]+)\/eligibility$/);
       if (eligibilityMatch) {
         const targetId = eligibilityMatch[1];
-        if (request.method === "GET") {
-          try {
-            const evalResult = this.evaluateEligibility(targetId);
-            return Response.json({ ok: true, data: evalResult });
-          } catch (err) {
-            const status = err.message === "Opportunity not found" ? 404 : 400;
-            return Response.json({ ok: false, error: err.message }, { status });
-          }
-        }
         if (request.method === "POST") {
           let body = {};
           try {
@@ -2954,21 +2970,14 @@ export class MasterMindAgent extends Agent {
             return Response.json({ ok: false, error: err.message }, { status: 400 });
           }
         }
+        return Response.json({ ok: false, error: "Method not allowed. Eligibility evaluation is POST-only and mutates state." }, { status: 405 });
       }
 
-      // Route: GET/POST /opportunities/:id/owner-fit
+      // Route: POST /opportunities/:id/owner-fit (POST-only; it persists the
+      // owner-fit verdict, so GET must not run it)
       const ownerFitMatch = subpath.match(/^\/([^\/]+)\/owner-fit$/);
       if (ownerFitMatch) {
         const targetId = ownerFitMatch[1];
-        if (request.method === "GET") {
-          try {
-            const evalResult = this.evaluateOwnerFit(targetId);
-            return Response.json({ ok: true, data: evalResult });
-          } catch (err) {
-            const status = err.message === "Opportunity not found" ? 404 : 400;
-            return Response.json({ ok: false, error: err.message }, { status });
-          }
-        }
         if (request.method === "POST") {
           let body = {};
           try {
@@ -2983,6 +2992,7 @@ export class MasterMindAgent extends Agent {
             return Response.json({ ok: false, error: err.message }, { status: 400 });
           }
         }
+        return Response.json({ ok: false, error: "Method not allowed. Owner-fit evaluation is POST-only and mutates state." }, { status: 405 });
       }
 
       // Route: GET/POST /opportunities/:id/evidence
@@ -3478,7 +3488,7 @@ async function handleAPI(request, env) {
         json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
       );
     }
-    const denied = authorizeRequest(request, env, RISK.MUTATE);
+    const denied = authorizeRequest(request, env, request.method === "GET" ? RISK.READ : RISK.MUTATE);
     if (denied) return cors(denied);
     const id = env.MasterMindAgent.idFromName("default");
     const stub = env.MasterMindAgent.get(id);

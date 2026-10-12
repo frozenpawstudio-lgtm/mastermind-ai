@@ -220,12 +220,26 @@ async function runCompareTests() {
 
     // --- Read-only verification -------------------------------------------
     // COMPARE must leave opportunities, evidence and owner profile untouched.
+    // Seed a distinctive profile first so this snapshot cannot pass vacuously
+    // by comparing null to null.
+    const seedProfile = await postJson("/api/owner/profile", {
+      skills: "Compare Readonly Skill",
+      experience: "compare_readonly_experience",
+      location: "compare_readonly_location",
+      max_cost: "3131",
+      max_effort: "compare_readonly_effort"
+    });
+    assert.strictEqual(seedProfile.res.status, 200, "Owner profile seed must respond 200");
     const snapshot = async () => JSON.stringify({
       opportunities: (await getJson("/api/opportunities")).body,
-      evidence: (await getJson("/api/evidence")).body,
+      evidence: (await getJson("/api/evidence", { headers: authHeaders })).body,
       ownerProfile: (await getJson("/api/owner/profile")).body
     });
     const before = await snapshot();
+    const beforeProfile = await getJson("/api/owner/profile");
+    assert.strictEqual(beforeProfile.res.status, 200, "Owner profile read must respond 200");
+    assert.ok(beforeProfile.body.data, "Owner profile must be present (non-null) for a meaningful read-only check");
+    assert.strictEqual(beforeProfile.body.data.skills, "Compare Readonly Skill", "Owner profile must expose the seeded real data");
     await getJson("/api/opportunities/compare");
     await getJson("/api/opportunities/compare");
     const after = await snapshot();

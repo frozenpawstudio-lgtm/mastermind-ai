@@ -1,6 +1,10 @@
 import assert from "node:assert";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:8787";
+// Mutations require the Owner credential when the permission foundation is
+// configured (OWNER_API_TOKEN set on the worker). Reads stay public.
+const OWNER_TOKEN = process.env.OWNER_API_TOKEN;
+const authHeaders = OWNER_TOKEN ? { Authorization: `Bearer ${OWNER_TOKEN}` } : {};
 
 async function runTests() {
   console.log(`Starting Opportunity API tests against ${BASE_URL}...`);
@@ -27,7 +31,7 @@ async function runTests() {
 
   const createRes = await fetch(`${BASE_URL}/api/opportunities`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(createPayload)
   });
   assert.strictEqual(createRes.status, 201, "Create opportunity failed");
@@ -73,7 +77,7 @@ async function runTests() {
   };
   const updateRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify(updatePayload)
   });
   assert.strictEqual(updateRes.status, 200, "Update opportunity failed");
@@ -87,7 +91,7 @@ async function runTests() {
   // 5b. P5-01: PATCH must reject ELIGIBLE/FIT without FACT evidence.
   const patchEligibleNoFactRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ eligibility_status: "eligible" })
   });
   assert.strictEqual(patchEligibleNoFactRes.status, 400, "PATCH to ELIGIBLE without FACT evidence must be rejected");
@@ -97,7 +101,7 @@ async function runTests() {
 
   const patchFitNoFactRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ owner_fit_status: "fit" })
   });
   assert.strictEqual(patchFitNoFactRes.status, 400, "PATCH to FIT without FACT evidence must be rejected");
@@ -108,7 +112,7 @@ async function runTests() {
   // UNKNOWN stays UNKNOWN and no rejection is raised for a non-positive state.
   const patchUnknownRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders },
     body: JSON.stringify({ eligibility_status: "unknown", owner_fit_status: "unknown" })
   });
   assert.strictEqual(patchUnknownRes.status, 200, "PATCH to UNKNOWN must be allowed");
@@ -119,7 +123,8 @@ async function runTests() {
 
   // 6. Delete Opportunity
   const deleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
-    method: "DELETE"
+    method: "DELETE",
+    headers: authHeaders
   });
   assert.strictEqual(deleteRes.status, 200, "Delete opportunity failed");
   const deleteJson = await deleteRes.json();

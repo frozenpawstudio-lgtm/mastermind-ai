@@ -151,8 +151,9 @@ async function runP5DataIntegrityTests() {
   assert.strictEqual(deletedState.decision, "NEEDS_REVIEW", "Fallback decision is NEEDS_REVIEW");
   console.log("✓ Evidence delete cleared stale positive state:", JSON.stringify(deletedState));
 
-  // Persisted read state must match a fresh derived evaluation.
-  const reevaluated = await getJson(`/api/opportunities/${oppId}/decision`);
+  // Persisted read state must match a fresh derived evaluation. Evaluation is
+  // POST-only, so the fresh evaluation is triggered with a POST.
+  const reevaluated = await getJson(`/api/opportunities/${oppId}/decision`, { method: "POST", headers: authHeaders });
   assert.strictEqual(reevaluated.res.status, 200, "Decision re-evaluation must respond 200");
   const derived = reevaluated.body.data;
   assert.strictEqual(derived.decision, deletedState.decision, "Persisted decision must match derived decision");
