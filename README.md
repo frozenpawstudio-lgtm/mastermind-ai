@@ -81,7 +81,36 @@ node test/test_decision.js
 node test/test_discovery.js
 node test/test_eligibility_owner_fit.js
 node test/test_prepare.js
+node test/test_compare.js
 node test/test_v9_foundations.js
+node test/test_p5_data_integrity.js
+node test/test_phase0_security.js
+node test/test_earning_workflow.js
 ```
 
 Set `TEST_BASE_URL` to point the suites at another host.
+
+## Earning Workflow (Phase 1 Earning Operator)
+
+The Owner-visible earning pipeline is exposed through the Earning tab and the
+`/api/opportunities/:id/workflow` endpoint:
+
+`RESEARCH → DISCOVER → VERIFY → ELIGIBILITY → OWNER_FIT → COMPARE → SCORE →
+SELECT → PREPARE → REQUEST_APPROVAL → EXECUTE → VERIFY_OUTCOME → TRACK →
+FOLLOW_UP → LEARN_IMPROVE`
+
+- `GET /api/opportunities/:id/workflow` returns a read-only derived view. The
+  stages completed are computed from persisted engine state; a new opportunity
+  truthfully stops at `VERIFY`.
+- `POST /api/opportunities/:id/workflow` advances the manual Owner steps
+  (`mark_prepared`, `request_approval`, `record_execution`, `record_outcome`,
+  `record_follow_up`, `record_lesson`). It requires the Owner credential.
+- `EXECUTE` is a **manual Owner action**. AIRA never submits, contacts a
+  platform, creates an account, spends money or bypasses CAPTCHA/MFA/OTP.
+  Recording execution requires an `APPROVED`, single-use Owner approval, and
+  the approval is consumed on use.
+- An outcome can only be marked verified with supporting evidence. A submission
+  never implies success.
+- External automated discovery is `NOT_CONNECTED`. The UI offers a manual /
+  source-input workflow instead of fabricating search results.
+

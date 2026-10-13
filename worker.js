@@ -32,6 +32,173 @@ const VOICE_STATES = [
   "VOICE_ERROR"
 ];
 
+/*
+ * ============================================================================
+ * PHASE 1 EARNING WORKFLOW (Earning Operator).
+ *
+ * The Owner-visible earning pipeline. Stages are DERIVED from persisted engine
+ * state (verification / eligibility / owner-fit / score / decision) plus a
+ * small, explicitly-tracked progression record for the manual Owner steps the
+ * runtime cannot observe (prepare, approval, manual execution, outcome,
+ * follow-up, lesson). Nothing here is fabricated: an opportunity that has not
+ * been evaluated by the deterministic engine can never appear to have passed a
+ * stage, and no stage invents listings, eligibility, earnings or execution.
+ *
+ * EXECUTE is a MANUAL OWNER ACTION. The runtime never submits, contacts a
+ * platform, creates an account or spends money. "Record execution" only
+ * records that the Owner performed the action, and it requires an APPROVED,
+ * unconsumed Owner approval first.
+ * ============================================================================
+ */
+const EARNING_WORKFLOW_STAGES = [
+  "RESEARCH",
+  "DISCOVER",
+  "VERIFY",
+  "ELIGIBILITY",
+  "OWNER_FIT",
+  "COMPARE",
+  "SCORE",
+  "SELECT",
+  "PREPARE",
+  "REQUEST_APPROVAL",
+  "EXECUTE",
+  "VERIFY_OUTCOME",
+  "TRACK",
+  "FOLLOW_UP",
+  "LEARN_IMPROVE"
+];
+
+/*
+ * Terminal outcomes. An outcome is only ever recorded by the Owner; the
+ * runtime never derives a positive outcome from a submission it did not make.
+ */
+const WORKFLOW_OUTCOMES = [
+  "SELECT",
+  "SUBMITTED_MANUAL",
+  "REJECTED",
+  "WITHDRAWN",
+  "NO_ACTION"
+];
+
+/*
+ * Opportunity categories prioritised for a zero-investment Owner.
+ * These are descriptive labels only; they do not imply a connected provider.
+ */
+const WORKFLOW_CATEGORIES = [
+  "freelance_service",
+  "affiliate_referral",
+  "digital_product",
+  "lead_generation",
+  "other"
+];
+
+const WORKFLOW_NEXT_ACTIONS = {
+  RESEARCH:
+    "Research legitimate zero-investment options (service/freelance, affiliate/referral, digital products, lead generation).",
+  DISCOVER:
+    "Record a specific opportunity (POST /api/opportunities) or use discovery intake. External search is NOT_CONNECTED.",
+  VERIFY:
+    "Attach FACT evidence and verify the opportunity (POST /api/opportunities/:id/verify).",
+  ELIGIBILITY:
+    "Evaluate eligibility (POST /api/opportunities/:id/eligibility).",
+  OWNER_FIT:
+    "Evaluate Owner fit against the persisted Owner profile (POST /api/opportunities/:id/owner-fit).",
+  COMPARE:
+    "Compare persisted opportunities (GET /api/opportunities/compare) to rank candidates.",
+  SCORE:
+    "Run the deterministic decision engine to compute score (POST /api/opportunities/:id/decision).",
+  SELECT:
+    "Review the deterministic decision. SELECT is only reached with VERIFIED + ELIGIBLE + FIT and score >= 80.",
+  PREPARE:
+    "Build an owner-reviewable preparation package (POST /api/opportunities/:id/prepare), then mark it prepared.",
+  REQUEST_APPROVAL:
+    "Request Owner approval before any execution (POST workflow action=request_approval).",
+  EXECUTE:
+    "Owner performs the manual submission on the platform. AIRA never submits. Then record execution with the approved approval id.",
+  VERIFY_OUTCOME:
+    "Verify the real outcome with evidence before recording it. A submission does not imply success.",
+  TRACK:
+    "Record the tracked outcome (POST workflow action=record_outcome).",
+  FOLLOW_UP:
+    "Record a follow-up (POST workflow action=record_follow_up).",
+  LEARN_IMPROVE:
+    "Record the lesson so the next earning cycle improves (POST workflow action=record_lesson)."
+};
+
+function normalizeWorkflowCategory(value) {
+  const key = String(value === null || value === undefined ? "" : value).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return WORKFLOW_CATEGORIES.includes(key) ? key : "other";
+}
+
+function normalizeWorkflowOutcome(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const key = String(value).trim().toUpperCase().replace(/[\s-]+/g, "_");
+  return WORKFLOW_OUTCOMES.includes(key) ? key : null;
+}
+
+/*
+ * Derive the completed stages and the current (next) stage from persisted
+ * state only. Pure and read-only: it never writes and never upgrades state.
+ */
+function deriveWorkflowProgress(opportunity, evidenceList, progress) {
+  const p = progress || {};
+  const evidence = Array.isArray(evidenceList) ? evidenceList : [];
+  const hasEvidence = evidence.length > 0;
+
+  const verification = normalizeVerification(opportunity.verification_status);
+  const eligibility = normalizeEligibility(opportunity.eligibility_status);
+  const ownerFit = normalizeOwnerFit(opportunity.owner_fit_status);
+  const decision = normalizeDecision(opportunity.decision);
+  const score = typeof opportunity.score === "number" && isFinite(opportunity.score) ? opportunity.score : 0;
+
+  const completed = ["RESEARCH", "DISCOVER"];
+
+  if (verification === "VERIFIED" || verification === "REJECTED") completed.push("VERIFY");
+  if (eligibility === "ELIGIBLE" || eligibility === "NOT_ELIGIBLE") completed.push("ELIGIBILITY");
+  if (ownerFit === "FIT" || ownerFit === "NOT_FIT") completed.push("OWNER_FIT");
+  if (decision === "SELECT" || decision === "REJECT") {
+    completed.push("COMPARE");
+    completed.push("SCORE");
+    completed.push("SELECT");
+  }
+
+  if (p.prepared) completed.push("PREPARE");
+  if (p.approval_id && String(p.approval_status || "").toUpperCase() === "APPROVED") completed.push("REQUEST_APPROVAL");
+  if (p.approval_id && p.executed) completed.push("REQUEST_APPROVAL");
+  if (p.executed) completed.push("EXECUTE");
+  if (p.outcome_verified) completed.push("VERIFY_OUTCOME");
+  if (p.outcome) completed.push("TRACK");
+  if (p.followed_up) completed.push("FOLLOW_UP");
+  if (p.learned) completed.push("LEARN_IMPROVE");
+
+  const uniqueCompleted = EARNING_WORKFLOW_STAGES.filter((s) => completed.includes(s));
+  const currentStage = EARNING_WORKFLOW_STAGES.find((s) => !uniqueCompleted.includes(s)) || "LEARN_IMPROVE";
+
+  const total = EARNING_WORKFLOW_STAGES.length;
+  const completedCount = uniqueCompleted.length;
+
+  return {
+    stages: EARNING_WORKFLOW_STAGES,
+    completedStages: uniqueCompleted,
+    currentStage,
+    nextAction: WORKFLOW_NEXT_ACTIONS[currentStage],
+    progress: {
+      completed: completedCount,
+      total,
+      percent: Math.round((completedCount / total) * 1000) / 10
+    },
+    derivedState: {
+      verificationStatus: verification,
+      eligibilityStatus: eligibility,
+      ownerFitStatus: ownerFit,
+      score,
+      decision,
+      evidenceCount: evidence.length,
+      hasEvidence
+    }
+  };
+}
+
 const ELIGIBILITY_ALIASES = {
   ELIGIBLE: "ELIGIBLE",
   POTENTIALLY_ELIGIBLE: "POTENTIALLY_ELIGIBLE",
@@ -1500,6 +1667,26 @@ export class MasterMindAgent extends Agent {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );`;
+      this.sql`CREATE TABLE IF NOT EXISTS opportunity_workflow (
+        opportunity_id TEXT PRIMARY KEY,
+        category TEXT NOT NULL DEFAULT 'other',
+        prepared INTEGER NOT NULL DEFAULT 0,
+        approval_id TEXT,
+        approval_status TEXT,
+        executed INTEGER NOT NULL DEFAULT 0,
+        execution_note TEXT,
+        outcome TEXT,
+        outcome_verified INTEGER NOT NULL DEFAULT 0,
+        outcome_evidence TEXT,
+        followed_up INTEGER NOT NULL DEFAULT 0,
+        follow_up_note TEXT,
+        lesson TEXT,
+        learned INTEGER NOT NULL DEFAULT 0,
+        history TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+      );`;
       this._dbInitialized = true;
     }
   }
@@ -1759,6 +1946,264 @@ export class MasterMindAgent extends Agent {
 
     const consumed = await this.consumeApproval(actionContext.approval_id, actionContext);
     return consumed;
+  }
+
+  /* --------------------------------------------------------------------------
+   * PHASE 1 EARNING WORKFLOW — persisted progression record.
+   * ------------------------------------------------------------------------ */
+
+  getWorkflow(opportunityId) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM opportunity_workflow WHERE opportunity_id = ${opportunityId}`];
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  ensureWorkflow(opportunityId) {
+    this.initDb();
+    let row = this.getWorkflow(opportunityId);
+    if (row) return row;
+    const now = new Date().toISOString();
+    this.sql`INSERT INTO opportunity_workflow (
+      opportunity_id, category, prepared, approval_id, approval_status, executed, execution_note,
+      outcome, outcome_verified, outcome_evidence, followed_up, follow_up_note, lesson, learned,
+      history, created_at, updated_at
+    ) VALUES (
+      ${opportunityId}, 'other', 0, NULL, NULL, 0, NULL,
+      NULL, 0, NULL, 0, NULL, NULL, 0,
+      '[]', ${now}, ${now}
+    );`;
+    return this.getWorkflow(opportunityId);
+  }
+
+  updateWorkflowFields(opportunityId, fields, historyEntry) {
+    this.initDb();
+    const existing = this.ensureWorkflow(opportunityId);
+    const now = new Date().toISOString();
+
+    const merged = {
+      category: fields.category !== undefined ? fields.category : existing.category,
+      prepared: fields.prepared !== undefined ? fields.prepared : existing.prepared,
+      approval_id: fields.approval_id !== undefined ? fields.approval_id : existing.approval_id,
+      approval_status: fields.approval_status !== undefined ? fields.approval_status : existing.approval_status,
+      executed: fields.executed !== undefined ? fields.executed : existing.executed,
+      execution_note: fields.execution_note !== undefined ? fields.execution_note : existing.execution_note,
+      outcome: fields.outcome !== undefined ? fields.outcome : existing.outcome,
+      outcome_verified: fields.outcome_verified !== undefined ? fields.outcome_verified : existing.outcome_verified,
+      outcome_evidence: fields.outcome_evidence !== undefined ? fields.outcome_evidence : existing.outcome_evidence,
+      followed_up: fields.followed_up !== undefined ? fields.followed_up : existing.followed_up,
+      follow_up_note: fields.follow_up_note !== undefined ? fields.follow_up_note : existing.follow_up_note,
+      lesson: fields.lesson !== undefined ? fields.lesson : existing.lesson,
+      learned: fields.learned !== undefined ? fields.learned : existing.learned
+    };
+
+    let history = [];
+    try {
+      history = JSON.parse(existing.history || "[]");
+    } catch {
+      history = [];
+    }
+    if (historyEntry) {
+      history.push({ at: now, ...historyEntry });
+      history = history.slice(-100);
+    }
+
+    this.sql`UPDATE opportunity_workflow SET
+      category = ${merged.category},
+      prepared = ${merged.prepared},
+      approval_id = ${merged.approval_id},
+      approval_status = ${merged.approval_status},
+      executed = ${merged.executed},
+      execution_note = ${merged.execution_note},
+      outcome = ${merged.outcome},
+      outcome_verified = ${merged.outcome_verified},
+      outcome_evidence = ${merged.outcome_evidence},
+      followed_up = ${merged.followed_up},
+      follow_up_note = ${merged.follow_up_note},
+      lesson = ${merged.lesson},
+      learned = ${merged.learned},
+      history = ${JSON.stringify(history)},
+      updated_at = ${now}
+      WHERE opportunity_id = ${opportunityId};`;
+
+    return this.getWorkflow(opportunityId);
+  }
+
+  buildWorkflowView(opportunityId) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) return null;
+    const evidenceList = this.getEvidenceForOpportunity(opportunityId);
+    const workflow = this.getWorkflow(opportunityId);
+    const derived = deriveWorkflowProgress(opportunity, evidenceList, workflow);
+
+    let history = [];
+    try {
+      history = workflow ? JSON.parse(workflow.history || "[]") : [];
+    } catch {
+      history = [];
+    }
+
+    return {
+      opportunityId,
+      title: opportunity.title,
+      category: workflow ? workflow.category : "other",
+      ...derived,
+      tracking: {
+        prepared: !!(workflow && workflow.prepared),
+        approvalId: workflow ? workflow.approval_id : null,
+        approvalStatus: workflow ? workflow.approval_status : null,
+        executed: !!(workflow && workflow.executed),
+        executionNote: workflow ? workflow.execution_note : null,
+        outcome: workflow ? workflow.outcome : null,
+        outcomeVerified: !!(workflow && workflow.outcome_verified),
+        followedUp: !!(workflow && workflow.followed_up),
+        lesson: workflow ? workflow.lesson : null,
+        learned: !!(workflow && workflow.learned)
+      },
+      history,
+      truthfulness: {
+        executionIsManualOwnerAction: true,
+        runtimePerformedSubmission: false,
+        externalDiscoveryConnected: false,
+        message:
+          "EXECUTE is a manual Owner action. AIRA never submits, contacts a platform, creates an account, spends money or bypasses CAPTCHA/MFA/OTP. Stages are derived from persisted state; nothing is fabricated."
+      }
+    };
+  }
+
+  /*
+   * Advance the workflow for one opportunity. Authorization is enforced by the
+   * route. Every action is append-only audit logged. High-impact actions
+   * (record execution, record outcome) additionally require a valid Owner
+   * approval; nothing here performs an external action.
+   */
+  async advanceWorkflow(opportunityId, action, body = {}) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+    const normalizedAction = String(action || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+
+    const audit = (act, status, details) =>
+      this.logAudit({
+        actor: "OWNER",
+        action: act,
+        resource_type: "OPPORTUNITY_WORKFLOW",
+        resource_id: opportunityId,
+        status,
+        details
+      });
+
+    switch (normalizedAction) {
+      case "set_category": {
+        const category = normalizeWorkflowCategory(body.category);
+        this.updateWorkflowFields(opportunityId, { category }, { action: "set_category", category });
+        audit("WORKFLOW_CATEGORY_SET", "SUCCESS", { category });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "mark_prepared": {
+        this.updateWorkflowFields(opportunityId, { prepared: 1 }, { action: "mark_prepared" });
+        audit("WORKFLOW_MARK_PREPARED", "SUCCESS", {});
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "request_approval": {
+        const approval = await this.createApprovalRequest({
+          capability: "external_platform_execution",
+          action_type: "SUBMIT",
+          target_resource_id: opportunityId,
+          parameters: { opportunity_id: opportunityId, title: opportunity.title }
+        });
+        this.updateWorkflowFields(
+          opportunityId,
+          { approval_id: approval.id, approval_status: approval.status },
+          { action: "request_approval", approval_id: approval.id }
+        );
+        audit("WORKFLOW_APPROVAL_REQUESTED", "SUCCESS", { approval_id: approval.id });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_execution": {
+        const approvalId = String(body.approval_id || "").trim();
+        if (!approvalId) {
+          throw new Error("approval_id is required to record a manual execution.");
+        }
+        const approval = this.getApprovalRequest(approvalId);
+        if (!approval) {
+          throw new Error("Approval request not found.");
+        }
+        if (approval.target_resource_id && approval.target_resource_id !== opportunityId) {
+          throw new Error("Approval request does not belong to this opportunity.");
+        }
+        if (approval.status !== "APPROVED") {
+          throw new Error(`Execution requires an APPROVED approval. Current status is '${approval.status}'.`);
+        }
+        if (approval.expires_at < new Date().toISOString()) {
+          throw new Error("Approval request has EXPIRED.");
+        }
+        // Consume the single-use approval so it cannot authorise a second run.
+        await this.consumeApproval(approvalId, {
+          capability: "external_platform_execution",
+          action_type: "SUBMIT",
+          target_resource_id: opportunityId,
+          parameters: JSON.parse(approval.parameters_json || "{}")
+        });
+        this.updateWorkflowFields(
+          opportunityId,
+          { executed: 1, execution_note: String(body.note || "").trim(), approval_status: "CONSUMED" },
+          { action: "record_execution", approval_id: approvalId, note: String(body.note || "").trim() }
+        );
+        audit("WORKFLOW_EXECUTION_RECORDED", "SUCCESS", { approval_id: approvalId, manual: true });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_outcome": {
+        const outcome = normalizeWorkflowOutcome(body.outcome);
+        if (!outcome) {
+          throw new Error(`Invalid outcome. Allowed outcomes: ${WORKFLOW_OUTCOMES.join(", ")}.`);
+        }
+        const verified = body.verified === true || body.verified === "true" || body.outcome_verified === true;
+        const evidence = String(body.evidence || "").trim();
+        if (verified && !evidence) {
+          throw new Error("Verifying an outcome requires evidence. A submission does not imply success.");
+        }
+        this.updateWorkflowFields(
+          opportunityId,
+          { outcome, outcome_verified: verified ? 1 : 0, outcome_evidence: evidence || null },
+          { action: "record_outcome", outcome, verified }
+        );
+        audit("WORKFLOW_OUTCOME_RECORDED", "SUCCESS", { outcome, verified });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_follow_up": {
+        const note = String(body.note || "").trim();
+        this.updateWorkflowFields(
+          opportunityId,
+          { followed_up: 1, follow_up_note: note },
+          { action: "record_follow_up", note }
+        );
+        audit("WORKFLOW_FOLLOW_UP_RECORDED", "SUCCESS", { note });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_lesson": {
+        const lesson = String(body.lesson || "").trim();
+        if (!lesson) {
+          throw new Error("lesson is required.");
+        }
+        this.updateWorkflowFields(opportunityId, { lesson, learned: 1 }, { action: "record_lesson", lesson });
+        audit("WORKFLOW_LESSON_RECORDED", "SUCCESS", { lesson });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      default:
+        throw new Error(
+          `Unknown workflow action '${action}'. Allowed actions: set_category, mark_prepared, request_approval, record_execution, record_outcome, record_follow_up, record_lesson.`
+        );
+    }
   }
 
   normalizeEligibilityStatus(status) {
@@ -2799,6 +3244,7 @@ export class MasterMindAgent extends Agent {
           /^\/[^\/]+\/decision$/.test(subpath) ||
           /^\/[^\/]+\/eligibility$/.test(subpath) ||
           /^\/[^\/]+\/owner-fit$/.test(subpath) ||
+          /^\/[^\/]+\/workflow$/.test(subpath) ||
           /^\/[^\/]+\/prepare$/.test(subpath));
       const mutationDenied = authorizeRequest(request, this.env, isPublicRead ? RISK.READ : RISK.MUTATE);
       if (mutationDenied) return mutationDenied;
@@ -2841,6 +3287,40 @@ export class MasterMindAgent extends Agent {
         if (request.method === "GET") {
           const rows = this.listOpportunities();
           return Response.json({ ok: true, data: comparePersistedOpportunities(rows) });
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      // Route: GET/POST /opportunities/:id/workflow (Phase 1 earning pipeline)
+      // GET is a read-only derived view. POST advances the manual Owner steps;
+      // it is MUTATE and requires the Owner credential (enforced by the guard
+      // above, which treats this subpath as a mutation). No external action is
+      // ever performed: EXECUTE is a manual Owner action recorded, not run.
+      const workflowMatch = subpath.match(/^\/([^\/]+)\/workflow$/);
+      if (workflowMatch) {
+        const targetId = workflowMatch[1];
+        if (request.method === "GET") {
+          const view = this.buildWorkflowView(targetId);
+          if (!view) {
+            return Response.json({ ok: false, error: "Opportunity not found" }, { status: 404 });
+          }
+          return Response.json({ ok: true, data: view });
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+          const action = body.action || (subpath.match(/^\/([^\/]+)\/workflow\/([^\/]+)$/) || [])[2];
+          try {
+            const view = await this.advanceWorkflow(targetId, action, body);
+            return Response.json({ ok: true, data: view });
+          } catch (err) {
+            const status = err.message === "Opportunity not found" ? 404 : 400;
+            return Response.json({ ok: false, error: err.message }, { status });
+          }
         }
         return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
       }
@@ -3045,6 +3525,9 @@ export class MasterMindAgent extends Agent {
         }
         try {
           const created = this.createOpportunity(body);
+          if (body.category !== undefined && body.category !== null && String(body.category).trim() !== "") {
+            this.updateWorkflowFields(created.id, { category: normalizeWorkflowCategory(body.category) }, { action: "set_category", category: normalizeWorkflowCategory(body.category) });
+          }
           return Response.json({ ok: true, data: created }, { status: 201 });
         } catch (err) {
           return Response.json({ ok: false, error: err.message }, { status: 400 });
