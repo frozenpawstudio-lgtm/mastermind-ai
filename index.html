@@ -1891,27 +1891,28 @@
         <div class="wf-note">Progress: ${view.progress.completed}/${view.progress.total} (${view.progress.percent}%) · Category: ${escapeHtml(view.category)}</div>
         <div class="wf-next">Next: ${escapeHtml(view.nextAction || '')}</div>
         <div class="wf-steps">${steps}</div>
-        <div class="wf-note">Tracking — prepared: ${t.prepared ? 'yes' : 'no'} · approval: ${escapeHtml(t.approvalStatus || 'none')} · executed(manual): ${t.executed ? 'yes' : 'no'} · outcome: ${escapeHtml(t.outcome || 'none')}${t.outcomeVerified ? ' (verified)' : ''} · followed up: ${t.followedUp ? 'yes' : 'no'} · learned: ${t.learned ? 'yes' : 'no'}</div>
+        <div class="wf-note">Tracking — prepared: ${t.prepared ? 'yes' : 'no'} · approval: ${escapeHtml(t.approvalStatus || 'none')} · executed(manual): ${t.executed ? 'yes' : 'no'} · outcome: ${escapeHtml(t.outcome || 'none')} · evidence: ${escapeHtml(t.outcomeEvidenceStatus || 'NOT_INDEPENDENTLY_VERIFIED')} · independently verified: no · followed up: ${t.followedUp ? 'yes' : 'no'} · learned: ${t.learned ? 'yes' : 'no'}</div>
+        ${view.blocked ? `<div class="wf-error">${escapeHtml(view.blockedReason || 'This workflow is blocked.')}</div>` : ''}
         <div style="display:flex; flex-wrap:wrap;">
-          <button class="wf-btn" onclick="wfAction('mark_prepared')">Mark Prepared</button>
-          <button class="wf-btn" onclick="wfAction('request_approval')">Request Approval</button>
+          <button class="wf-btn" onclick="wfAction('mark_prepared')" ${view.blocked ? 'disabled' : ''}>Mark Prepared</button>
+          <button class="wf-btn" onclick="wfAction('request_approval')" ${view.blocked ? 'disabled' : ''}>Request Approval</button>
           <button class="wf-btn" onclick="wfAction('record_follow_up', promptFollowUp())">Record Follow-up</button>
           <button class="wf-btn" onclick="wfAction('record_lesson', promptLesson())">Record Lesson</button>
         </div>
         <input type="text" id="wf-approval-id" class="wf-input" placeholder="Approval id (after Owner approves)">
         <input type="text" id="wf-exec-note" class="wf-input" placeholder="Manual execution note (what you submitted)">
-        <div><button class="wf-btn" onclick="recordExecution()">Record Manual Execution</button></div>
+        <div><button class="wf-btn" onclick="recordExecution()" ${view.blocked ? 'disabled' : ''}>Record Manual Execution</button></div>
         <select id="wf-outcome" class="wf-input">
-          <option value="SELECT">SELECT</option>
           <option value="SUBMITTED_MANUAL">SUBMITTED_MANUAL</option>
           <option value="REJECTED">REJECTED</option>
           <option value="WITHDRAWN">WITHDRAWN</option>
           <option value="NO_ACTION">NO_ACTION</option>
         </select>
-        <input type="text" id="wf-outcome-evidence" class="wf-input" placeholder="Outcome evidence (required to verify)">
+        <input type="text" id="wf-outcome-evidence" class="wf-input" placeholder="Owner attestation (recorded as NOT_INDEPENDENTLY_VERIFIED)">
         <div><button class="wf-btn" onclick="recordOutcome()">Record Outcome</button></div>
         <div class="wf-error" id="wf-error"></div>
         <div class="wf-note">${escapeHtml((view.truthfulness || {}).message || '')}</div>
+        ${view.historyTruncated ? '<div class="wf-note">History shows the most recent 100 entries; older entries were truncated.</div>' : ''}
         ${history ? '<div class="wf-note">Recent history:</div>' + history : ''}
       `;
     }
@@ -1953,7 +1954,10 @@
     function recordOutcome() {
       const outcome = (document.getElementById('wf-outcome') || {}).value || '';
       const evidence = (document.getElementById('wf-outcome-evidence') || {}).value || '';
-      wfAction('record_outcome', { outcome: outcome, evidence: evidence.trim(), verified: !!evidence.trim() });
+      // Owner-entered evidence is an attestation only. The UI never asserts
+      // independent verification: the backend records it as
+      // NOT_INDEPENDENTLY_VERIFIED / OWNER_ATTESTED truthfully.
+      wfAction('record_outcome', { outcome: outcome, evidence: evidence.trim() });
     }
 
     async function loadOwnerProfileFromAPI() {

@@ -105,12 +105,33 @@ FOLLOW_UP → LEARN_IMPROVE`
 - `POST /api/opportunities/:id/workflow` advances the manual Owner steps
   (`mark_prepared`, `request_approval`, `record_execution`, `record_outcome`,
   `record_follow_up`, `record_lesson`). It requires the Owner credential.
+- Progression is enforced **on the server**, not only in the UI. Each action
+  re-derives authoritative state and refuses out-of-order, replayed, stale or
+  mismatched transitions with a clear error and a `REJECTED` audit entry, and
+  changes no state on failure:
+  - `mark_prepared` requires a deterministic `SELECT` decision (and, by
+    extension, `VERIFIED` + `ELIGIBLE` + `FIT`).
+  - `request_approval` requires valid preparation and a `SELECT` decision.
+  - `record_execution` requires valid preparation plus an `APPROVED`,
+    unexpired, single-use Owner approval bound to the exact
+    opportunity/action fingerprint. The approval is consumed atomically once;
+    expired, mismatched or already-consumed approvals are refused.
+  - `record_outcome` requires a valid manual execution record.
+  - `record_follow_up` requires a recorded outcome; `record_lesson` requires a
+    recorded follow-up.
+- A `REJECT` decision is **not** a completed `SELECT` and blocks the pipeline:
+  a rejected opportunity cannot proceed to preparation, approval or execution.
 - `EXECUTE` is a **manual Owner action**. AIRA never submits, contacts a
   platform, creates an account, spends money or bypasses CAPTCHA/MFA/OTP.
-  Recording execution requires an `APPROVED`, single-use Owner approval, and
-  the approval is consumed on use.
-- An outcome can only be marked verified with supporting evidence. A submission
-  never implies success.
+- Outcome evidence is honest. Owner-entered text is recorded as an Owner
+  **attestation** (`OWNER_ATTESTED`) and never as independent verification. The
+  runtime never sets `independently verified`; a positive verification claim
+  from the client is refused. Without an authoritative source the outcome
+  remains `NOT_INDEPENDENTLY_VERIFIED`. `SELECT` is a decision, not a terminal
+  outcome. A submission never implies success.
+- Workflow history is bounded to the most recent 100 entries; when the bound is
+  exceeded the view reports `historyTruncated: true` rather than presenting the
+  retained window as complete. Audit logs remain append-only (INSERT only).
 - External automated discovery is `NOT_CONNECTED`. The UI offers a manual /
   source-input workflow instead of fabricating search results.
 
