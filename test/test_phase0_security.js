@@ -39,13 +39,10 @@ async function runSecurityTests() {
     body: JSON.stringify({ title: "Unauthorized Test Opportunity", source: "test" })
   });
 
-  if (unauthMutate.res.status === 401) {
-    assert.strictEqual(unauthMutate.body.ok, false);
-    assert.strictEqual(unauthMutate.body.action, "DENIED");
-    console.log("  ✓ Fail-closed authorization rejected unauthenticated mutation with HTTP 401");
-  } else {
-    console.log(`  ! Unauthenticated mutation returned status ${unauthMutate.res.status}`);
-  }
+  assert.strictEqual(unauthMutate.res.status, 401, "Unauthenticated mutation must be rejected with HTTP 401");
+  assert.strictEqual(unauthMutate.body.ok, false, "Rejection body must report ok:false");
+  assert.strictEqual(unauthMutate.body.action, "DENIED", "Rejection body must report action:DENIED");
+  console.log("  ✓ Fail-closed authorization rejected unauthenticated mutation with HTTP 401");
 
   // --- 2. Permissions report enforcement flag ---
   console.log("2. Testing permissions enforcement report...");
@@ -74,11 +71,10 @@ async function runSecurityTests() {
   const authAudit = await requestJson("/api/audit-logs", {
     headers: { "Authorization": `Bearer ${OWNER_TOKEN}` }
   });
-  if (authAudit.res.status === 200) {
-    assert.strictEqual(authAudit.body.ok, true);
-    assert.ok(Array.isArray(authAudit.body.data), "Audit log data must be an array");
-    console.log("  ✓ Authenticated GET /api/audit-logs returned persistent log entries");
-  }
+  assert.strictEqual(authAudit.res.status, 200, "Authenticated GET /api/audit-logs must return 200");
+  assert.strictEqual(authAudit.body.ok, true, "Authenticated audit-logs response must report ok:true");
+  assert.ok(Array.isArray(authAudit.body.data), "Audit log data must be an array");
+  console.log("  ✓ Authenticated GET /api/audit-logs returned persistent log entries");
 
   // --- 4. Persistent Owner Approval & Binding Tests ---
   console.log("4. Testing persistent Owner approvals and state machine...");
@@ -111,29 +107,49 @@ async function runSecurityTests() {
     })
   });
 
-  if (authAppr.res.status === 201) {
-    assert.strictEqual(authAppr.body.ok, true);
-    const createdAppr = authAppr.body.data;
-    assert.strictEqual(createdAppr.status, "PENDING");
-    assert.ok(createdAppr.parameters_hash, "Approval must contain computed parameter fingerprint");
-    console.log(`  ✓ Persistent approval created in PENDING state (ID: ${createdAppr.id})`);
+  assert.strictEqual(authAppr.res.status, 201, "Authenticated approval creation must return 201");
+  assert.strictEqual(authAppr.body.ok, true, "Approval creation response must report ok:true");
+  const createdAppr = authAppr.body.data;
+  assert.strictEqual(createdAppr.status, "PENDING", "A new approval must start in PENDING state");
+  assert.ok(createdAppr.parameters_hash, "Approval must contain computed parameter fingerprint");
+  assert.strictEqual(createdAppr.capability, "high_impact_test", "Approval must persist the requested capability");
+  assert.strictEqual(createdAppr.action_type, "EXECUTE", "Approval must persist the requested action type");
+  assert.strictEqual(createdAppr.target_resource_id, "res_001", "Approval must persist the requested target resource");
+  assert.strictEqual(
+    createdAppr.parameters_json,
+    JSON.stringify({ a: 1, b: 2 }),
+    "Approval parameters must be recursively key-sorted for a stable fingerprint"
+  );
+  console.log(`  ✓ Persistent approval created in PENDING state (ID: ${createdAppr.id})`);
 
-    // Owner decides approval -> APPROVED
-    const decideRes = await requestJson(`/api/approvals/${createdAppr.id}/decide`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${OWNER_TOKEN}`
-      },
-      body: JSON.stringify({
-        decision: "APPROVED",
-        notes: "Authorized by Owner during security test"
-      })
-    });
-    assert.strictEqual(decideRes.res.status, 200);
-    assert.strictEqual(decideRes.body.data.status, "APPROVED");
-    console.log("  ✓ Approval successfully decided to APPROVED by Owner credential");
-  }
+  // Owner decides approval -> APPROVED
+  const decideRes = await requestJson(`/api/approvals/${createdAppr.id}/decide`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OWNER_TOKEN}`
+    },
+    body: JSON.stringify({
+      decision: "APPROVED",
+      notes: "Authorized by Owner during security test"
+    })
+  });
+  assert.strictEqual(decideRes.res.status, 200, "Owner decision must return 200");
+  assert.strictEqual(decideRes.body.ok, true, "Owner decision response must report ok:true");
+  assert.strictEqual(decideRes.body.data.status, "APPROVED", "Owner decision must move the approval to APPROVED");
+  console.log("  ✓ Approval successfully decided to APPROVED by Owner credential");
+
+  // Re-deciding an APPROVED (single-use) approval must fail closed, not silently succeed.
+  const redecide = await requestJson(`/api/approvals/${createdAppr.id}/decide`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${OWNER_TOKEN}`
+    },
+    body: JSON.stringify({ decision: "APPROVED" })
+  });
+  assert.strictEqual(redecide.res.status, 400, "Re-deciding an already-decided approval must be rejected with 400");
+  assert.strictEqual(redecide.body.ok, false, "Rejected re-decision must report ok:false");
 
   console.log("\nALL PHASE 0 SECURITY HARDENING TESTS PASSED SUCCESSFULLY!");
 }

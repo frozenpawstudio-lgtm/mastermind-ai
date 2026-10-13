@@ -32,6 +32,203 @@ const VOICE_STATES = [
   "VOICE_ERROR"
 ];
 
+/*
+ * ============================================================================
+ * PHASE 1 EARNING WORKFLOW (Earning Operator).
+ *
+ * The Owner-visible earning pipeline. Stages are DERIVED from persisted engine
+ * state (verification / eligibility / owner-fit / score / decision) plus a
+ * small, explicitly-tracked progression record for the manual Owner steps the
+ * runtime cannot observe (prepare, approval, manual execution, outcome,
+ * follow-up, lesson). Nothing here is fabricated: an opportunity that has not
+ * been evaluated by the deterministic engine can never appear to have passed a
+ * stage, and no stage invents listings, eligibility, earnings or execution.
+ *
+ * EXECUTE is a MANUAL OWNER ACTION. The runtime never submits, contacts a
+ * platform, creates an account or spends money. "Record execution" only
+ * records that the Owner performed the action, and it requires an APPROVED,
+ * unconsumed Owner approval first.
+ * ============================================================================
+ */
+const EARNING_WORKFLOW_STAGES = [
+  "RESEARCH",
+  "DISCOVER",
+  "VERIFY",
+  "ELIGIBILITY",
+  "OWNER_FIT",
+  "COMPARE",
+  "SCORE",
+  "SELECT",
+  "PREPARE",
+  "REQUEST_APPROVAL",
+  "EXECUTE",
+  "VERIFY_OUTCOME",
+  "TRACK",
+  "FOLLOW_UP",
+  "LEARN_IMPROVE"
+];
+
+/*
+ * Terminal outcomes. An outcome is only ever recorded by the Owner; the
+ * runtime never derives a positive outcome from a submission it did not make.
+ *
+ * SELECT is a DECISION (owned by the deterministic decision engine), not an
+ * outcome, so it is deliberately NOT a valid terminal outcome.
+ */
+const WORKFLOW_OUTCOMES = [
+  "SUBMITTED_MANUAL",
+  "REJECTED",
+  "WITHDRAWN",
+  "NO_ACTION"
+];
+
+/*
+ * Outcome evidence verification status. The runtime cannot perform independent
+ * verification of an external outcome, so Owner-entered text is recorded as an
+ * Owner ATTESTATION only. "INDEPENDENTLY_VERIFIED" is reserved and never set by
+ * the runtime; a missing independent verification is reported truthfully.
+ */
+const OUTCOME_EVIDENCE_NOT_VERIFIED = "NOT_INDEPENDENTLY_VERIFIED";
+const OUTCOME_EVIDENCE_OWNER_ATTESTED = "OWNER_ATTESTED";
+
+/*
+ * Opportunity categories prioritised for a zero-investment Owner.
+ * These are descriptive labels only; they do not imply a connected provider.
+ */
+const WORKFLOW_CATEGORIES = [
+  "freelance_service",
+  "affiliate_referral",
+  "digital_product",
+  "lead_generation",
+  "other"
+];
+
+const WORKFLOW_NEXT_ACTIONS = {
+  RESEARCH:
+    "Research legitimate zero-investment options (service/freelance, affiliate/referral, digital products, lead generation).",
+  DISCOVER:
+    "Record a specific opportunity (POST /api/opportunities) or use discovery intake. External search is NOT_CONNECTED.",
+  VERIFY:
+    "Attach FACT evidence and verify the opportunity (POST /api/opportunities/:id/verify).",
+  ELIGIBILITY:
+    "Evaluate eligibility (POST /api/opportunities/:id/eligibility).",
+  OWNER_FIT:
+    "Evaluate Owner fit against the persisted Owner profile (POST /api/opportunities/:id/owner-fit).",
+  COMPARE:
+    "Compare persisted opportunities (GET /api/opportunities/compare) to rank candidates.",
+  SCORE:
+    "Run the deterministic decision engine to compute score (POST /api/opportunities/:id/decision).",
+  SELECT:
+    "Review the deterministic decision. SELECT is only reached with VERIFIED + ELIGIBLE + FIT and score >= 80.",
+  PREPARE:
+    "Build an owner-reviewable preparation package (POST /api/opportunities/:id/prepare), then mark it prepared.",
+  REQUEST_APPROVAL:
+    "Request Owner approval before any execution (POST workflow action=request_approval).",
+  EXECUTE:
+    "Owner performs the manual submission on the platform. AIRA never submits. Then record execution with the approved approval id.",
+  VERIFY_OUTCOME:
+    "Record the outcome with Owner attestation. Owner-entered evidence is NOT independent verification; without an authoritative source the outcome stays NOT_INDEPENDENTLY_VERIFIED.",
+  TRACK:
+    "Record the tracked outcome (POST workflow action=record_outcome).",
+  FOLLOW_UP:
+    "Record a follow-up (POST workflow action=record_follow_up).",
+  LEARN_IMPROVE:
+    "Record the lesson so the next earning cycle improves (POST workflow action=record_lesson)."
+};
+
+function normalizeWorkflowCategory(value) {
+  const key = String(value === null || value === undefined ? "" : value).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return WORKFLOW_CATEGORIES.includes(key) ? key : "other";
+}
+
+function normalizeWorkflowOutcome(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const key = String(value).trim().toUpperCase().replace(/[\s-]+/g, "_");
+  // SELECT is a decision, never a terminal outcome.
+  return WORKFLOW_OUTCOMES.includes(key) ? key : null;
+}
+
+/*
+ * Derive the completed stages and the current (next) stage from persisted
+ * state only. Pure and read-only: it never writes and never upgrades state.
+ */
+function deriveWorkflowProgress(opportunity, evidenceList, progress) {
+  const p = progress || {};
+  const evidence = Array.isArray(evidenceList) ? evidenceList : [];
+  const hasEvidence = evidence.length > 0;
+
+  const verification = normalizeVerification(opportunity.verification_status);
+  const eligibility = normalizeEligibility(opportunity.eligibility_status);
+  const ownerFit = normalizeOwnerFit(opportunity.owner_fit_status);
+  const decision = normalizeDecision(opportunity.decision);
+  const score = typeof opportunity.score === "number" && isFinite(opportunity.score) ? opportunity.score : 0;
+
+  // A REJECT decision means the deterministic engine disqualified the
+  // opportunity. The evaluation stages still ran, but SELECT is NOT completed
+  // and the pipeline is blocked: no preparation, approval or execution may
+  // follow a REJECT.
+  const isRejected = decision === "REJECT";
+  const isSelected = decision === "SELECT";
+
+  const completed = ["RESEARCH", "DISCOVER"];
+
+  if (verification === "VERIFIED" || verification === "REJECTED") completed.push("VERIFY");
+  if (eligibility === "ELIGIBLE" || eligibility === "NOT_ELIGIBLE") completed.push("ELIGIBILITY");
+  if (ownerFit === "FIT" || ownerFit === "NOT_FIT") completed.push("OWNER_FIT");
+  if (isSelected || isRejected) {
+    completed.push("COMPARE");
+    completed.push("SCORE");
+  }
+  if (isSelected) completed.push("SELECT");
+
+  if (p.prepared) completed.push("PREPARE");
+  if (p.approval_id && String(p.approval_status || "").toUpperCase() === "APPROVED") completed.push("REQUEST_APPROVAL");
+  if (p.approval_id && p.executed) completed.push("REQUEST_APPROVAL");
+  if (p.executed) completed.push("EXECUTE");
+  if (p.outcome) completed.push("VERIFY_OUTCOME");
+  if (p.outcome) completed.push("TRACK");
+  if (p.followed_up) completed.push("FOLLOW_UP");
+  if (p.learned) completed.push("LEARN_IMPROVE");
+
+  const uniqueCompleted = EARNING_WORKFLOW_STAGES.filter((s) => completed.includes(s));
+  let currentStage = EARNING_WORKFLOW_STAGES.find((s) => !uniqueCompleted.includes(s)) || "LEARN_IMPROVE";
+
+  // A rejected opportunity must never appear to be waiting at a forward
+  // (preparation/approval/execution) stage.
+  const blocked = isRejected && !p.executed;
+  if (blocked) currentStage = "SELECT";
+
+  const total = EARNING_WORKFLOW_STAGES.length;
+  const completedCount = uniqueCompleted.length;
+
+  return {
+    stages: EARNING_WORKFLOW_STAGES,
+    completedStages: uniqueCompleted,
+    currentStage,
+    nextAction: blocked
+      ? "The deterministic decision is REJECT. This opportunity is disqualified and cannot proceed to PREPARE, REQUEST_APPROVAL or EXECUTE."
+      : WORKFLOW_NEXT_ACTIONS[currentStage],
+    blocked,
+    blockedReason: blocked
+      ? "Deterministic decision is REJECT. Preparation, approval and execution are not permitted."
+      : null,
+    progress: {
+      completed: completedCount,
+      total,
+      percent: Math.round((completedCount / total) * 1000) / 10
+    },
+    derivedState: {
+      verificationStatus: verification,
+      eligibilityStatus: eligibility,
+      ownerFitStatus: ownerFit,
+      score,
+      decision,
+      evidenceCount: evidence.length,
+      hasEvidence
+    }
+  };
+}
+
 const ELIGIBILITY_ALIASES = {
   ELIGIBLE: "ELIGIBLE",
   POTENTIALLY_ELIGIBLE: "POTENTIALLY_ELIGIBLE",
@@ -592,6 +789,30 @@ async function computeActionFingerprint(capability, action_type, target_resource
  * credential (OWNER_API_TOKEN). Reads never do.
  */
 const RISK = { READ: "READ", MUTATE: "MUTATE", OWNER_CONTROLLED: "OWNER_CONTROLLED" };
+
+/*
+ * Canonical identity of the single manual execution action the Phase 1 Earning
+ * Operator is allowed to authorise. Approval creation and every execution
+ * validation derive their capability / action_type / target_resource_id /
+ * parameters from this ONE source, so the stored approval fingerprint and the
+ * fingerprint re-checked at execution can never drift apart. This is a pure
+ * function; it does not weaken or bypass any fingerprint check.
+ */
+const EXECUTION_CAPABILITY = "external_platform_execution";
+const EXECUTION_ACTION_TYPE = "SUBMIT";
+
+function canonicalExecutionAction(opportunityId, opportunity) {
+  const targetResourceId = String(opportunityId || "").trim();
+  const title = opportunity && opportunity.title !== undefined && opportunity.title !== null
+    ? String(opportunity.title)
+    : "";
+  return {
+    capability: EXECUTION_CAPABILITY,
+    action_type: EXECUTION_ACTION_TYPE,
+    target_resource_id: targetResourceId,
+    parameters: { opportunity_id: targetResourceId, title }
+  };
+}
 
 function hasOwnerToken(env) {
   return !!(env && typeof env.OWNER_API_TOKEN === "string" && env.OWNER_API_TOKEN.trim().length > 0);
@@ -1500,6 +1721,37 @@ export class MasterMindAgent extends Agent {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );`;
+      this.sql`CREATE TABLE IF NOT EXISTS opportunity_workflow (
+        opportunity_id TEXT PRIMARY KEY,
+        category TEXT NOT NULL DEFAULT 'other',
+        prepared INTEGER NOT NULL DEFAULT 0,
+        approval_id TEXT,
+        approval_status TEXT,
+        executed INTEGER NOT NULL DEFAULT 0,
+        execution_note TEXT,
+        outcome TEXT,
+        outcome_verified INTEGER NOT NULL DEFAULT 0,
+        outcome_evidence TEXT,
+        outcome_evidence_status TEXT NOT NULL DEFAULT 'NOT_INDEPENDENTLY_VERIFIED',
+        followed_up INTEGER NOT NULL DEFAULT 0,
+        follow_up_note TEXT,
+        lesson TEXT,
+        learned INTEGER NOT NULL DEFAULT 0,
+        history TEXT NOT NULL DEFAULT '[]',
+        history_truncated INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (opportunity_id) REFERENCES opportunities(id) ON DELETE CASCADE
+      );`;
+      // Non-destructive migration: add the honesty columns to pre-existing
+      // workflow rows without rewriting or dropping any stored data.
+      const workflowColumns = [...this.sql`PRAGMA table_info(opportunity_workflow);`].map(c => c.name);
+      if (!workflowColumns.includes("outcome_evidence_status")) {
+        this.sql`ALTER TABLE opportunity_workflow ADD COLUMN outcome_evidence_status TEXT NOT NULL DEFAULT 'NOT_INDEPENDENTLY_VERIFIED';`;
+      }
+      if (!workflowColumns.includes("history_truncated")) {
+        this.sql`ALTER TABLE opportunity_workflow ADD COLUMN history_truncated INTEGER NOT NULL DEFAULT 0;`;
+      }
       this._dbInitialized = true;
     }
   }
@@ -1759,6 +2011,378 @@ export class MasterMindAgent extends Agent {
 
     const consumed = await this.consumeApproval(actionContext.approval_id, actionContext);
     return consumed;
+  }
+
+  /* --------------------------------------------------------------------------
+   * PHASE 1 EARNING WORKFLOW — persisted progression record.
+   * ------------------------------------------------------------------------ */
+
+  getWorkflow(opportunityId) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM opportunity_workflow WHERE opportunity_id = ${opportunityId}`];
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  ensureWorkflow(opportunityId) {
+    this.initDb();
+    let row = this.getWorkflow(opportunityId);
+    if (row) return row;
+    const now = new Date().toISOString();
+    this.sql`INSERT INTO opportunity_workflow (
+      opportunity_id, category, prepared, approval_id, approval_status, executed, execution_note,
+      outcome, outcome_verified, outcome_evidence, outcome_evidence_status, followed_up, follow_up_note, lesson, learned,
+      history, history_truncated, created_at, updated_at
+    ) VALUES (
+      ${opportunityId}, 'other', 0, NULL, NULL, 0, NULL,
+      NULL, 0, NULL, ${OUTCOME_EVIDENCE_NOT_VERIFIED}, 0, NULL, NULL, 0,
+      '[]', 0, ${now}, ${now}
+    );`;
+    return this.getWorkflow(opportunityId);
+  }
+
+  updateWorkflowFields(opportunityId, fields, historyEntry) {
+    this.initDb();
+    const existing = this.ensureWorkflow(opportunityId);
+    const now = new Date().toISOString();
+
+    const merged = {
+      category: fields.category !== undefined ? fields.category : existing.category,
+      prepared: fields.prepared !== undefined ? fields.prepared : existing.prepared,
+      approval_id: fields.approval_id !== undefined ? fields.approval_id : existing.approval_id,
+      approval_status: fields.approval_status !== undefined ? fields.approval_status : existing.approval_status,
+      executed: fields.executed !== undefined ? fields.executed : existing.executed,
+      execution_note: fields.execution_note !== undefined ? fields.execution_note : existing.execution_note,
+      outcome: fields.outcome !== undefined ? fields.outcome : existing.outcome,
+      outcome_verified: fields.outcome_verified !== undefined ? fields.outcome_verified : existing.outcome_verified,
+      outcome_evidence: fields.outcome_evidence !== undefined ? fields.outcome_evidence : existing.outcome_evidence,
+      outcome_evidence_status: fields.outcome_evidence_status !== undefined ? fields.outcome_evidence_status : (existing.outcome_evidence_status || OUTCOME_EVIDENCE_NOT_VERIFIED),
+      followed_up: fields.followed_up !== undefined ? fields.followed_up : existing.followed_up,
+      follow_up_note: fields.follow_up_note !== undefined ? fields.follow_up_note : existing.follow_up_note,
+      lesson: fields.lesson !== undefined ? fields.lesson : existing.lesson,
+      learned: fields.learned !== undefined ? fields.learned : existing.learned
+    };
+
+    let history = [];
+    try {
+      history = JSON.parse(existing.history || "[]");
+    } catch {
+      history = [];
+    }
+    // History is bounded to the most recent 100 entries. When the bound is
+    // exceeded the oldest entries are dropped, so the truncation is recorded
+    // truthfully instead of presenting the retained window as complete.
+    let historyTruncated = existing.history_truncated ? 1 : 0;
+    if (historyEntry) {
+      history.push({ at: now, ...historyEntry });
+      if (history.length > 100) {
+        historyTruncated = 1;
+        history = history.slice(-100);
+      }
+    }
+
+    this.sql`UPDATE opportunity_workflow SET
+      category = ${merged.category},
+      prepared = ${merged.prepared},
+      approval_id = ${merged.approval_id},
+      approval_status = ${merged.approval_status},
+      executed = ${merged.executed},
+      execution_note = ${merged.execution_note},
+      outcome = ${merged.outcome},
+      outcome_verified = ${merged.outcome_verified},
+      outcome_evidence = ${merged.outcome_evidence},
+      outcome_evidence_status = ${merged.outcome_evidence_status},
+      followed_up = ${merged.followed_up},
+      follow_up_note = ${merged.follow_up_note},
+      lesson = ${merged.lesson},
+      learned = ${merged.learned},
+      history = ${JSON.stringify(history)},
+      history_truncated = ${historyTruncated},
+      updated_at = ${now}
+      WHERE opportunity_id = ${opportunityId};`;
+
+    return this.getWorkflow(opportunityId);
+  }
+
+  buildWorkflowView(opportunityId) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) return null;
+    const evidenceList = this.getEvidenceForOpportunity(opportunityId);
+    const workflow = this.getWorkflow(opportunityId);
+    const derived = deriveWorkflowProgress(opportunity, evidenceList, workflow);
+
+    let history = [];
+    try {
+      history = workflow ? JSON.parse(workflow.history || "[]") : [];
+    } catch {
+      history = [];
+    }
+
+    return {
+      opportunityId,
+      title: opportunity.title,
+      category: workflow ? workflow.category : "other",
+      ...derived,
+      tracking: {
+        prepared: !!(workflow && workflow.prepared),
+        approvalId: workflow ? workflow.approval_id : null,
+        approvalStatus: workflow ? workflow.approval_status : null,
+        executed: !!(workflow && workflow.executed),
+        executionNote: workflow ? workflow.execution_note : null,
+        outcome: workflow ? workflow.outcome : null,
+        outcomeVerified: !!(workflow && workflow.outcome_verified),
+        outcomeEvidence: workflow ? workflow.outcome_evidence : null,
+        // Owner-entered text is an Owner attestation, not independent
+        // verification. A missing independent verification is stated plainly.
+        outcomeEvidenceStatus: workflow && workflow.outcome_evidence_status
+          ? workflow.outcome_evidence_status
+          : OUTCOME_EVIDENCE_NOT_VERIFIED,
+        independentlyVerified: false,
+        followedUp: !!(workflow && workflow.followed_up),
+        lesson: workflow ? workflow.lesson : null,
+        learned: !!(workflow && workflow.learned)
+      },
+      history,
+      historyTruncated: !!(workflow && workflow.history_truncated),
+      truthfulness: {
+        executionIsManualOwnerAction: true,
+        runtimePerformedSubmission: false,
+        externalDiscoveryConnected: false,
+        message:
+          "EXECUTE is a manual Owner action. AIRA never submits, contacts a platform, creates an account, spends money or bypasses CAPTCHA/MFA/OTP. Stages are derived from persisted state; nothing is fabricated."
+      }
+    };
+  }
+
+  /*
+   * Advance the workflow for one opportunity. Authorization is enforced by the
+   * route. Every action is append-only audit logged. High-impact actions
+   * (record execution, record outcome) additionally require a valid Owner
+   * approval; nothing here performs an external action.
+   *
+   * Progression is enforced HERE, on the server, not merely in the UI. Each
+   * action re-derives the authoritative state and refuses any out-of-order,
+   * replayed, stale or mismatched transition. Failure paths are fail-closed:
+   * a refused action changes no state and is recorded as a rejected audit event.
+   */
+  async advanceWorkflow(opportunityId, action, body = {}) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+    const normalizedAction = String(action || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+
+    const audit = (act, status, details) =>
+      this.logAudit({
+        actor: "OWNER",
+        action: act,
+        resource_type: "OPPORTUNITY_WORKFLOW",
+        resource_id: opportunityId,
+        status,
+        details
+      });
+
+    // Refuse a transition without mutating anything, and record the refusal.
+    const refuse = (act, message, details) => {
+      audit(act, "REJECTED", { reason: message, ...(details || {}) });
+      throw new Error(message);
+    };
+
+    // Re-derive the authoritative progression from persisted state. Never
+    // trusts client input.
+    const currentView = () => {
+      const evidenceList = this.getEvidenceForOpportunity(opportunityId);
+      const workflowRow = this.getWorkflow(opportunityId);
+      return deriveWorkflowProgress(this.getOpportunity(opportunityId), evidenceList, workflowRow);
+    };
+
+    switch (normalizedAction) {
+      case "set_category": {
+        // Descriptive metadata only; not a pipeline stage, so it is always allowed.
+        const category = normalizeWorkflowCategory(body.category);
+        this.updateWorkflowFields(opportunityId, { category }, { action: "set_category", category });
+        audit("WORKFLOW_CATEGORY_SET", "SUCCESS", { category });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "mark_prepared": {
+        const view = currentView();
+        if (view.blocked || view.derivedState.decision === "REJECT") {
+          refuse("WORKFLOW_MARK_PREPARED", "PREPARE is not permitted: the deterministic decision is REJECT.");
+        }
+        if (view.derivedState.decision !== "SELECT") {
+          refuse(
+            "WORKFLOW_MARK_PREPARED",
+            `PREPARE requires a valid deterministic SELECT decision. Current decision is '${view.derivedState.decision}'.`
+          );
+        }
+        // Defence in depth: SELECT already implies these, but check explicitly
+        // so an inconsistent record cannot slip through.
+        if (view.derivedState.verificationStatus !== "VERIFIED") {
+          refuse("WORKFLOW_MARK_PREPARED", `PREPARE requires VERIFIED verification. Current status is '${view.derivedState.verificationStatus}'.`);
+        }
+        if (view.derivedState.eligibilityStatus !== "ELIGIBLE") {
+          refuse("WORKFLOW_MARK_PREPARED", `PREPARE requires ELIGIBLE eligibility. Current status is '${view.derivedState.eligibilityStatus}'.`);
+        }
+        if (view.derivedState.ownerFitStatus !== "FIT") {
+          refuse("WORKFLOW_MARK_PREPARED", `PREPARE requires a FIT owner-fit result. Current status is '${view.derivedState.ownerFitStatus}'.`);
+        }
+        this.updateWorkflowFields(opportunityId, { prepared: 1 }, { action: "mark_prepared" });
+        audit("WORKFLOW_MARK_PREPARED", "SUCCESS", {});
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "request_approval": {
+        const view = currentView();
+        const workflow = this.getWorkflow(opportunityId);
+        if (view.derivedState.decision !== "SELECT") {
+          refuse(
+            "WORKFLOW_APPROVAL_REQUESTED",
+            `An approval request requires a valid SELECT decision. Current decision is '${view.derivedState.decision}'.`
+          );
+        }
+        if (!workflow || !workflow.prepared) {
+          refuse("WORKFLOW_APPROVAL_REQUESTED", "An approval request requires valid preparation (mark_prepared) first.");
+        }
+        if (workflow.executed) {
+          refuse("WORKFLOW_APPROVAL_REQUESTED", "This workflow has already recorded a manual execution; a new approval request is not permitted.");
+        }
+        // Create the approval from the SAME canonical action that execution
+        // will re-validate, so the fingerprints cannot diverge.
+        const action = canonicalExecutionAction(opportunityId, opportunity);
+        const approval = await this.createApprovalRequest(action);
+        this.updateWorkflowFields(
+          opportunityId,
+          { approval_id: approval.id, approval_status: approval.status },
+          { action: "request_approval", approval_id: approval.id }
+        );
+        audit("WORKFLOW_APPROVAL_REQUESTED", "SUCCESS", { approval_id: approval.id });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_execution": {
+        const view = currentView();
+        const workflow = this.getWorkflow(opportunityId);
+        if (!workflow || !workflow.prepared) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", "Recording an execution requires valid preparation (mark_prepared) first.");
+        }
+        if (view.derivedState.decision !== "SELECT") {
+          refuse(
+            "WORKFLOW_EXECUTION_RECORDED",
+            `Recording an execution requires a valid SELECT decision. Current decision is '${view.derivedState.decision}'.`
+          );
+        }
+        if (workflow.executed) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", "A manual execution has already been recorded for this workflow.");
+        }
+        const approvalId = String(body.approval_id || "").trim();
+        if (!approvalId) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", "approval_id is required to record a manual execution.");
+        }
+        const approval = this.getApprovalRequest(approvalId);
+        if (!approval) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", "Approval request not found.");
+        }
+        // The canonical action is the single source of truth for capability,
+        // action type, target and normalized parameters. The stored approval
+        // must match it exactly.
+        const action = canonicalExecutionAction(opportunityId, opportunity);
+        if (approval.target_resource_id !== action.target_resource_id) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", "Approval request does not belong to this opportunity.");
+        }
+        if (String(approval.capability || "").trim() !== action.capability || String(approval.action_type || "").trim() !== action.action_type) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", `Approval request is not bound to the expected action (${action.capability}/${action.action_type}).`);
+        }
+        if (approval.status !== "APPROVED") {
+          refuse("WORKFLOW_EXECUTION_RECORDED", `Execution requires an APPROVED approval. Current status is '${approval.status}'.`);
+        }
+        if (approval.expires_at < new Date().toISOString()) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", "Approval request has EXPIRED.");
+        }
+        // Consume the single-use approval atomically. The fingerprint is
+        // recomputed from the CURRENT opportunity so a stale approval whose
+        // bound action has drifted fails closed with a binding mismatch.
+        let consumed;
+        try {
+          consumed = await this.consumeApproval(approvalId, action);
+        } catch (err) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", err.message);
+        }
+        this.updateWorkflowFields(
+          opportunityId,
+          { executed: 1, execution_note: String(body.note || "").trim(), approval_status: "CONSUMED" },
+          { action: "record_execution", approval_id: approvalId, note: String(body.note || "").trim() }
+        );
+        audit("WORKFLOW_EXECUTION_RECORDED", "SUCCESS", { approval_id: approvalId, manual: true, consumed: !!(consumed && consumed.status === "CONSUMED") });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_outcome": {
+        const workflow = this.getWorkflow(opportunityId);
+        if (!workflow || !workflow.executed) {
+          refuse("WORKFLOW_OUTCOME_RECORDED", "An outcome cannot be recorded before a valid manual execution record exists.");
+        }
+        const outcome = normalizeWorkflowOutcome(body.outcome);
+        if (!outcome) {
+          refuse("WORKFLOW_OUTCOME_RECORDED", `Invalid outcome. Allowed outcomes: ${WORKFLOW_OUTCOMES.join(", ")}.`);
+        }
+        // Independent verification is never self-asserted. Owner-entered text
+        // is an Owner attestation, not independent verification, so a positive
+        // "verified" claim from the client is refused outright.
+        const claimsIndependent = body.verified === true || body.verified === "true" || body.outcome_verified === true;
+        if (claimsIndependent) {
+          refuse(
+            "WORKFLOW_OUTCOME_RECORDED",
+            "An outcome cannot be marked independently verified by the Owner. Owner-entered evidence is recorded as an Owner attestation (NOT_INDEPENDENTLY_VERIFIED); independent verification requires an authoritative source."
+          );
+        }
+        const evidence = String(body.evidence || "").trim();
+        const evidenceStatus = evidence ? OUTCOME_EVIDENCE_OWNER_ATTESTED : OUTCOME_EVIDENCE_NOT_VERIFIED;
+        this.updateWorkflowFields(
+          opportunityId,
+          { outcome, outcome_verified: 0, outcome_evidence: evidence || null, outcome_evidence_status: evidenceStatus },
+          { action: "record_outcome", outcome, owner_attested: !!evidence, evidence_status: evidenceStatus }
+        );
+        audit("WORKFLOW_OUTCOME_RECORDED", "SUCCESS", { outcome, independently_verified: false, evidence_status: evidenceStatus });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_follow_up": {
+        const workflow = this.getWorkflow(opportunityId);
+        if (!workflow || !workflow.outcome) {
+          refuse("WORKFLOW_FOLLOW_UP_RECORDED", "A follow-up requires the outcome to be recorded (TRACK) first.");
+        }
+        const note = String(body.note || "").trim();
+        this.updateWorkflowFields(
+          opportunityId,
+          { followed_up: 1, follow_up_note: note },
+          { action: "record_follow_up", note }
+        );
+        audit("WORKFLOW_FOLLOW_UP_RECORDED", "SUCCESS", { note });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      case "record_lesson": {
+        const workflow = this.getWorkflow(opportunityId);
+        if (!workflow || !workflow.followed_up) {
+          refuse("WORKFLOW_LESSON_RECORDED", "A lesson requires the follow-up (FOLLOW_UP) stage to be recorded first.");
+        }
+        const lesson = String(body.lesson || "").trim();
+        if (!lesson) {
+          refuse("WORKFLOW_LESSON_RECORDED", "lesson is required.");
+        }
+        this.updateWorkflowFields(opportunityId, { lesson, learned: 1 }, { action: "record_lesson", lesson });
+        audit("WORKFLOW_LESSON_RECORDED", "SUCCESS", { lesson });
+        return this.buildWorkflowView(opportunityId);
+      }
+
+      default:
+        audit("WORKFLOW_UNKNOWN_ACTION", "REJECTED", { action: String(action || "") });
+        throw new Error(
+          `Unknown workflow action '${action}'. Allowed actions: set_category, mark_prepared, request_approval, record_execution, record_outcome, record_follow_up, record_lesson.`
+        );
+    }
   }
 
   normalizeEligibilityStatus(status) {
@@ -2799,6 +3423,7 @@ export class MasterMindAgent extends Agent {
           /^\/[^\/]+\/decision$/.test(subpath) ||
           /^\/[^\/]+\/eligibility$/.test(subpath) ||
           /^\/[^\/]+\/owner-fit$/.test(subpath) ||
+          /^\/[^\/]+\/workflow$/.test(subpath) ||
           /^\/[^\/]+\/prepare$/.test(subpath));
       const mutationDenied = authorizeRequest(request, this.env, isPublicRead ? RISK.READ : RISK.MUTATE);
       if (mutationDenied) return mutationDenied;
@@ -2845,6 +3470,40 @@ export class MasterMindAgent extends Agent {
         return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
       }
 
+      // Route: GET/POST /opportunities/:id/workflow (Phase 1 earning pipeline)
+      // GET is a read-only derived view. POST advances the manual Owner steps;
+      // it is MUTATE and requires the Owner credential (enforced by the guard
+      // above, which treats this subpath as a mutation). No external action is
+      // ever performed: EXECUTE is a manual Owner action recorded, not run.
+      const workflowMatch = subpath.match(/^\/([^\/]+)\/workflow$/);
+      if (workflowMatch) {
+        const targetId = workflowMatch[1];
+        if (request.method === "GET") {
+          const view = this.buildWorkflowView(targetId);
+          if (!view) {
+            return Response.json({ ok: false, error: "Opportunity not found" }, { status: 404 });
+          }
+          return Response.json({ ok: true, data: view });
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+          const action = body.action || (subpath.match(/^\/([^\/]+)\/workflow\/([^\/]+)$/) || [])[2];
+          try {
+            const view = await this.advanceWorkflow(targetId, action, body);
+            return Response.json({ ok: true, data: view });
+          } catch (err) {
+            const status = err.message === "Opportunity not found" ? 404 : 400;
+            return Response.json({ ok: false, error: err.message }, { status });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
       // Route: POST /opportunities/:id/prepare (read-only, owner-reviewable PREPARE package)
       // PREPARATION != SUBMISSION. This route composes a draft package from
       // persisted state only; it never submits, contacts or mutates anything.
@@ -2864,6 +3523,29 @@ export class MasterMindAgent extends Agent {
             return Response.json({ ok: false, error: "Opportunity not found" }, { status: 404 });
           }
 
+          // Server-side state gate: PREPARE is not permitted for an opportunity
+          // the deterministic engine disqualified. A REJECT decision or a
+          // REJECTED verification must fail closed here, not merely in the UI.
+          const decisionForPrepare = normalizeDecision(opportunity.decision);
+          const verificationForPrepare = String(opportunity.verification_status || "UNVERIFIED").toUpperCase();
+          if (decisionForPrepare === "REJECT" || verificationForPrepare === "REJECTED") {
+            this.logAudit({
+              actor: "OWNER",
+              action: "WORKFLOW_PREPARE_REFUSED",
+              resource_type: "OPPORTUNITY",
+              resource_id: targetId,
+              status: "REJECTED",
+              details: { decision: decisionForPrepare, verification_status: verificationForPrepare }
+            });
+            return Response.json(
+              {
+                ok: false,
+                error: `PREPARE is not permitted: the opportunity is disqualified (decision '${decisionForPrepare}', verification '${verificationForPrepare}').`
+              },
+              { status: 400 }
+            );
+          }
+
           const rawType = body.type !== undefined && body.type !== null && String(body.type).trim() !== ""
             ? body.type
             : null;
@@ -2877,13 +3559,13 @@ export class MasterMindAgent extends Agent {
 
           if (body.approval_id || body.execute || body.action === "EXECUTE") {
             try {
+              // Same canonical action identity as approval creation and the
+              // workflow record_execution path; raw client body fields must
+              // never widen the approved fingerprint.
               await this.assertExecutionBoundary({
                 service: opportunity.platform,
                 approval_id: body.approval_id,
-                capability: "external_platform_execution",
-                action_type: "SUBMIT",
-                target_resource_id: targetId,
-                parameters: body
+                ...canonicalExecutionAction(targetId, opportunity)
               });
             } catch (err) {
               return Response.json({ ok: false, error: err.message }, { status: 403 });
@@ -3045,6 +3727,9 @@ export class MasterMindAgent extends Agent {
         }
         try {
           const created = this.createOpportunity(body);
+          if (body.category !== undefined && body.category !== null && String(body.category).trim() !== "") {
+            this.updateWorkflowFields(created.id, { category: normalizeWorkflowCategory(body.category) }, { action: "set_category", category: normalizeWorkflowCategory(body.category) });
+          }
           return Response.json({ ok: true, data: created }, { status: 201 });
         } catch (err) {
           return Response.json({ ok: false, error: err.message }, { status: 400 });

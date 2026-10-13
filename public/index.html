@@ -768,6 +768,56 @@
     .state-pill.eligible { background: rgba(59, 130, 246, 0.2); color: var(--neon-blue); }
     .state-pill.select { background: rgba(168, 85, 247, 0.2); color: var(--neon-violet); }
 
+    /* Phase 1 Earning workflow panel */
+    .wf-input {
+      width: 100%;
+      background: rgba(2, 6, 23, 0.7);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      color: var(--text-main);
+      font-size: 12px;
+      padding: 8px 10px;
+      font-family: var(--font-family);
+      margin-top: 6px;
+    }
+    .wf-btn {
+      background: rgba(0, 240, 255, 0.12);
+      border: 1px solid var(--glass-border);
+      color: var(--neon-cyan);
+      border-radius: 10px;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 7px 10px;
+      cursor: pointer;
+      margin: 4px 4px 0 0;
+    }
+    .wf-btn:active { transform: scale(0.97); }
+    .wf-btn[disabled] { opacity: 0.4; cursor: not-allowed; }
+    .wf-steps { display: flex; flex-direction: column; gap: 4px; }
+    .wf-step {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      padding: 4px 8px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+    .wf-step.done { border-color: var(--glass-border); color: var(--neon-cyan); }
+    .wf-step.current { border-color: var(--neon-violet); color: #fff; }
+    .wf-step-mark { font-weight: 800; }
+    .wf-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+    .wf-error { color: #f87171; font-size: 11px; }
+    .wf-next {
+      font-size: 11px;
+      color: var(--neon-cyan);
+      background: rgba(0, 240, 255, 0.08);
+      border-radius: 10px;
+      padding: 8px 10px;
+      line-height: 1.5;
+    }
+    .wf-history-item { font-size: 10px; color: var(--text-dim); }
   </style>
 </head>
 <body>
@@ -1084,9 +1134,25 @@
     </main>
 
     <!-- ======================================================================
-         EARNING TAB VIEW (PHASE 1 REAL API)
+         EARNING TAB VIEW (PHASE 1 EARNING OPERATOR WORKFLOW)
          ====================================================================== -->
     <main id="view-earning" class="tab-view">
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Owner Authorization</h2>
+          <span class="sec-badge" id="owner-auth-badge">UNKNOWN</span>
+        </div>
+        <div class="glass-card" style="display:flex; flex-direction:column; gap:6px;">
+          <div class="wf-note">Owner-credential actions (create, verify, evaluate, prepare, approve, record) require the Owner token. It is stored only in this browser session and is never displayed again after entry.</div>
+          <input type="password" id="owner-token-input" class="wf-input" placeholder="Owner API token" autocomplete="off">
+          <div>
+            <button class="wf-btn" onclick="saveOwnerToken()">Save Token</button>
+            <button class="wf-btn" onclick="clearOwnerToken()">Clear</button>
+          </div>
+          <div class="wf-note" id="owner-auth-state">Owner authorization: UNKNOWN</div>
+        </div>
+      </section>
+
       <section class="section-block">
         <div class="section-header-title">
           <h2 class="sec-title">Earning Agent Operator</h2>
@@ -1096,6 +1162,41 @@
           <div class="opp-title" id="earning-opportunities-state">LOADING</div>
         </div>
         <button class="capsule-send-btn" style="width:100%; border-radius:14px; height:44px; font-weight:700;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
+      </section>
+
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Record an Opportunity</h2>
+          <span class="sec-badge">Manual / Source Input</span>
+        </div>
+        <div class="glass-card" style="display:flex; flex-direction:column; gap:6px;">
+          <div class="wf-note">External discovery is <b>NOT_CONNECTED</b>. Enter a real opportunity you found yourself. AIRA does not invent listings or search results.</div>
+          <input type="text" id="opp-title-input" class="wf-input" placeholder="Title (e.g. Freelance landing page for local business)">
+          <input type="text" id="opp-platform-input" class="wf-input" placeholder="Platform label (e.g. Upwork, direct, referral)">
+          <input type="text" id="opp-url-input" class="wf-input" placeholder="Reference URL (optional)">
+          <select id="opp-category-input" class="wf-input">
+            <option value="freelance_service">Freelance / service</option>
+            <option value="affiliate_referral">Affiliate / referral</option>
+            <option value="digital_product">Digital product</option>
+            <option value="lead_generation">Lead generation</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="text" id="opp-cost-input" class="wf-input" placeholder="Cost to start (e.g. 0 for zero-investment)">
+          <div>
+            <button class="wf-btn" onclick="createOpportunityFromForm()">Add Opportunity</button>
+          </div>
+          <div class="wf-error" id="opp-form-error"></div>
+        </div>
+      </section>
+
+      <section class="section-block">
+        <div class="section-header-title">
+          <h2 class="sec-title">Earning Workflow</h2>
+          <span class="sec-badge">Research → Learn</span>
+        </div>
+        <div class="glass-card" id="earning-workflow-panel" style="display:flex; flex-direction:column; gap:8px;">
+          <div class="wf-note">Select an opportunity above to run its workflow.</div>
+        </div>
       </section>
     </main>
 
@@ -1220,6 +1321,7 @@
       if (targetNav) targetNav.classList.add('active');
 
       if (tabId === 'earning') {
+        loadOwnerAuthStatus();
         loadOpportunitiesFromAPI();
       } else if (tabId === 'profile') {
         loadOwnerProfileFromAPI();
@@ -1586,6 +1688,63 @@
       container.innerHTML = `<div class="opp-title">${escapeHtml(message)}</div>`;
     }
 
+    /* --------------------------------------------------------------------------
+       OWNER AUTHORIZATION (session-scoped, never persisted to disk)
+       The token is kept in sessionStorage for this tab only. It is sent as a
+       Bearer credential to Owner-authorized endpoints. It is never rendered back.
+       -------------------------------------------------------------------------- */
+    function getOwnerToken() {
+      try { return sessionStorage.getItem('ownerToken') || ''; } catch (e) { return ''; }
+    }
+    function authHeaders(extra) {
+      const token = getOwnerToken();
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, extra || {});
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      return headers;
+    }
+    function setOwnerAuthLabel(text, color) {
+      const badge = document.getElementById('owner-auth-badge');
+      const state = document.getElementById('owner-auth-state');
+      if (badge) { badge.textContent = text; if (color) badge.style.color = color; }
+      if (state) state.textContent = 'Owner authorization: ' + text;
+    }
+    function saveOwnerToken() {
+      const input = document.getElementById('owner-token-input');
+      const value = input ? input.value.trim() : '';
+      if (!value) { setOwnerAuthLabel('NO TOKEN ENTERED', '#f87171'); return; }
+      try { sessionStorage.setItem('ownerToken', value); } catch (e) {}
+      if (input) input.value = '';
+      setOwnerAuthLabel('TOKEN STORED (SESSION)', 'var(--neon-cyan)');
+      loadOwnerAuthStatus();
+    }
+    function clearOwnerToken() {
+      try { sessionStorage.removeItem('ownerToken'); } catch (e) {}
+      setOwnerAuthLabel('TOKEN CLEARED', 'var(--text-muted)');
+      loadOwnerAuthStatus();
+    }
+    async function loadOwnerAuthStatus() {
+      try {
+        const res = await fetch('/api/permissions');
+        const payload = await res.json();
+        const state = payload && payload.data ? payload.data.authorizationState : 'UNKNOWN';
+        const hasToken = !!getOwnerToken();
+        if (state === 'NOT_CONFIGURED') {
+          setOwnerAuthLabel('SERVER NOT CONFIGURED — FAIL CLOSED', '#f87171');
+        } else if (hasToken) {
+          setOwnerAuthLabel('TOKEN STORED (SESSION)', 'var(--neon-cyan)');
+        } else {
+          setOwnerAuthLabel('CONFIGURED — ENTER TOKEN', 'var(--text-muted)');
+        }
+      } catch (e) {
+        setOwnerAuthLabel('UNKNOWN', 'var(--text-muted)');
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       OPPORTUNITY LIST + SELECTION
+       -------------------------------------------------------------------------- */
+    let selectedOpportunityId = null;
+
     async function loadOpportunitiesFromAPI() {
       const container = document.getElementById('earning-opportunities-container');
       if (!container) return;
@@ -1609,12 +1768,12 @@
         }
 
         if (rows.length === 0) {
-          renderEmptyState(container, 'NO OPPORTUNITIES');
+          renderEmptyState(container, 'NO OPPORTUNITIES — add one below to start the workflow.');
           return;
         }
 
         container.innerHTML = rows.map(opp => `
-            <div class="opportunity-card">
+            <div class="opportunity-card" onclick="selectOpportunity('${escapeHtml(opp.id)}')">
               <div class="opp-meta-row">
                 <span style="color:var(--text-muted); font-size:10px;">ID: ${escapeHtml(opp.id || 'N/A')}</span>
                 <span class="state-pill ${opp.verification_status === 'VERIFIED' ? 'verified' : 'unverified'}">${escapeHtml(opp.verification_status || 'UNVERIFIED')}</span>
@@ -1629,6 +1788,176 @@
       } catch (e) {
         renderEmptyState(container, 'NOT CONNECTED — opportunity service unreachable.');
       }
+    }
+
+    function selectOpportunity(id) {
+      selectedOpportunityId = id;
+      loadWorkflow();
+    }
+
+    async function createOpportunityFromForm() {
+      const errEl = document.getElementById('opp-form-error');
+      if (errEl) errEl.textContent = '';
+      const title = (document.getElementById('opp-title-input') || {}).value || '';
+      const platform = (document.getElementById('opp-platform-input') || {}).value || '';
+      const url = (document.getElementById('opp-url-input') || {}).value || '';
+      const category = (document.getElementById('opp-category-input') || {}).value || 'other';
+      const cost = (document.getElementById('opp-cost-input') || {}).value || '';
+
+      if (!title.trim()) {
+        if (errEl) errEl.textContent = 'Title is required.';
+        return;
+      }
+      if (!getOwnerToken()) {
+        if (errEl) errEl.textContent = 'Owner token required to create an opportunity. Save your token above.';
+        return;
+      }
+
+      try {
+        const res = await fetch('/api/opportunities', {
+          method: 'POST',
+          headers: authHeaders(),
+          body: JSON.stringify({
+            title: title.trim(),
+            platform: platform.trim(),
+            url: url.trim(),
+            source: 'owner_input',
+            cost: cost.trim(),
+            category: category
+          })
+        });
+        const payload = await res.json();
+        if (!res.ok || payload.ok === false) {
+          if (errEl) errEl.textContent = payload.error || 'Create failed (' + res.status + ').';
+          return;
+        }
+        ['opp-title-input', 'opp-platform-input', 'opp-url-input', 'opp-cost-input'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+        selectedOpportunityId = payload.data && payload.data.id ? payload.data.id : null;
+        await loadOpportunitiesFromAPI();
+        await loadWorkflow();
+      } catch (e) {
+        if (errEl) errEl.textContent = 'NOT CONNECTED — could not reach the opportunity service.';
+      }
+    }
+
+    /* --------------------------------------------------------------------------
+       EARNING WORKFLOW PANEL
+       -------------------------------------------------------------------------- */
+    async function loadWorkflow() {
+      const panel = document.getElementById('earning-workflow-panel');
+      if (!panel) return;
+      if (!selectedOpportunityId) {
+        panel.innerHTML = '<div class="wf-note">Select an opportunity above to run its workflow.</div>';
+        return;
+      }
+      try {
+        const res = await fetch('/api/opportunities/' + encodeURIComponent(selectedOpportunityId) + '/workflow');
+        if (!res.ok) {
+          panel.innerHTML = '<div class="wf-error">NOT CONNECTED — workflow unavailable.</div>';
+          return;
+        }
+        const payload = await res.json();
+        renderWorkflow(payload.data);
+      } catch (e) {
+        panel.innerHTML = '<div class="wf-error">NOT CONNECTED — workflow unreachable.</div>';
+      }
+    }
+
+    function renderWorkflow(view) {
+      const panel = document.getElementById('earning-workflow-panel');
+      if (!panel || !view) return;
+
+      const done = view.completedStages || [];
+      const current = view.currentStage;
+      const steps = (view.stages || []).map(stage => {
+        const isDone = done.includes(stage);
+        const isCurrent = stage === current;
+        const mark = isDone ? '✓' : (isCurrent ? '▶' : '·');
+        return `<div class="wf-step ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''}">
+          <span>${escapeHtml(stage)}</span><span class="wf-step-mark">${mark}</span>
+        </div>`;
+      }).join('');
+
+      const t = view.tracking || {};
+      const history = (view.history || []).slice(-5).reverse().map(h =>
+        `<div class="wf-history-item">${escapeHtml(h.at)} — ${escapeHtml(h.action)}</div>`
+      ).join('');
+
+      panel.innerHTML = `
+        <div class="opp-title">${escapeHtml(view.title || 'Opportunity')}</div>
+        <div class="wf-note">Progress: ${view.progress.completed}/${view.progress.total} (${view.progress.percent}%) · Category: ${escapeHtml(view.category)}</div>
+        <div class="wf-next">Next: ${escapeHtml(view.nextAction || '')}</div>
+        <div class="wf-steps">${steps}</div>
+        <div class="wf-note">Tracking — prepared: ${t.prepared ? 'yes' : 'no'} · approval: ${escapeHtml(t.approvalStatus || 'none')} · executed(manual): ${t.executed ? 'yes' : 'no'} · outcome: ${escapeHtml(t.outcome || 'none')} · evidence: ${escapeHtml(t.outcomeEvidenceStatus || 'NOT_INDEPENDENTLY_VERIFIED')} · independently verified: no · followed up: ${t.followedUp ? 'yes' : 'no'} · learned: ${t.learned ? 'yes' : 'no'}</div>
+        ${view.blocked ? `<div class="wf-error">${escapeHtml(view.blockedReason || 'This workflow is blocked.')}</div>` : ''}
+        <div style="display:flex; flex-wrap:wrap;">
+          <button class="wf-btn" onclick="wfAction('mark_prepared')" ${view.blocked ? 'disabled' : ''}>Mark Prepared</button>
+          <button class="wf-btn" onclick="wfAction('request_approval')" ${view.blocked ? 'disabled' : ''}>Request Approval</button>
+          <button class="wf-btn" onclick="wfAction('record_follow_up', promptFollowUp())">Record Follow-up</button>
+          <button class="wf-btn" onclick="wfAction('record_lesson', promptLesson())">Record Lesson</button>
+        </div>
+        <input type="text" id="wf-approval-id" class="wf-input" placeholder="Approval id (after Owner approves)">
+        <input type="text" id="wf-exec-note" class="wf-input" placeholder="Manual execution note (what you submitted)">
+        <div><button class="wf-btn" onclick="recordExecution()" ${view.blocked ? 'disabled' : ''}>Record Manual Execution</button></div>
+        <select id="wf-outcome" class="wf-input">
+          <option value="SUBMITTED_MANUAL">SUBMITTED_MANUAL</option>
+          <option value="REJECTED">REJECTED</option>
+          <option value="WITHDRAWN">WITHDRAWN</option>
+          <option value="NO_ACTION">NO_ACTION</option>
+        </select>
+        <input type="text" id="wf-outcome-evidence" class="wf-input" placeholder="Owner attestation (recorded as NOT_INDEPENDENTLY_VERIFIED)">
+        <div><button class="wf-btn" onclick="recordOutcome()">Record Outcome</button></div>
+        <div class="wf-error" id="wf-error"></div>
+        <div class="wf-note">${escapeHtml((view.truthfulness || {}).message || '')}</div>
+        ${view.historyTruncated ? '<div class="wf-note">History shows the most recent 100 entries; older entries were truncated.</div>' : ''}
+        ${history ? '<div class="wf-note">Recent history:</div>' + history : ''}
+      `;
+    }
+
+    function promptFollowUp() { return { note: window.prompt('Follow-up note:') || '' }; }
+    function promptLesson() { return { lesson: window.prompt('Lesson learned:') || '' }; }
+
+    async function wfAction(action, extraBody) {
+      if (!selectedOpportunityId) return;
+      const errEl = document.getElementById('wf-error');
+      if (errEl) errEl.textContent = '';
+      if (!getOwnerToken()) {
+        if (errEl) errEl.textContent = 'Owner token required. Save your token above.';
+        return;
+      }
+      const body = Object.assign({ action: action }, extraBody || {});
+      try {
+        const res = await fetch('/api/opportunities/' + encodeURIComponent(selectedOpportunityId) + '/workflow', {
+          method: 'POST', headers: authHeaders(), body: JSON.stringify(body)
+        });
+        const payload = await res.json();
+        if (!res.ok || payload.ok === false) {
+          if (errEl) errEl.textContent = payload.error || ('Action failed (' + res.status + ').');
+          return;
+        }
+        renderWorkflow(payload.data);
+        await loadOpportunitiesFromAPI();
+      } catch (e) {
+        if (errEl) errEl.textContent = 'NOT CONNECTED — workflow unreachable.';
+      }
+    }
+
+    function recordExecution() {
+      const id = (document.getElementById('wf-approval-id') || {}).value || '';
+      const note = (document.getElementById('wf-exec-note') || {}).value || '';
+      wfAction('record_execution', { approval_id: id.trim(), note: note.trim() });
+    }
+
+    function recordOutcome() {
+      const outcome = (document.getElementById('wf-outcome') || {}).value || '';
+      const evidence = (document.getElementById('wf-outcome-evidence') || {}).value || '';
+      // Owner-entered evidence is an attestation only. The UI never asserts
+      // independent verification: the backend records it as
+      // NOT_INDEPENDENTLY_VERIFIED / OWNER_ATTESTED truthfully.
+      wfAction('record_outcome', { outcome: outcome, evidence: evidence.trim() });
     }
 
     async function loadOwnerProfileFromAPI() {

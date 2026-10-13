@@ -81,7 +81,68 @@ node test/test_decision.js
 node test/test_discovery.js
 node test/test_eligibility_owner_fit.js
 node test/test_prepare.js
+node test/test_compare.js
 node test/test_v9_foundations.js
+node test/test_p5_data_integrity.js
+node test/test_phase0_security.js
+node test/test_earning_workflow.js
 ```
 
 Set `TEST_BASE_URL` to point the suites at another host.
+
+## Earning Workflow (Phase 1 Earning Operator)
+
+The Owner-visible earning pipeline is exposed through the Earning tab and the
+`/api/opportunities/:id/workflow` endpoint:
+
+`RESEARCH → DISCOVER → VERIFY → ELIGIBILITY → OWNER_FIT → COMPARE → SCORE →
+SELECT → PREPARE → REQUEST_APPROVAL → EXECUTE → VERIFY_OUTCOME → TRACK →
+FOLLOW_UP → LEARN_IMPROVE`
+
+- `GET /api/opportunities/:id/workflow` returns a read-only derived view. The
+  stages completed are computed from persisted engine state; a new opportunity
+  truthfully stops at `VERIFY`.
+- `POST /api/opportunities/:id/workflow` advances the manual Owner steps
+  (`mark_prepared`, `request_approval`, `record_execution`, `record_outcome`,
+  `record_follow_up`, `record_lesson`). It requires the Owner credential.
+- Progression is enforced **on the server**, not only in the UI. Each action
+  re-derives authoritative state and refuses out-of-order, replayed, stale or
+  mismatched transitions with a clear error and a `REJECTED` audit entry, and
+  changes no state on failure:
+  - `mark_prepared` requires a deterministic `SELECT` decision (and, by
+    extension, `VERIFIED` + `ELIGIBLE` + `FIT`).
+  - `request_approval` requires valid preparation and a `SELECT` decision.
+  - `record_execution` requires valid preparation plus an `APPROVED`,
+    unexpired, single-use Owner approval bound to the exact
+    opportunity/action fingerprint. The approval is consumed atomically once;
+    expired, mismatched or already-consumed approvals are refused.
+  - `record_outcome` requires a valid manual execution record.
+  - `record_follow_up` requires a recorded outcome; `record_lesson` requires a
+    recorded follow-up.
+- Approval identity is **canonical**. Approval creation, workflow execution and
+  the `POST /api/opportunities/:id/prepare` execution boundary all derive
+  `capability` (`external_platform_execution`), `action_type` (`SUBMIT`),
+  `target_resource_id` (the opportunity id) and the normalized `parameters`
+  (`{ opportunity_id, title }`) from one shared helper, so the stored
+  fingerprint and the fingerprint re-checked at execution can never drift.
+  A fingerprint mismatch is refused and does **not** consume the approval.
+- A `REJECT` decision is **not** a completed `SELECT` and blocks the pipeline:
+  a rejected opportunity cannot proceed to preparation, approval or execution.
+  `POST /api/opportunities/:id/prepare` refuses a `REJECT`-decision or
+  `REJECTED`-verification opportunity server-side (HTTP 400, `REJECTED` audit
+  entry), not only in the UI. An approval request is created only after a valid
+  `SELECT`; `NEEDS_REVIEW` never creates an approval.
+- `EXECUTE` is a **manual Owner action**. AIRA never submits, contacts a
+  platform, creates an account, spends money or bypasses CAPTCHA/MFA/OTP.
+- Outcome evidence is honest. Owner-entered text is recorded as an Owner
+  **attestation** (`OWNER_ATTESTED`) and never as independent verification. The
+  runtime never sets `independently verified`; a positive verification claim
+  from the client is refused. Without an authoritative source the outcome
+  remains `NOT_INDEPENDENTLY_VERIFIED`. `SELECT` is a decision, not a terminal
+  outcome. A submission never implies success.
+- Workflow history is bounded to the most recent 100 entries; when the bound is
+  exceeded the view reports `historyTruncated: true` rather than presenting the
+  retained window as complete. Audit logs remain append-only (INSERT only).
+- External automated discovery is `NOT_CONNECTED`. The UI offers a manual /
+  source-input workflow instead of fabricating search results.
+
