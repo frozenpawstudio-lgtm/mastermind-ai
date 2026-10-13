@@ -1706,23 +1706,25 @@ export class MasterMindAgent extends Agent {
       SET status = 'CONSUMED', consumed_at = ${now}, updated_at = ${now}
       WHERE id = ${id} AND status = 'APPROVED' AND expires_at > ${now};`;
 
-    const rowsAffected = updateResult && typeof updateResult.rowsAffected === "number"
-      ? updateResult.rowsAffected
-      : (updateResult && typeof updateResult.changes === "number" ? updateResult.changes : null);
+    const rowsAffected = updateResult && typeof updateResult.rowsWritten === "number"
+      ? updateResult.rowsWritten
+      : (updateResult && typeof updateResult.rowsAffected === "number"
+        ? updateResult.rowsAffected
+        : (updateResult && typeof updateResult.changes === "number" ? updateResult.changes : null));
 
-    if (rowsAffected === 0) {
+    const rechecked = this.getApprovalRequest(id);
+
+    if (rowsAffected === 0 || (rechecked && rechecked.status !== "CONSUMED")) {
       this.logAudit({
         actor: "SYSTEM",
         action: "APPROVAL_CONSUMPTION_FAILED",
         resource_type: "OWNER_APPROVAL",
         resource_id: id,
         status: "FAILED",
-        details: { reason: "rowsAffected === 0 (already consumed or expired)" }
+        details: { reason: "rowsAffected === 0 or status !== CONSUMED (already consumed or expired)" }
       });
       throw new Error("Atomic single-use approval transition failed: Approval was already consumed or expired.");
     }
-
-    const rechecked = this.getApprovalRequest(id);
 
     this.logAudit({
       actor: "SYSTEM",
@@ -2889,7 +2891,35 @@ export class MasterMindAgent extends Agent {
             );
           }
 
-          return Response.json({ ok: true, data: preparation });
+          let approvalRequest = null;
+          const existingApprovals = this.listApprovalRequests({ target_resource_id: targetId });
+          if (existingApprovals.length > 0) {
+            approvalRequest = existingApprovals[0];
+          } else if (opportunity.decision === "SELECT" || opportunity.decision === "NEEDS_REVIEW") {
+            try {
+              approvalRequest = await this.createApprovalRequest({
+                capability: "external_platform_submission",
+                action_type: "MANUAL_SUBMIT",
+                target_resource_id: targetId,
+                parameters: {
+                  platform: opportunity.platform,
+                  title: opportunity.title,
+                  url: opportunity.url,
+                  decision: opportunity.decision,
+                  score: opportunity.score
+                }
+              });
+            } catch {
+              approvalRequest = null;
+            }
+          }
+
+          const responseData = {
+            ...preparation,
+            approval_request: approvalRequest
+          };
+
+          return Response.json({ ok: true, data: responseData });
         }
         return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
       }

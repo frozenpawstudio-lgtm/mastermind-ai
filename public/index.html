@@ -1090,12 +1090,33 @@
       <section class="section-block">
         <div class="section-header-title">
           <h2 class="sec-title">Earning Agent Operator</h2>
-          <span class="sec-badge">Real Phase 1 API</span>
+          <span class="sec-badge">Phase 1 Workflow</span>
         </div>
+
+        <!-- Manual Intake Section (when automated live discovery reports NOT_CONNECTED) -->
+        <div class="glass-card" style="display:flex; flex-direction:column; gap:8px;">
+          <div style="font-size:12px; font-weight:700; color:var(--neon-cyan);">Manual Opportunity Intake</div>
+          <div style="font-size:10px; color:var(--text-muted);">Automated live search is NOT_CONNECTED / UNAVAILABLE. Enter opportunity details or URL below to intake, verify, and prepare.</div>
+          <input type="text" id="intake-title" class="command-input" style="border:1px solid var(--glass-border); padding:6px 10px; border-radius:8px; font-size:12px;" placeholder="Opportunity Title (e.g. Build Cloudflare Worker)">
+          <input type="text" id="intake-url" class="command-input" style="border:1px solid var(--glass-border); padding:6px 10px; border-radius:8px; font-size:12px;" placeholder="URL (e.g. https://example.com/job/101)">
+          <div style="display:flex; gap:6px;">
+            <input type="text" id="intake-platform" class="command-input" style="flex:1; border:1px solid var(--glass-border); padding:6px 10px; border-radius:8px; font-size:12px;" placeholder="Platform (e.g. Upwork)">
+            <input type="text" id="intake-model" class="command-input" style="flex:1; border:1px solid var(--glass-border); padding:6px 10px; border-radius:8px; font-size:12px;" placeholder="Earning Model">
+          </div>
+          <button class="capsule-send-btn" style="width:100%; border-radius:10px; height:36px; font-size:11px; font-weight:700;" onclick="submitManualIntakeUI()">Add Opportunity for Intake</button>
+          <div id="intake-status-msg" style="font-size:10px; color:var(--neon-cyan); display:none;"></div>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button class="capsule-send-btn" style="flex:1; border-radius:12px; height:38px; font-size:11px; font-weight:700;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
+          <button class="capsule-send-btn" style="flex:1; border-radius:12px; height:38px; font-size:11px; font-weight:700; background:linear-gradient(135deg, var(--neon-violet), var(--neon-blue));" onclick="compareOpportunitiesUI()">Compare & Rank</button>
+        </div>
+
+        <div id="compare-results-box" class="glass-card" style="display:none; font-size:11px; gap:6px; flex-direction:column;"></div>
+
         <div class="glass-card" id="earning-opportunities-container" style="display:flex; flex-direction:column; gap:10px;">
           <div class="opp-title" id="earning-opportunities-state">LOADING</div>
         </div>
-        <button class="capsule-send-btn" style="width:100%; border-radius:14px; height:44px; font-weight:700;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
       </section>
     </main>
 
@@ -1586,6 +1607,170 @@
       container.innerHTML = `<div class="opp-title">${escapeHtml(message)}</div>`;
     }
 
+    async function submitManualIntakeUI() {
+      const titleInput = document.getElementById('intake-title');
+      const urlInput = document.getElementById('intake-url');
+      const platformInput = document.getElementById('intake-platform');
+      const modelInput = document.getElementById('intake-model');
+      const msgBox = document.getElementById('intake-status-msg');
+
+      const title = titleInput ? titleInput.value.trim() : '';
+      if (!title) {
+        if (msgBox) {
+          msgBox.style.display = 'block';
+          msgBox.textContent = 'Please enter an opportunity title.';
+          msgBox.style.color = '#ef4444';
+        }
+        return;
+      }
+
+      if (msgBox) {
+        msgBox.style.display = 'block';
+        msgBox.textContent = 'Ingesting opportunity...';
+        msgBox.style.color = 'var(--neon-cyan)';
+      }
+
+      try {
+        const res = await fetch('/api/opportunities/discover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source: 'owner_manual_intake',
+            title,
+            url: urlInput ? urlInput.value.trim() : '',
+            platform: platformInput ? platformInput.value.trim() : '',
+            earning_model: modelInput ? modelInput.value.trim() : ''
+          })
+        });
+
+        const data = await res.json();
+        if (data.ok) {
+          if (msgBox) {
+            msgBox.textContent = 'Opportunity ingested! Automated live discovery reports NOT_CONNECTED. Discovered count: ' + (data.summary ? data.summary.discoveredCount : 1);
+            msgBox.style.color = '#10b981';
+          }
+          if (titleInput) titleInput.value = '';
+          if (urlInput) urlInput.value = '';
+          if (platformInput) platformInput.value = '';
+          if (modelInput) modelInput.value = '';
+          loadOpportunitiesFromAPI();
+        } else {
+          if (msgBox) {
+            msgBox.textContent = 'Error: ' + (data.error || 'Ingestion failed');
+            msgBox.style.color = '#ef4444';
+          }
+        }
+      } catch (err) {
+        if (msgBox) {
+          msgBox.textContent = 'NOT CONNECTED — Opportunity discovery endpoint unreachable.';
+          msgBox.style.color = '#ef4444';
+        }
+      }
+    }
+
+    async function evaluateDecisionUI(id) {
+      try {
+        const res = await fetch(`/api/opportunities/${id}/decision`, { method: 'POST' });
+        const data = await res.json();
+        if (data.ok) {
+          alert(`Decision evaluated! Score: ${data.data.score}, Verdict: ${data.data.decision}`);
+          loadOpportunitiesFromAPI();
+        } else {
+          alert(`Decision Error: ${data.error || 'Evaluation failed'}`);
+        }
+      } catch (e) {
+        alert('NOT CONNECTED — Decision API unreachable');
+      }
+    }
+
+    async function addFactEvidenceUI(id) {
+      const source = prompt("Enter FACT evidence source (e.g. client_contract, platform_listing):", "owner_verification");
+      if (!source) return;
+      const content = prompt("Enter FACT evidence content:", "Owner verified job requirement and platform details.");
+      if (!content) return;
+
+      try {
+        const res = await fetch('/api/evidence', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            opportunity_id: id,
+            classification: 'FACT',
+            source,
+            content
+          })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          alert('FACT Evidence added successfully! Re-evaluating verification and decision states...');
+          loadOpportunitiesFromAPI();
+        } else {
+          alert(`Evidence Error: ${data.error || 'Creation failed'}`);
+        }
+      } catch (e) {
+        alert('NOT CONNECTED — Evidence API unreachable');
+      }
+    }
+
+    async function prepareProposalUI(id) {
+      try {
+        const res = await fetch(`/api/opportunities/${id}/prepare`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'full_proposal' })
+        });
+        const data = await res.json();
+        if (data.ok) {
+          const prep = data.data;
+          let text = `PREPARE PACKAGE GENERATED (MANUAL_OWNER_ONLY)\n\n`;
+          text += `Title: ${prep.opportunity ? prep.opportunity.title : id}\n`;
+          text += `Platform: ${prep.opportunity ? prep.opportunity.platform : 'N/A'}\n`;
+          text += `Decision: ${prep.opportunity ? prep.opportunity.decision : 'N/A'}\n\n`;
+          if (prep.materials && prep.materials.length > 0) {
+            text += `Materials:\n` + prep.materials.map(m => `- ${m.type}: ${m.content.slice(0, 100)}...`).join('\n') + `\n\n`;
+          }
+          if (prep.approval_request) {
+            text += `Owner Approval Request Created (ID: ${prep.approval_request.id}, Status: ${prep.approval_request.status})\n`;
+          }
+          text += `LIMITATIONS:\n` + (prep.limitations ? prep.limitations.join('\n') : '');
+          alert(text);
+        } else {
+          alert(`Prepare Error: ${data.error || 'Preparation failed'}`);
+        }
+      } catch (e) {
+        alert('NOT CONNECTED — Prepare API unreachable');
+      }
+    }
+
+    async function compareOpportunitiesUI() {
+      const box = document.getElementById('compare-results-box');
+      if (!box) return;
+      box.style.display = 'flex';
+      box.innerHTML = '<div style="color:var(--text-muted)">Running deterministic COMPARE engine...</div>';
+
+      try {
+        const res = await fetch('/api/opportunities/compare');
+        const data = await res.json();
+        if (data.ok && Array.isArray(data.data)) {
+          if (data.data.length === 0) {
+            box.innerHTML = '<div style="color:var(--text-muted)">NO OPPORTUNITIES TO COMPARE</div>';
+            return;
+          }
+          box.innerHTML = `<div style="font-weight:700; color:var(--neon-cyan); margin-bottom:4px;">COMPARE DETERMINISTIC RANKING (${data.data.length} items)</div>` +
+            data.data.map((item, idx) => `
+              <div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                <span>#${idx + 1} ${escapeHtml(item.title || item.id)} (${escapeHtml(item.platform || 'N/A')})</span>
+                <span style="color:var(--neon-violet); font-weight:700;">Score: ${item.score} (${escapeHtml(item.decision)})</span>
+              </div>
+            `).join('');
+        } else {
+          box.innerHTML = `<div style="color:#ef4444">Compare Error: ${data.error || 'Evaluation failed'}</div>`;
+        }
+      } catch (e) {
+        box.innerHTML = '<div style="color:#ef4444">NOT CONNECTED — Compare API unreachable</div>';
+      }
+    }
+
     async function loadOpportunitiesFromAPI() {
       const container = document.getElementById('earning-opportunities-container');
       if (!container) return;
@@ -1620,9 +1805,15 @@
                 <span class="state-pill ${opp.verification_status === 'VERIFIED' ? 'verified' : 'unverified'}">${escapeHtml(opp.verification_status || 'UNVERIFIED')}</span>
               </div>
               <div class="opp-title">${escapeHtml(opp.title || 'Untitled Opportunity')}</div>
+              <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(opp.platform || 'Platform Not Specified')} | ${escapeHtml(opp.url || 'No URL')}</div>
               <div style="display:flex; gap:6px; margin-top:4px;">
                 <span class="state-pill eligible">${escapeHtml(opp.eligibility_status || 'UNKNOWN')}</span>
-                <span class="state-pill select">${escapeHtml(opp.decision || 'NEEDS_REVIEW')}</span>
+                <span class="state-pill select">${escapeHtml(opp.decision || 'NEEDS_REVIEW')} (Score: ${opp.score || 0})</span>
+              </div>
+              <div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:6px; margin-top:8px;">
+                <button class="capsule-send-btn" style="border-radius:8px; height:28px; font-size:10px; font-weight:700; width:100%;" onclick="addFactEvidenceUI('${escapeHtml(opp.id)}')">Add FACT Evidence</button>
+                <button class="capsule-send-btn" style="border-radius:8px; height:28px; font-size:10px; font-weight:700; width:100%; background:linear-gradient(135deg, var(--neon-blue), var(--neon-cyan));" onclick="evaluateDecisionUI('${escapeHtml(opp.id)}')">Evaluate Decision</button>
+                <button class="capsule-send-btn" style="border-radius:8px; height:28px; font-size:10px; font-weight:700; width:100%; grid-column: span 2; background:linear-gradient(135deg, var(--neon-cyan), var(--neon-violet));" onclick="prepareProposalUI('${escapeHtml(opp.id)}')">Prepare Proposal (MANUAL OWNER ONLY)</button>
               </div>
             </div>
           `).join('');
