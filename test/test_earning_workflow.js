@@ -334,6 +334,107 @@ async function runEarningWorkflowTests() {
   assert.ok(!rejectWf2.body.data.completedStages.includes("SELECT"), "SELECT must not be fabricated for an unverified opportunity");
   console.log("  ✓ Unverified opportunities cannot be shown as SELECTED");
 
+  // --- 11. Canonical approval identity (Finding 1) -----------------------
+  console.log("11. Testing canonical approval identity and fingerprint binding...");
+  const canonOpp = await createOpportunity({ title: "Canonical approval title", platform: "manual" });
+  await evaluateToSelect(canonOpp.id);
+  await postWorkflow(canonOpp.id, { action: "mark_prepared" });
+  const canonReq = await postWorkflow(canonOpp.id, { action: "request_approval" });
+  const canonId = canonReq.body.data.tracking.approvalId;
+  const canonRow = await getJson(`/api/approvals/${canonId}`, { headers: authHeaders });
+  // The stored approval must carry the canonical execution identity exactly.
+  assert.strictEqual(canonRow.body.data.capability, "external_platform_execution");
+  assert.strictEqual(canonRow.body.data.action_type, "SUBMIT");
+  assert.strictEqual(canonRow.body.data.target_resource_id, canonOpp.id);
+  assert.deepStrictEqual(
+    JSON.parse(canonRow.body.data.parameters_json),
+    { opportunity_id: canonOpp.id, title: "Canonical approval title" },
+    "Approval parameters must equal the canonical execution parameters"
+  );
+  // Happy path: the canonical approval authorises execution exactly once.
+  await getJson(`/api/approvals/${canonId}/decide`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({ decision: "APPROVED" })
+  });
+  const canonExec = await postWorkflow(canonOpp.id, { action: "record_execution", approval_id: canonId });
+  assert.strictEqual(canonExec.res.status, 200, "A canonical, approved, unexpired approval must authorise execution");
+  assert.strictEqual(canonExec.body.data.tracking.executed, true);
+  console.log("  ✓ Canonical approval authorises execution exactly once");
+
+  // Fingerprint mismatch: an approval whose bound parameters differ from the
+  // canonical action must NOT authorise execution, and must not be consumed.
+  // platform "workers_ai" is a CONNECTED service locally, so the /prepare
+  // execution boundary passes the service check and reaches the fingerprint
+  // check we intend to exercise.
+  const mismOpp = await createOpportunity({ title: "Fingerprint mismatch", platform: "workers_ai" });
+  await evaluateToSelect(mismOpp.id);
+  await postWorkflow(mismOpp.id, { action: "mark_prepared" });
+  const tampered = await getJson("/api/approvals", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders },
+    body: JSON.stringify({
+      capability: "external_platform_execution",
+      action_type: "SUBMIT",
+      target_resource_id: mismOpp.id,
+      parameters: { opportunity_id: mismOpp.id, title: "TAMPERED PARAMETERS" }
+    })
+  });
+  assert.strictEqual(tampered.res.status, 201, "Tampered approval creation must return 201");
+  const tamperedId = tampered.body.data.id;
+  await getJson(`/api/approvals/${tamperedId}/decide`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({ decision: "APPROVED" })
+  });
+  const mismatchExec = await postWorkflow(mismOpp.id, { action: "record_execution", approval_id: tamperedId });
+  assert.strictEqual(mismatchExec.res.status, 400, "An approval with mismatched parameters must not authorise execution");
+  assert.match(mismatchExec.body.error, /binding mismatch|fingerprint/i);
+  const tamperedAfter = await getJson(`/api/approvals/${tamperedId}`, { headers: authHeaders });
+  assert.strictEqual(tamperedAfter.body.data.status, "APPROVED", "A fingerprint mismatch must not consume the approval (fail-closed)");
+  // The /prepare execute-boundary path must enforce the same canonical binding.
+  const prepareMismatch = await getJson(`/api/opportunities/${mismOpp.id}/prepare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders },
+    body: JSON.stringify({ approval_id: tamperedId, execute: true })
+  });
+  assert.strictEqual(prepareMismatch.res.status, 403, "PREPARE execute boundary must reject a mismatched approval with 403");
+  assert.match(prepareMismatch.body.error, /binding mismatch|fingerprint/i);
+  console.log("  ✓ Fingerprint-mismatched approvals are rejected by both execution and /prepare (not consumed)");
+
+  // --- 12. Approval creation requires SELECT (Finding 2) -----------------
+  console.log("12. Testing approval creation is gated on SELECT...");
+  const reviewOpp = await createOpportunity({ title: "Needs review approval gate" });
+  const reviewDecision = await getJson(`/api/opportunities/${reviewOpp.id}/decision`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({})
+  });
+  assert.strictEqual(reviewDecision.body.data.decision, "NEEDS_REVIEW", "An unevaluated opportunity must be NEEDS_REVIEW");
+  const reviewApproval = await postWorkflow(reviewOpp.id, { action: "request_approval" });
+  assert.strictEqual(reviewApproval.res.status, 400, "NEEDS_REVIEW must not create an approval");
+  assert.match(reviewApproval.body.error, /SELECT/);
+  const reviewWf = await getJson(`/api/opportunities/${reviewOpp.id}/workflow`);
+  assert.strictEqual(reviewWf.body.data.tracking.approvalId, null, "A refused approval request must not persist an approval id");
+  console.log("  ✓ NEEDS_REVIEW cannot create an approval (no approval id persisted)");
+
+  // --- 13. /prepare is refused for disqualified opportunities (Finding 3) -
+  console.log("13. Testing /prepare rejection for disqualified opportunities...");
+  const rejOpp = await createOpportunity({ title: "Prepare reject gate" });
+  await getJson(`/api/opportunities/${rejOpp.id}/verify`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({ status: "REJECTED" })
+  });
+  // (a) REJECTED verification, decision not yet re-evaluated.
+  const prepRejected = await getJson(`/api/opportunities/${rejOpp.id}/prepare`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({})
+  });
+  assert.strictEqual(prepRejected.res.status, 400, "/prepare must reject a REJECTED-verification opportunity");
+  assert.match(prepRejected.body.error, /not permitted|disqualified/i);
+  // (b) Deterministic REJECT decision.
+  await getJson(`/api/opportunities/${rejOpp.id}/decision`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({})
+  });
+  const prepRejectDecision = await getJson(`/api/opportunities/${rejOpp.id}/prepare`, {
+    method: "POST", headers: { "Content-Type": "application/json", ...authHeaders }, body: JSON.stringify({})
+  });
+  assert.strictEqual(prepRejectDecision.res.status, 400, "/prepare must reject a REJECT-decision opportunity");
+  assert.match(prepRejectDecision.body.error, /not permitted|disqualified/i);
+  console.log("  ✓ /prepare is refused server-side for REJECT / REJECTED opportunities");
+
   console.log("\nAll Phase 1 Earning Workflow tests passed.");
 }
 

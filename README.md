@@ -119,8 +119,19 @@ FOLLOW_UP → LEARN_IMPROVE`
   - `record_outcome` requires a valid manual execution record.
   - `record_follow_up` requires a recorded outcome; `record_lesson` requires a
     recorded follow-up.
+- Approval identity is **canonical**. Approval creation, workflow execution and
+  the `POST /api/opportunities/:id/prepare` execution boundary all derive
+  `capability` (`external_platform_execution`), `action_type` (`SUBMIT`),
+  `target_resource_id` (the opportunity id) and the normalized `parameters`
+  (`{ opportunity_id, title }`) from one shared helper, so the stored
+  fingerprint and the fingerprint re-checked at execution can never drift.
+  A fingerprint mismatch is refused and does **not** consume the approval.
 - A `REJECT` decision is **not** a completed `SELECT` and blocks the pipeline:
   a rejected opportunity cannot proceed to preparation, approval or execution.
+  `POST /api/opportunities/:id/prepare` refuses a `REJECT`-decision or
+  `REJECTED`-verification opportunity server-side (HTTP 400, `REJECTED` audit
+  entry), not only in the UI. An approval request is created only after a valid
+  `SELECT`; `NEEDS_REVIEW` never creates an approval.
 - `EXECUTE` is a **manual Owner action**. AIRA never submits, contacts a
   platform, creates an account, spends money or bypasses CAPTCHA/MFA/OTP.
 - Outcome evidence is honest. Owner-entered text is recorded as an Owner

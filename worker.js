@@ -790,6 +790,30 @@ async function computeActionFingerprint(capability, action_type, target_resource
  */
 const RISK = { READ: "READ", MUTATE: "MUTATE", OWNER_CONTROLLED: "OWNER_CONTROLLED" };
 
+/*
+ * Canonical identity of the single manual execution action the Phase 1 Earning
+ * Operator is allowed to authorise. Approval creation and every execution
+ * validation derive their capability / action_type / target_resource_id /
+ * parameters from this ONE source, so the stored approval fingerprint and the
+ * fingerprint re-checked at execution can never drift apart. This is a pure
+ * function; it does not weaken or bypass any fingerprint check.
+ */
+const EXECUTION_CAPABILITY = "external_platform_execution";
+const EXECUTION_ACTION_TYPE = "SUBMIT";
+
+function canonicalExecutionAction(opportunityId, opportunity) {
+  const targetResourceId = String(opportunityId || "").trim();
+  const title = opportunity && opportunity.title !== undefined && opportunity.title !== null
+    ? String(opportunity.title)
+    : "";
+  return {
+    capability: EXECUTION_CAPABILITY,
+    action_type: EXECUTION_ACTION_TYPE,
+    target_resource_id: targetResourceId,
+    parameters: { opportunity_id: targetResourceId, title }
+  };
+}
+
 function hasOwnerToken(env) {
   return !!(env && typeof env.OWNER_API_TOKEN === "string" && env.OWNER_API_TOKEN.trim().length > 0);
 }
@@ -2224,12 +2248,10 @@ export class MasterMindAgent extends Agent {
         if (workflow.executed) {
           refuse("WORKFLOW_APPROVAL_REQUESTED", "This workflow has already recorded a manual execution; a new approval request is not permitted.");
         }
-        const approval = await this.createApprovalRequest({
-          capability: "external_platform_execution",
-          action_type: "SUBMIT",
-          target_resource_id: opportunityId,
-          parameters: { opportunity_id: opportunityId, title: opportunity.title }
-        });
+        // Create the approval from the SAME canonical action that execution
+        // will re-validate, so the fingerprints cannot diverge.
+        const action = canonicalExecutionAction(opportunityId, opportunity);
+        const approval = await this.createApprovalRequest(action);
         this.updateWorkflowFields(
           opportunityId,
           { approval_id: approval.id, approval_status: approval.status },
@@ -2262,11 +2284,15 @@ export class MasterMindAgent extends Agent {
         if (!approval) {
           refuse("WORKFLOW_EXECUTION_RECORDED", "Approval request not found.");
         }
-        if (approval.target_resource_id !== opportunityId) {
+        // The canonical action is the single source of truth for capability,
+        // action type, target and normalized parameters. The stored approval
+        // must match it exactly.
+        const action = canonicalExecutionAction(opportunityId, opportunity);
+        if (approval.target_resource_id !== action.target_resource_id) {
           refuse("WORKFLOW_EXECUTION_RECORDED", "Approval request does not belong to this opportunity.");
         }
-        if (String(approval.capability || "").trim() !== "external_platform_execution" || String(approval.action_type || "").trim() !== "SUBMIT") {
-          refuse("WORKFLOW_EXECUTION_RECORDED", "Approval request is not bound to the expected action (external_platform_execution/SUBMIT).");
+        if (String(approval.capability || "").trim() !== action.capability || String(approval.action_type || "").trim() !== action.action_type) {
+          refuse("WORKFLOW_EXECUTION_RECORDED", `Approval request is not bound to the expected action (${action.capability}/${action.action_type}).`);
         }
         if (approval.status !== "APPROVED") {
           refuse("WORKFLOW_EXECUTION_RECORDED", `Execution requires an APPROVED approval. Current status is '${approval.status}'.`);
@@ -2279,12 +2305,7 @@ export class MasterMindAgent extends Agent {
         // bound action has drifted fails closed with a binding mismatch.
         let consumed;
         try {
-          consumed = await this.consumeApproval(approvalId, {
-            capability: "external_platform_execution",
-            action_type: "SUBMIT",
-            target_resource_id: opportunityId,
-            parameters: { opportunity_id: opportunityId, title: opportunity.title }
-          });
+          consumed = await this.consumeApproval(approvalId, action);
         } catch (err) {
           refuse("WORKFLOW_EXECUTION_RECORDED", err.message);
         }
@@ -3502,6 +3523,29 @@ export class MasterMindAgent extends Agent {
             return Response.json({ ok: false, error: "Opportunity not found" }, { status: 404 });
           }
 
+          // Server-side state gate: PREPARE is not permitted for an opportunity
+          // the deterministic engine disqualified. A REJECT decision or a
+          // REJECTED verification must fail closed here, not merely in the UI.
+          const decisionForPrepare = normalizeDecision(opportunity.decision);
+          const verificationForPrepare = String(opportunity.verification_status || "UNVERIFIED").toUpperCase();
+          if (decisionForPrepare === "REJECT" || verificationForPrepare === "REJECTED") {
+            this.logAudit({
+              actor: "OWNER",
+              action: "WORKFLOW_PREPARE_REFUSED",
+              resource_type: "OPPORTUNITY",
+              resource_id: targetId,
+              status: "REJECTED",
+              details: { decision: decisionForPrepare, verification_status: verificationForPrepare }
+            });
+            return Response.json(
+              {
+                ok: false,
+                error: `PREPARE is not permitted: the opportunity is disqualified (decision '${decisionForPrepare}', verification '${verificationForPrepare}').`
+              },
+              { status: 400 }
+            );
+          }
+
           const rawType = body.type !== undefined && body.type !== null && String(body.type).trim() !== ""
             ? body.type
             : null;
@@ -3515,13 +3559,13 @@ export class MasterMindAgent extends Agent {
 
           if (body.approval_id || body.execute || body.action === "EXECUTE") {
             try {
+              // Same canonical action identity as approval creation and the
+              // workflow record_execution path; raw client body fields must
+              // never widen the approved fingerprint.
               await this.assertExecutionBoundary({
                 service: opportunity.platform,
                 approval_id: body.approval_id,
-                capability: "external_platform_execution",
-                action_type: "SUBMIT",
-                target_resource_id: targetId,
-                parameters: body
+                ...canonicalExecutionAction(targetId, opportunity)
               });
             } catch (err) {
               return Response.json({ ok: false, error: err.message }, { status: 403 });
