@@ -1,35 +1,13 @@
-{
-  "$schema": "./node_modules/wrangler/config-schema.json",
-  "name": "mastermind-ai",
-  "main": "worker.js",
-  "compatibility_date": "2026-08-24",
-  "compatibility_flags": [
-    "nodejs_compat"
-  ],
-  "ai": {
-    "binding": "AI"
-  },
-  "browser": {
-    "binding": "BROWSER"
-  },
-  "assets": {
-    "directory": ".",
-    "binding": "ASSETS"
-  },
-  "durable_objects": {
-    "bindings": [
-      {
-        "name": "MasterMindAgent",
-        "class_name": "MasterMindAgent"
-      }
-    ]
-  },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": [
-        "MasterMindAgent"
-      ]
-    }
-  ]
-}
+---
+*** Begin Patch
+*** Update File: wrangler.jsonc
+@@
+-  "assets": {
+-    "directory": ".",
+-    "binding": "ASSETS"
+-  },
++  "assets": {
++    "directory": "public",
++    "binding": "ASSETS"
++  },
+*** End Patch
