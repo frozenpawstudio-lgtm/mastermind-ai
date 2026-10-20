@@ -2,1751 +2,2435 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>AIRA — Phase 1 AI Operating System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#04070f">
+  <meta name="description" content="AIRA Master Mind AI — Phase 1 Earning Operator and Research Core.">
+  <title>AIRA — Master Mind AI Operator Console</title>
   <style>
     /* ==========================================================================
-       AIRA CINEMATIC AI OS — FOUNDATION & MOBILE STYLES
+       AIRA DESIGN SYSTEM — TOKENS
        ========================================================================== */
     :root {
-      --bg-void: #03050c;
-      --bg-surface: rgba(10, 15, 30, 0.55);
-      --bg-card: rgba(13, 19, 38, 0.65);
-      --glass-border: rgba(0, 240, 255, 0.2);
-      --glass-border-violet: rgba(168, 85, 247, 0.25);
-      --neon-cyan: #00f0ff;
-      --neon-purple: #9d4edd;
-      --neon-violet: #a855f7;
-      --neon-blue: #3b82f6;
-      --text-main: #f8fafc;
-      --text-muted: #94a3b8;
-      --text-dim: #64748b;
-      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      --bottom-nav-height: 72px;
+      --bg-void: #04070f;
+      --bg-deep: #070c18;
+      --bg-panel: rgba(15, 23, 42, 0.62);
+      --bg-inset: rgba(4, 8, 18, 0.6);
+
+      --stroke: rgba(148, 163, 184, 0.16);
+      --stroke-soft: rgba(148, 163, 184, 0.09);
+      --stroke-cyan: rgba(34, 211, 238, 0.38);
+      --stroke-violet: rgba(168, 85, 247, 0.34);
+
+      --cyan: #22d3ee;
+      --cyan-bright: #67e8f9;
+      --blue: #3b82f6;
+      --violet: #a855f7;
+      --ok: #34d399;
+      --warn: #fbbf24;
+      --err: #f87171;
+      --muted-state: #94a3b8;
+
+      --text: #e9effc;
+      --text-2: #a9b7d3;
+      --text-3: #7e8cab;
+
+      --r-lg: 20px;
+      --r-md: 14px;
+      --r-sm: 10px;
+
+      --dock-height: 66px;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body { margin: 0; padding: 0; }
+
+    html {
+      background: var(--bg-void);
+      -webkit-text-size-adjust: 100%;
     }
 
     body {
-      background-color: var(--bg-void);
-      color: var(--text-main);
-      font-family: var(--font-family);
       min-height: 100vh;
+      background:
+        radial-gradient(1100px 620px at 12% -8%, rgba(34, 211, 238, 0.14), transparent 62%),
+        radial-gradient(900px 560px at 96% 4%, rgba(168, 85, 247, 0.13), transparent 60%),
+        linear-gradient(180deg, #05080f 0%, #04070f 42%, #03060c 100%);
+      background-attachment: fixed;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 14px;
+      line-height: 1.5;
       overflow-x: hidden;
-      overflow-y: auto;
-      padding-bottom: 95px;
-      position: relative;
+      -webkit-font-smoothing: antialiased;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Background atmosphere */
-    #background-canvas {
+    #aura-canvas {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       z-index: 0;
       pointer-events: none;
+      opacity: 0.5;
     }
 
-    .app-container {
+    .app {
       position: relative;
       z-index: 1;
       width: 100%;
-      max-width: 480px;
+      max-width: 560px;
       margin: 0 auto;
-      padding: 12px 16px;
+      padding: 0 clamp(12px, 3.6vw, 18px) calc(var(--dock-height) + 34px);
       display: flex;
       flex-direction: column;
-      gap: 20px;
+      gap: 14px;
     }
 
-    /* --------------------------------------------------------------------------
-       SECTION 1: HEADER & BRAND IDENTITY
-       -------------------------------------------------------------------------- */
-    .header-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 8px 4px;
-    }
-
-    .brand-identity {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .brand-title-group {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-    }
-
-    .brand-title {
-      font-size: 24px;
-      font-weight: 900;
-      letter-spacing: 2.5px;
-      background: linear-gradient(135deg, #ffffff 30%, var(--neon-cyan) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      text-transform: uppercase;
-    }
-
-    .brand-subtitle {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      color: var(--neon-cyan);
-      text-transform: uppercase;
-    }
-
-    .brand-tagline {
-      font-size: 11px;
-      color: var(--text-muted);
-      letter-spacing: 0.5px;
-      margin-top: 1px;
-    }
-
-    .owner-badge {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 6px 12px;
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      backdrop-filter: blur(10px);
-    }
-
-    .owner-avatar {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-violet));
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 10px;
-      font-weight: bold;
-      color: #fff;
-    }
-
-    .owner-status {
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.8px;
-      color: var(--neon-cyan);
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 2: COMMAND CAPSULE AREA
-       -------------------------------------------------------------------------- */
-    .command-capsule {
-      position: relative;
-      width: 100%;
-      background: rgba(12, 18, 34, 0.75);
-      border: 1px solid rgba(0, 240, 255, 0.3);
-      border-radius: 28px;
-      padding: 6px 6px 6px 18px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      backdrop-filter: blur(16px);
-      box-shadow: 0 0 25px rgba(0, 240, 255, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.1);
-      transition: all 0.3s ease;
-    }
-
-    .command-capsule:focus-within {
-      border-color: var(--neon-cyan);
-      box-shadow: 0 0 35px rgba(0, 240, 255, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-    }
-
-    .command-input {
-      flex: 1;
-      background: transparent;
-      border: none;
-      outline: none;
-      color: #ffffff;
-      font-size: 14px;
-      font-weight: 500;
-      letter-spacing: 0.3px;
-    }
-
-    .command-input::placeholder {
-      color: var(--text-dim);
-    }
-
-    .capsule-send-btn {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: none;
-      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-blue));
-      color: #03050c;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 0 15px rgba(0, 240, 255, 0.5);
-      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    .capsule-send-btn:active {
-      transform: scale(0.92);
-    }
-
-    .send-icon {
-      width: 18px;
-      height: 18px;
-      fill: currentColor;
-    }
-
-    /* Output console message box */
-    .output-console {
-      display: none;
-      padding: 12px 16px;
-      background: rgba(15, 23, 42, 0.85);
-      border: 1px solid var(--glass-border);
-      border-radius: 14px;
-      font-size: 13px;
-      color: var(--neon-cyan);
-      backdrop-filter: blur(12px);
-      line-height: 1.4;
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 3: CAPABILITY STRIP
-       -------------------------------------------------------------------------- */
-    .capabilities-container {
-      width: 100%;
-      overflow-x: auto;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-      padding: 2px 0;
-    }
-
-    .capabilities-container::-webkit-scrollbar {
-      display: none;
-    }
-
-    .capabilities-strip {
-      display: flex;
-      gap: 8px;
-      width: max-content;
-    }
-
-    .cap-pill {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      background: rgba(13, 20, 38, 0.65);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-      white-space: nowrap;
-      backdrop-filter: blur(8px);
-    }
-
-    .cap-pill.active {
-      border-color: rgba(0, 240, 255, 0.4);
-      background: rgba(0, 240, 255, 0.08);
-      color: #ffffff;
-    }
-
-    .cap-pill-tag {
-      font-size: 8px;
-      font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 10px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-
-    .cap-pill-tag.active {
-      background: var(--neon-cyan);
-      color: #03050c;
-    }
-
-    .cap-pill-tag.planned {
-      background: rgba(168, 85, 247, 0.2);
-      color: var(--neon-violet);
-      border: 1px solid rgba(168, 85, 247, 0.4);
-    }
-
-    .cap-pill-tag.locked {
-      background: rgba(100, 116, 139, 0.2);
-      color: var(--text-dim);
-      border: 1px solid rgba(100, 116, 139, 0.3);
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 4 & 5: DENSE NEURAL-BRAIN HERO & SURROUNDING INFO NODES
-       -------------------------------------------------------------------------- */
-    .neural-hero-section {
-      position: relative;
-      width: 100%;
-      min-height: 420px; margin: 12px 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      margin: 4px 0;
-    }
-
-    .neural-canvas-container {
-      position: relative;
-      width: 100%;
-      height: 380px;
-    }
-
-    #neural-core-canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    /* Floating Info Nodes Overlay */
-    .info-nodes-container {
-      position: absolute;
+    /* -------------------------------- TOP BAR ------------------------------ */
+    .topbar {
+      position: sticky;
       top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      display: flex;
-      justify-content: space-between;
-      padding: 10px 4px;
-    }
-
-    .nodes-column {
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      gap: 6px;
-    }
-
-    .node-pill {
+      z-index: 30;
       display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 5px 10px;
-      background: rgba(10, 15, 30, 0.75);
-      border: 1px solid rgba(0, 240, 255, 0.25);
-      border-radius: 14px;
-      font-size: 10px;
-      font-weight: 600;
-      color: var(--text-main);
+      justify-content: space-between;
+      gap: 10px;
+      margin: 0 calc(clamp(12px, 3.6vw, 18px) * -1);
+      padding: 10px clamp(12px, 3.6vw, 18px);
+      background: linear-gradient(180deg, rgba(4, 7, 15, 0.96) 62%, rgba(4, 7, 15, 0));
       backdrop-filter: blur(10px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      white-space: nowrap;
     }
 
-    .node-pill.right-node {
-      border-color: rgba(168, 85, 247, 0.25);
-      flex-direction: row-reverse;
-    }
+    .brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 
-    .node-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--neon-cyan);
-      box-shadow: 0 0 8px var(--neon-cyan);
-    }
-
-    .node-pill.right-node .node-dot {
-      background: var(--neon-violet);
-      box-shadow: 0 0 8px var(--neon-violet);
-    }
-
-    .neural-core-caption {
-      text-align: center;
-      margin-top: 4px;
-    }
-
-    .core-caption-title {
-      font-size: 13px;
+    .brand-mark {
+      width: 34px;
+      height: 34px;
+      flex: 0 0 34px;
+      border-radius: 11px;
+      display: grid;
+      place-items: center;
       font-weight: 900;
-      letter-spacing: 2.5px;
-      color: #ffffff;
-      text-transform: uppercase;
+      font-size: 16px;
+      color: #03121a;
+      background: linear-gradient(135deg, var(--cyan-bright), var(--cyan) 45%, var(--violet));
+      box-shadow: 0 0 18px rgba(34, 211, 238, 0.4);
     }
 
-    .core-caption-sub {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 1.5px;
-      color: var(--neon-cyan);
-      text-transform: uppercase;
-    }
+    .brand-text { display: flex; flex-direction: column; min-width: 0; }
 
-    /* --------------------------------------------------------------------------
-       CARD AND SECTION GENERAL STYLES
-       -------------------------------------------------------------------------- */
-    .section-block {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .section-header-title {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 2px;
-    }
-
-    .sec-title {
-      font-size: 13px;
-      font-weight: 800;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .sec-title::before {
-      content: "";
-      width: 3px;
-      height: 12px;
-      background: var(--neon-cyan);
-      border-radius: 2px;
-      box-shadow: 0 0 8px var(--neon-cyan);
-    }
-
-    .sec-badge {
-      font-size: 9px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      color: var(--text-dim);
-      text-transform: uppercase;
-    }
-
-    .glass-card {
-      background: var(--bg-card);
-      border: 1px solid var(--glass-border);
-      border-radius: 18px;
-      padding: 14px;
-      backdrop-filter: blur(14px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 6: AIRA STATUS GRID
-       -------------------------------------------------------------------------- */
-    .status-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-    }
-
-    .status-card {
-      background: rgba(13, 20, 40, 0.6);
-      border: 1px solid rgba(0, 240, 255, 0.15);
-      border-radius: 14px;
-      padding: 10px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .status-label {
-      font-size: 9px;
-      font-weight: 700;
-      color: var(--text-muted);
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-    }
-
-    .status-value {
-      font-size: 11px;
-      font-weight: 800;
-      color: var(--neon-cyan);
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 7: LEARNING PROGRESS
-       -------------------------------------------------------------------------- */
-    .progress-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .progress-item {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .progress-meta {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-    }
-
-    .progress-name {
-      color: var(--text-main);
-      font-weight: 600;
-    }
-
-    .progress-state {
-      color: var(--text-dim);
-      font-weight: 700;
-      font-size: 10px;
-    }
-
-    .progress-bar-bg {
-      width: 100%;
-      height: 4px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 2px;
-      overflow: hidden;
-    }
-
-    .progress-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-violet));
-      border-radius: 2px;
-      width: 0%;
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 8: NEURAL ACTIVITY WAVEFORM
-       -------------------------------------------------------------------------- */
-    .activity-container {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 4px;
-      height: 40px;
-      padding: 0 8px;
-    }
-
-    .waveform-bar {
-      flex: 1;
-      height: 20%;
-      background: var(--neon-cyan);
-      border-radius: 2px;
-      opacity: 0.6;
-      animation: pulseWave 1.8s infinite ease-in-out alternate;
-    }
-
-    @keyframes pulseWave {
-      0% { height: 15%; opacity: 0.3; }
-      100% { height: 90%; opacity: 0.9; }
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 9: QUICK ACCESS GRID
-       -------------------------------------------------------------------------- */
-    .quick-access-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .qa-card {
-      background: rgba(15, 23, 42, 0.7);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      padding: 12px 8px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      gap: 8px;
-      cursor: pointer;
-      backdrop-filter: blur(10px);
-      transition: all 0.2s ease;
-    }
-
-    .qa-card:active {
-      transform: scale(0.96);
-      border-color: var(--neon-cyan);
-    }
-
-    .qa-icon {
-      width: 24px;
-      height: 24px;
-      color: var(--neon-cyan);
-    }
-
-    .qa-title {
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--text-main);
-    }
-
-    .qa-badge {
-      font-size: 8px;
-      font-weight: 800;
-      padding: 2px 4px;
-      border-radius: 6px;
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-dim);
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 10: KNOWLEDGE MAP VISUAL
-       -------------------------------------------------------------------------- */
-    .knowledge-map-box {
-      width: 100%;
-      height: 120px;
-      border-radius: 12px;
-      background: rgba(8, 12, 24, 0.8);
-      border: 1px solid rgba(0, 240, 255, 0.15);
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    #knowledge-canvas {
-      width: 100%;
-      height: 100%;
-    }
-
-    /* --------------------------------------------------------------------------
-       SECTION 11: LOWER CINEMATIC BANNER
-       -------------------------------------------------------------------------- */
-    .cinematic-banner {
-      background: linear-gradient(135deg, rgba(0, 240, 255, 0.12), rgba(168, 85, 247, 0.15));
-      border: 1px solid var(--glass-border);
-      border-radius: 20px;
-      padding: 20px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      box-shadow: 0 0 30px rgba(168, 85, 247, 0.1);
-    }
-
-    .banner-quote {
+    .brand-name {
       font-size: 16px;
       font-weight: 900;
-      letter-spacing: 0.5px;
-      background: linear-gradient(135deg, #ffffff, var(--neon-cyan));
+      letter-spacing: 2.6px;
+      line-height: 1.1;
+      background: linear-gradient(120deg, #ffffff, var(--cyan-bright));
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
-    .banner-sub {
+    .brand-sub {
       font-size: 11px;
-      color: var(--text-muted);
-      letter-spacing: 0.8px;
+      font-weight: 700;
+      letter-spacing: 1.4px;
+      color: var(--text-3);
+      text-transform: uppercase;
     }
 
-    /* --------------------------------------------------------------------------
-       SECTION 12: FLOATING BOTTOM MOBILE NAVIGATION DOCK
-       -------------------------------------------------------------------------- */
-    .bottom-nav-dock {
-      position: fixed;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: calc(100% - 24px);
-      max-width: 450px;
-      height: var(--bottom-nav-height);
-      background: rgba(8, 12, 24, 0.85);
-      border: 1px solid rgba(0, 240, 255, 0.25);
-      border-radius: 36px;
-      padding: 0 16px;
+    .topbar-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+
+    /* ------------------------------- SUB NAV ------------------------------- */
+    .subnav {
+      display: none;
+      gap: 6px;
+      padding: 4px;
+      background: var(--bg-inset);
+      border: 1px solid var(--stroke-soft);
+      border-radius: 999px;
+    }
+
+    .subnav.visible { display: flex; }
+
+    .subnav button {
+      flex: 1;
+      min-height: 34px;
+      padding: 0 10px;
+      border: 1px solid transparent;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--text-2);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+    }
+
+    .subnav button[aria-selected="true"] {
+      color: #041019;
+      background: linear-gradient(135deg, var(--cyan-bright), var(--cyan));
+    }
+
+    /* ------------------------------ CARDS ---------------------------------- */
+    .screens { display: flex; flex-direction: column; }
+
+    .screen { display: none; flex-direction: column; gap: 14px; }
+    .screen.active { display: flex; }
+
+    .card {
+      background: var(--bg-panel);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r-lg);
+      padding: 14px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.34);
+      min-width: 0;
+    }
+
+    .card-head {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      backdrop-filter: blur(20px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 240, 255, 0.15);
-      z-index: 999;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
     }
 
-    .nav-tab-btn {
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 1.3px;
+      text-transform: uppercase;
+      color: #ffffff;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .card-title::before {
+      content: "";
+      width: 3px;
+      height: 13px;
+      border-radius: 2px;
+      background: var(--cyan);
+      box-shadow: 0 0 8px var(--cyan);
+      flex: 0 0 3px;
+    }
+
+    .card-note {
+      font-size: 12px;
+      color: var(--text-3);
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+    }
+
+    .divider { height: 1px; background: var(--stroke-soft); margin: 10px 0; }
+
+    .stack { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+    .stack.tight { gap: 7px; }
+
+    .row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .row .k {
+      font-size: 12px;
+      color: var(--text-3);
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .row .v {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      text-align: right;
+      flex: 0 1 auto;
+      max-width: 58%;
+      overflow-wrap: anywhere;
+    }
+
+    .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+    .tile {
+      background: var(--bg-inset);
+      border: 1px solid var(--stroke-soft);
+      border-radius: var(--r-md);
+      padding: 10px;
+      min-width: 0;
       display: flex;
       flex-direction: column;
-      align-items: center;
       gap: 3px;
-      background: none;
-      border: none;
-      color: var(--text-dim);
-      font-size: 10px;
-      font-weight: 600;
+    }
+
+    .tile .t-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--text-3);
+      overflow-wrap: anywhere;
+    }
+
+    .tile .t-value {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--cyan);
+      overflow-wrap: anywhere;
+    }
+
+    .tile .t-sub { font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
+
+    /* -------------------------------- PILLS -------------------------------- */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 4px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      text-transform: uppercase;
+      border: 1px solid var(--stroke);
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-2);
+      max-width: 100%;
+      overflow-wrap: anywhere;
+      line-height: 1.35;
+    }
+
+    .pill.ok { color: var(--ok); border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.12); }
+    .pill.cyan { color: var(--cyan-bright); border-color: var(--stroke-cyan); background: rgba(34, 211, 238, 0.12); }
+    .pill.violet { color: #d8b4fe; border-color: var(--stroke-violet); background: rgba(168, 85, 247, 0.14); }
+    .pill.warn { color: var(--warn); border-color: rgba(251, 191, 36, 0.35); background: rgba(251, 191, 36, 0.12); }
+    .pill.err { color: var(--err); border-color: rgba(248, 113, 113, 0.38); background: rgba(248, 113, 113, 0.13); }
+    .pill.muted { color: var(--muted-state); }
+
+    .badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* ------------------------------ BUTTONS -------------------------------- */
+    .btn {
+      appearance: none;
+      border: 1px solid var(--stroke);
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text);
+      font: inherit;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 10px 14px;
+      min-height: 42px;
+      border-radius: 12px;
       cursor: pointer;
-      transition: color 0.2s ease;
-      flex: 1;
-    }
-
-    .nav-tab-btn.active {
-      color: var(--neon-cyan);
-    }
-
-    .nav-tab-btn svg {
-      width: 20px;
-      height: 20px;
-      stroke: currentColor;
-      fill: none;
-    }
-
-    /* Central AIRA Core Nav Button */
-    .nav-aira-core-btn {
-      width: 48px;
-      height: 48px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
-      border: 2px solid #ffffff;
-      box-shadow: 0 0 20px var(--neon-cyan);
-      display: flex;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #ffffff;
-      margin-top: -18px;
+      gap: 7px;
+      transition: transform 0.14s ease, background 0.2s ease, border-color 0.2s ease;
+      overflow-wrap: anywhere;
+      text-align: center;
+    }
+
+    .btn:active { transform: scale(0.975); }
+
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn.primary {
+      background: linear-gradient(135deg, var(--cyan-bright), var(--cyan));
+      color: #041019;
+      border-color: transparent;
+      box-shadow: 0 6px 18px rgba(34, 211, 238, 0.28);
+    }
+
+    .btn.violet {
+      background: linear-gradient(135deg, #c084fc, var(--violet));
+      color: #14021f;
+      border-color: transparent;
+    }
+
+    .btn.ghost { background: transparent; }
+
+    .btn.danger { color: var(--err); border-color: rgba(248, 113, 113, 0.35); background: rgba(248, 113, 113, 0.1); }
+
+    .btn.block { width: 100%; }
+    .btn.sm { min-height: 36px; font-size: 12px; padding: 7px 10px; border-radius: 10px; }
+
+    .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn-row .btn { flex: 1 1 118px; }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      flex: 0 0 36px;
+      border-radius: 11px;
+      border: 1px solid var(--stroke);
+      background: rgba(148, 163, 184, 0.1);
+      color: var(--text-2);
+      font: inherit;
+      font-size: 16px;
+      display: grid;
+      place-items: center;
       cursor: pointer;
-      transition: transform 0.2s ease;
     }
 
-    .nav-aira-core-btn:active {
-      transform: scale(0.9);
+    .icon-btn:active { transform: scale(0.94); }
+
+    /* -------------------------------- FORMS -------------------------------- */
+    .field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+
+    .field label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--text-3);
     }
 
-    /* TAB VIEWS MANAGEMENT */
-    .tab-view {
-      display: none;
-      flex-direction: column;
-      gap: 20px;
+    input[type="text"],
+    input[type="password"],
+    input[type="url"],
+    textarea,
+    select {
+      width: 100%;
+      min-height: 42px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke);
+      background: var(--bg-inset);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      outline: none;
     }
 
-    .tab-view.active {
-      display: flex;
+    textarea { min-height: 74px; resize: vertical; line-height: 1.45; }
+
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--stroke-cyan);
+      box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.13);
     }
 
-    /* Opportunity Cards (Phase 1 Real API) */
-    .opportunity-card {
-      background: rgba(15, 23, 42, 0.8);
-      border: 1px solid var(--glass-border);
-      border-radius: 14px;
+    input::placeholder, textarea::placeholder { color: var(--text-3); }
+
+    /* ------------------------------- HERO ---------------------------------- */
+    .hero { display: flex; align-items: center; gap: 12px; }
+
+    .core-frame {
+      position: relative;
+      width: 128px;
+      height: 128px;
+      flex: 0 0 128px;
+      border-radius: 18px;
+      border: 1px solid var(--stroke-cyan);
+      background: radial-gradient(circle at 50% 46%, rgba(34, 211, 238, 0.16), rgba(4, 8, 18, 0.9) 68%);
+      overflow: hidden;
+    }
+
+    #neural-core { width: 100%; height: 100%; display: block; }
+
+    .core-caption {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 5px;
+      text-align: center;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.1px;
+      color: var(--cyan-bright);
+      text-shadow: 0 0 10px rgba(4, 8, 18, 0.95);
+    }
+
+    .hero-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+
+    .hero-state {
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+      color: #ffffff;
+      overflow-wrap: anywhere;
+    }
+
+    .hero-sub { font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
+
+    /* ------------------------------ PIPELINE ------------------------------- */
+    .pipeline { display: flex; flex-direction: column; }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 22px minmax(0, 1fr);
+      gap: 10px;
+      padding: 7px 0;
+      min-width: 0;
+    }
+
+    .stage-rail { position: relative; display: flex; justify-content: center; }
+
+    .stage-rail::before {
+      content: "";
+      position: absolute;
+      top: 16px;
+      bottom: -9px;
+      width: 2px;
+      background: var(--stroke);
+    }
+
+    .stage:last-child .stage-rail::before { display: none; }
+
+    .stage-dot {
+      width: 15px;
+      height: 15px;
+      margin-top: 3px;
+      border-radius: 50%;
+      border: 2px solid var(--stroke);
+      background: var(--bg-deep);
+      z-index: 1;
+    }
+
+    .stage.done .stage-dot { border-color: var(--ok); background: var(--ok); box-shadow: 0 0 9px rgba(52, 211, 153, 0.6); }
+    .stage.blocked .stage-dot { border-color: var(--warn); background: rgba(251, 191, 36, 0.35); }
+    .stage.off .stage-dot { border-color: var(--muted-state); background: rgba(148, 163, 184, 0.2); }
+    .stage.owner .stage-dot { border-color: var(--violet); background: rgba(168, 85, 247, 0.35); }
+
+    .stage-body { min-width: 0; }
+
+    .stage-name {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.7px;
+      text-transform: uppercase;
+      color: var(--text);
+      overflow-wrap: anywhere;
+    }
+
+    .stage-detail { font-size: 12px; color: var(--text-3); overflow-wrap: anywhere; }
+
+    /* ------------------------------- METER --------------------------------- */
+    .meter {
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(148, 163, 184, 0.16);
+      overflow: hidden;
+    }
+
+    .meter > i {
+      display: block;
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+    }
+
+    /* ---------------------------- OPPORTUNITIES ---------------------------- */
+    .opp {
+      border: 1px solid var(--stroke);
+      border-radius: var(--r-md);
+      background: rgba(8, 13, 26, 0.72);
       padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 9px;
+      min-width: 0;
     }
 
-    .opp-meta-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 11px;
-    }
+    .opp-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 
-    .opp-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: #fff;
-    }
-
-    .state-pill {
-      font-size: 9px;
+    .opp-name {
+      font-size: 14px;
       font-weight: 800;
-      padding: 2px 6px;
-      border-radius: 8px;
-      text-transform: uppercase;
+      color: #ffffff;
+      overflow-wrap: anywhere;
+      min-width: 0;
     }
 
-    .state-pill.verified { background: rgba(0, 240, 255, 0.2); color: var(--neon-cyan); }
-    .state-pill.unverified { background: rgba(148, 163, 184, 0.2); color: var(--text-muted); }
-    .state-pill.eligible { background: rgba(59, 130, 246, 0.2); color: var(--neon-blue); }
-    .state-pill.select { background: rgba(168, 85, 247, 0.2); color: var(--neon-violet); }
+    .opp-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
 
+    .opp-link {
+      font-size: 12px;
+      color: var(--cyan-bright);
+      overflow-wrap: anywhere;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .opp-output {
+      border: 1px dashed var(--stroke);
+      border-radius: var(--r-sm);
+      background: var(--bg-inset);
+      padding: 10px;
+      font-size: 12px;
+      color: var(--text-2);
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    /* -------------------------------- CHAT --------------------------------- */
+    .chat-log {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      max-height: 52vh;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 4px 2px;
+    }
+
+    .msg { display: flex; flex-direction: column; gap: 3px; max-width: 100%; }
+
+    .msg-meta { display: flex; gap: 7px; align-items: baseline; font-size: 11px; color: var(--text-3); }
+
+    .msg-who { font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; }
+
+    .msg.owner .msg-who { color: var(--cyan-bright); }
+    .msg.aira .msg-who { color: #d8b4fe; }
+
+    .bubble {
+      border-radius: 13px;
+      padding: 10px 12px;
+      font-size: 13.5px;
+      line-height: 1.5;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+      border: 1px solid var(--stroke);
+      background: rgba(15, 23, 42, 0.72);
+    }
+
+    .msg.owner .bubble { border-color: var(--stroke-cyan); background: rgba(34, 211, 238, 0.11); }
+    .msg.aira .bubble { border-color: var(--stroke-violet); background: rgba(168, 85, 247, 0.1); }
+
+    .msg.error .bubble {
+      border-color: rgba(248, 113, 113, 0.45);
+      background: rgba(248, 113, 113, 0.12);
+      color: #fecaca;
+    }
+
+    .msg.pending .bubble { color: var(--text-3); font-style: italic; }
+
+    .composer { display: flex; gap: 8px; align-items: flex-end; }
+
+    .composer .field { flex: 1 1 auto; }
+
+    .send-btn {
+      width: 46px;
+      height: 46px;
+      flex: 0 0 46px;
+      border-radius: 14px;
+      border: none;
+      background: linear-gradient(135deg, var(--cyan-bright), var(--cyan));
+      color: #041019;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+    }
+
+    .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .send-btn svg { width: 20px; height: 20px; fill: currentColor; }
+
+    /* -------------------------------- LISTS -------------------------------- */
+    .list { display: flex; flex-direction: column; gap: 8px; }
+
+    .list-item {
+      border: 1px solid var(--stroke-soft);
+      border-radius: var(--r-sm);
+      background: var(--bg-inset);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
+
+    .li-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+
+    .li-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
+    .li-sub { font-size: 11.5px; color: var(--text-3); overflow-wrap: anywhere; }
+
+    /* --------------------------- STATE BOXES ------------------------------- */
+    .state-box {
+      border: 1px dashed var(--stroke);
+      border-radius: var(--r-md);
+      padding: 14px;
+      text-align: center;
+      font-size: 12.5px;
+      color: var(--text-3);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      align-items: center;
+      overflow-wrap: anywhere;
+    }
+
+    .state-box strong { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2); }
+    .state-box.error { border-color: rgba(248, 113, 113, 0.4); color: #fecaca; background: rgba(248, 113, 113, 0.07); }
+    .state-box.error strong { color: #fecaca; }
+    .state-box.warn { border-color: rgba(251, 191, 36, 0.35); color: #fde68a; }
+    .state-box.warn strong { color: #fde68a; }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 2px solid rgba(148, 163, 184, 0.28);
+      border-top-color: var(--cyan);
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* -------------------------------- DOCK --------------------------------- */
+    .dock {
+      position: fixed;
+      left: 50%;
+      bottom: max(10px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      width: calc(100% - 20px);
+      max-width: 540px;
+      height: var(--dock-height);
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      align-items: stretch;
+      gap: 2px;
+      padding: 5px;
+      border-radius: 22px;
+      border: 1px solid var(--stroke);
+      background: rgba(6, 10, 20, 0.94);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+      z-index: 60;
+    }
+
+    .dock button {
+      border: none;
+      background: transparent;
+      color: var(--text-3);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      cursor: pointer;
+      padding: 2px;
+      min-width: 0;
+    }
+
+    .dock button svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.9; }
+
+    .dock button[aria-current="true"] {
+      color: var(--cyan-bright);
+      background: rgba(34, 211, 238, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.28);
+    }
+
+    .dock button:active { transform: scale(0.96); }
+
+    /* ------------------------------- TOAST --------------------------------- */
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: calc(var(--dock-height) + 24px);
+      transform: translate(-50%, 14px);
+      max-width: calc(100% - 32px);
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: 1px solid var(--stroke-cyan);
+      background: rgba(6, 12, 24, 0.97);
+      color: var(--text);
+      font-size: 12.5px;
+      font-weight: 600;
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      z-index: 80;
+      overflow-wrap: anywhere;
+      text-align: center;
+    }
+
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast.error { border-color: rgba(248, 113, 113, 0.5); color: #fecaca; }
+    .toast.ok { border-color: rgba(52, 211, 153, 0.5); }
+
+    /* ------------------------------ UTILITIES ------------------------------ */
+    .muted { color: var(--text-3); }
+    .tiny-note { font-size: 11px; color: var(--text-3); line-height: 1.5; overflow-wrap: anywhere; }
+    .mono { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+    .selectable { user-select: text; -webkit-user-select: text; }
+    .sr-only {
+      position: absolute;
+      width: 1px; height: 1px;
+      padding: 0; margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+    [hidden] { display: none !important; }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+    }
+
+    @media (max-width: 359px) {
+      .core-frame { width: 104px; height: 104px; flex-basis: 104px; }
+      .hero-state { font-size: 16px; }
+    }
   </style>
 </head>
 <body>
+  <canvas id="aura-canvas" aria-hidden="true"></canvas>
 
-  <!-- Ambient Void Canvas -->
-  <canvas id="background-canvas"></canvas>
-
-  <div class="app-container">
-
-    <!-- ======================================================================
-         SECTION 1: HEADER & BRAND IDENTITY
-         ====================================================================== -->
-    <header class="header-bar">
-      <div class="brand-identity">
-        <div class="brand-title-group">
-          <h1 class="brand-title">AIRA</h1>
-          <span class="brand-subtitle">MASTER MIND AI</span>
+  <div class="app">
+    <!-- ============================== TOP BAR ============================== -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">A</div>
+        <div class="brand-text">
+          <span class="brand-name">AIRA</span>
+          <span class="brand-sub">Master Mind AI</span>
         </div>
-        <div class="brand-tagline">Think Bigger with AIRA</div>
       </div>
-      <div class="owner-badge">
-        <div class="owner-avatar">O</div>
-        <span class="owner-status">OWNER</span>
+      <div class="topbar-right">
+        <span class="pill" id="top-health" title="Runtime health from /api/health">CHECKING</span>
+        <button class="icon-btn" id="btn-owner" type="button" aria-label="Owner authorization">&#9786;</button>
       </div>
     </header>
 
-    <!-- ======================================================================
-         MAIN HOME TAB
-         ====================================================================== -->
-    <main id="view-home" class="tab-view active">
-
-      <!-- ====================================================================
-           SECTION 2: COMMAND CAPSULE
-           ==================================================================== -->
-      <section class="command-capsule">
-        <input type="text" id="main-command-input" class="command-input" placeholder="AIRA, mujhe kamai karni hai." value="AIRA, mujhe kamai karni hai." autocomplete="off">
-        <button id="main-command-send-btn" class="capsule-send-btn" aria-label="Send Command" onclick="sendMainCommand()">
-          <svg class="send-icon" viewBox="0 0 24 24">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-        </button>
-      </section>
-
-      <div id="response-output-box" class="output-console"></div>
-
-      <!-- ====================================================================
-           SECTION 3: CAPABILITY STRIP
-           ==================================================================== -->
-      <section class="capabilities-container">
-        <div class="capabilities-strip">
-          <div class="cap-pill active">
-            <span>Research</span>
-            <span class="cap-pill-tag active">ACTIVE</span>
-          </div>
-          <div class="cap-pill active" onclick="switchTab('earning')">
-            <span>Earning</span>
-            <span class="cap-pill-tag active">ACTIVE</span>
-          </div>
-          <div class="cap-pill">
-            <span>Build</span>
-            <span class="cap-pill-tag planned">PLANNED</span>
-          </div>
-          <div class="cap-pill">
-            <span>Analyze</span>
-            <span class="cap-pill-tag locked">LOCKED</span>
-          </div>
-          <div class="cap-pill">
-            <span>Create</span>
-            <span class="cap-pill-tag planned">COMING SOON</span>
-          </div>
-          <div class="cap-pill">
-            <span>Automate</span>
-            <span class="cap-pill-tag locked">LOCKED</span>
-          </div>
-          <div class="cap-pill">
-            <span>More</span>
-            <span class="cap-pill-tag locked">PLANNED</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====================================================================
-           SECTION 4 & 5: DENSE CENTRAL NEURAL-BRAIN HERO & SURROUNDING NODES
-           ==================================================================== -->
-      <section class="neural-hero-section">
-        <div class="neural-canvas-container">
-          <canvas id="neural-core-canvas"></canvas>
-
-          <!-- Floating Information Nodes Overlay -->
-          <div class="info-nodes-container">
-            <!-- Left Information Nodes (Input / Ingestion) -->
-            <div class="nodes-column">
-              <div class="node-pill">
-                <span class="node-dot"></span>
-                <span>Text & Documents</span>
-              </div>
-              <div class="node-pill">
-                <span class="node-dot"></span>
-                <span>Images & Media</span>
-              </div>
-              <div class="node-pill">
-                <span class="node-dot"></span>
-                <span>Web & Live Data</span>
-              </div>
-              <div class="node-pill">
-                <span class="node-dot"></span>
-                <span>User Interaction</span>
-              </div>
-              <div class="node-pill">
-                <span class="node-dot"></span>
-                <span>Projects & Files</span>
-              </div>
-            </div>
-
-            <!-- Right Information Nodes (Output / Synthesized Action) -->
-            <div class="nodes-column">
-              <div class="node-pill right-node">
-                <span class="node-dot"></span>
-                <span>Answers & Insights</span>
-              </div>
-              <div class="node-pill right-node">
-                <span class="node-dot"></span>
-                <span>Ideas & Strategies</span>
-              </div>
-              <div class="node-pill right-node">
-                <span class="node-dot"></span>
-                <span>Automation (PLANNED)</span>
-              </div>
-              <div class="node-pill right-node">
-                <span class="node-dot"></span>
-                <span>Earning Opportunities</span>
-              </div>
-              <div class="node-pill right-node">
-                <span class="node-dot"></span>
-                <span>Task Tracking (UNAVAILABLE)</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="neural-core-caption">
-          <div class="core-caption-title">AIRA NEURAL OS</div>
-          <div class="core-caption-sub">EARNING OPERATOR & RESEARCH CORE</div>
-        </div>
-      </section>
-
-      <!-- ====================================================================
-           SECTION 6: AIRA STATUS GRID
-           ==================================================================== -->
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">AIRA Status</h2>
-          <span class="sec-badge">Phase 1 Telemetry</span>
-        </div>
-        <div class="status-grid">
-          <div class="status-card">
-            <span class="status-label">Active Mode</span>
-            <span class="status-value">EARNING AGENT</span>
-          </div>
-          <div class="status-card">
-            <span class="status-label">Today</span>
-            <span class="status-value" style="font-size:10px;">DATA NOT AVAILABLE</span>
-          </div>
-          <div class="status-card">
-            <span class="status-label">System Health</span>
-            <span class="status-value" id="system-health-value">UNKNOWN</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====================================================================
-           SECTION 7: LEARNING PROGRESS
-           ==================================================================== -->
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Learning Progress</h2>
-          <span class="sec-badge">Truthful State</span>
-        </div>
-        <div class="glass-card">
-          <div class="progress-list">
-            <div class="progress-item">
-              <div class="progress-meta">
-                <span class="progress-name">Data Processing</span>
-                <span class="progress-state">UNKNOWN</span>
-              </div>
-              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-meta">
-                <span class="progress-name">Pattern Recognition</span>
-                <span class="progress-state">DATA NOT AVAILABLE</span>
-              </div>
-              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-meta">
-                <span class="progress-name">Knowledge Growth</span>
-                <span class="progress-state">UNKNOWN</span>
-              </div>
-              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
-            </div>
-            <div class="progress-item">
-              <div class="progress-meta">
-                <span class="progress-name">Adaptation Rate</span>
-                <span class="progress-state">DATA NOT AVAILABLE</span>
-              </div>
-              <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: 0%"></div></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====================================================================
-           SECTION 8: NEURAL ACTIVITY WAVEFORM
-           ==================================================================== -->
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Neural Activity</h2>
-          <span class="sec-badge">VISUALIZATION</span>
-        </div>
-        <div class="glass-card">
-          <div class="activity-container" id="waveform-container">
-            <!-- Dynamically populated via JS -->
-          </div>
-        </div>
-      </section>
-
-      <!-- ====================================================================
-           SECTION 9: QUICK ACCESS GRID
-           ==================================================================== -->
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Quick Access</h2>
-          <span class="sec-badge">System Modules</span>
-        </div>
-        <div class="quick-access-grid">
-          <div class="qa-card" onclick="switchTab('earning')">
-            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M15 9.5H10.5a1.5 1.5 0 0 0 0 3h3a1.5 1.5 0 0 1 0 3H9"/></svg>
-            <span class="qa-title">Earning Agent</span>
-            <span class="qa-badge" style="color:var(--neon-cyan)">ACTIVE</span>
-          </div>
-          <div class="qa-card">
-            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-            <span class="qa-title">Research</span>
-            <span class="qa-badge" style="color:var(--neon-cyan)">ACTIVE</span>
-          </div>
-          <div class="qa-card">
-            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-            <span class="qa-title">Builder</span>
-            <span class="qa-badge">PLANNED</span>
-          </div>
-          <div class="qa-card">
-            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            <span class="qa-title">Tasks</span>
-            <span class="qa-badge">UNAVAILABLE</span>
-          </div>
-          <div class="qa-card">
-            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-            <span class="qa-title">Memory</span>
-            <span class="qa-badge">DO PERSISTED</span>
-          </div>
-          <div class="qa-card">
-            <svg class="qa-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
-            <span class="qa-title">Integrations</span>
-            <span class="qa-badge">NOT CONNECTED</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- ====================================================================
-           SECTION 10: KNOWLEDGE MAP VISUAL
-           ==================================================================== -->
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Knowledge Map</h2>
-          <span class="sec-badge">Neural Topology</span>
-        </div>
-        <div class="knowledge-map-box">
-          <canvas id="knowledge-canvas"></canvas>
-        </div>
-      </section>
-
-      <!-- ====================================================================
-           SECTION 11: LOWER CINEMATIC AIRA BANNER
-           ==================================================================== -->
-      <section class="cinematic-banner">
-        <div class="banner-quote">"A smarter you. A brighter tomorrow."</div>
-        <div class="banner-sub">AIRA • PHASE 1 EARNING OPERATOR</div>
-      </section>
-
-    </main>
-
-    <!-- ======================================================================
-         CHAT TAB VIEW
-         ====================================================================== -->
-    <main id="view-chat" class="tab-view">
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">AIRA Conversation Console</h2>
-          <span class="sec-badge">Phase 1 AI</span>
-        </div>
-        <div id="chat-messages-container" class="glass-card" style="min-height:280px; display:flex; flex-direction:column; justify-content:flex-end; gap:8px;">
-          <div style="font-size:12px; color:var(--text-muted); text-align:center;">AIRA Operating System Ready. Send a command to begin.</div>
-        </div>
-        <div class="command-capsule">
-          <input type="text" id="chat-tab-input" class="command-input" placeholder="Ask AIRA anything...">
-          <button id="chat-tab-send-btn" class="capsule-send-btn" aria-label="Send Message" onclick="sendChatTabCommand()">
-            <svg class="send-icon" viewBox="0 0 24 24">
-              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-            </svg>
-          </button>
-        </div>
-      </section>
-    </main>
-
-    <!-- ======================================================================
-         EARNING TAB VIEW (PHASE 1 REAL API)
-         ====================================================================== -->
-    <main id="view-earning" class="tab-view">
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Earning Agent Operator</h2>
-          <span class="sec-badge">Real Phase 1 API</span>
-        </div>
-        <div class="glass-card" id="earning-opportunities-container" style="display:flex; flex-direction:column; gap:10px;">
-          <div class="opp-title" id="earning-opportunities-state">LOADING</div>
-        </div>
-        <button class="capsule-send-btn" style="width:100%; border-radius:14px; height:44px; font-weight:700;" onclick="loadOpportunitiesFromAPI()">Refresh Opportunities</button>
-      </section>
-    </main>
-
-    <!-- ======================================================================
-         PROFILE TAB VIEW
-         ====================================================================== -->
-    <main id="view-profile" class="tab-view">
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Owner Fit Profile</h2>
-          <span class="sec-badge">Backend Record</span>
-        </div>
-        <div class="glass-card" id="profile-details-box" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted)">Owner Skills:</span>
-            <span id="profile-skills" style="color:var(--neon-cyan)">DATA NOT AVAILABLE</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted)">Max Cost Limit:</span>
-            <span id="profile-max-cost" style="color:var(--neon-cyan)">DATA NOT AVAILABLE</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted)">Submission Policy:</span>
-            <span style="color:var(--neon-violet)">MANUAL OWNER ONLY</span>
-          </div>
-        </div>
-      </section>
-
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">AIRA Voice</h2>
-          <span class="sec-badge">Phase 1 Foundation</span>
-        </div>
-        <div class="glass-card" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted)">Voice State:</span>
-            <span id="voice-state" style="color:var(--neon-cyan)">UNKNOWN</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted)">Speech Input:</span>
-            <span id="voice-input-cap" style="color:var(--text-muted)">UNAVAILABLE</span>
-          </div>
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted)">Speech Output:</span>
-            <span id="voice-output-cap" style="color:var(--text-muted)">UNAVAILABLE</span>
-          </div>
-          <div id="voice-limitations" style="color:var(--text-muted); font-size:11px;">DATA NOT AVAILABLE</div>
-        </div>
-      </section>
-
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Connection Foundation</h2>
-          <span class="sec-badge">Truthful States</span>
-        </div>
-        <div class="glass-card" id="connections-list" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
-          <div style="color:var(--text-muted)">LOADING</div>
-        </div>
-        <button class="capsule-send-btn" style="width:100%; border-radius:14px; height:44px; font-weight:700;" onclick="loadConnectionsFromAPI()">Refresh Connections</button>
-      </section>
-
-      <section class="section-block">
-        <div class="section-header-title">
-          <h2 class="sec-title">Permission Foundation</h2>
-          <span class="sec-badge">Owner Authorization</span>
-        </div>
-        <div class="glass-card" style="display:flex; flex-direction:column; gap:8px; font-size:12px;">
-          <div style="display:flex; justify-content:space-between;">
-            <span style="color:var(--text-muted)">Owner Authorization:</span>
-            <span id="auth-state" style="color:var(--neon-violet)">UNKNOWN</span>
-          </div>
-          <div id="permission-rules" style="color:var(--text-muted); font-size:11px;">DATA NOT AVAILABLE</div>
-        </div>
-      </section>
-    </main>
-
-    <!-- ======================================================================
-         SECTION 12: FLOATING BOTTOM MOBILE NAVIGATION DOCK
-         ====================================================================== -->
-    <nav class="bottom-nav-dock">
-      <button class="nav-tab-btn active" id="nav-home" onclick="switchTab('home')">
-        <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span>Home</span>
-      </button>
-      <button class="nav-tab-btn" id="nav-chat" onclick="switchTab('chat')">
-        <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span>Chat</span>
-      </button>
-
-      <!-- Central AIRA Glowing Core Button -->
-      <button class="nav-aira-core-btn" onclick="switchTab('home')" aria-label="AIRA Core">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="8"/><line x1="12" y1="2" x2="12" y2="4"/><line x1="12" y1="20" x2="12" y2="22"/><line x1="2" y1="12" x2="4" y2="12"/><line x1="20" y1="12" x2="22" y2="12"/></svg>
-      </button>
-
-      <button class="nav-tab-btn" id="nav-tools" onclick="switchTab('earning')">
-        <svg viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
-        <span>Tools</span>
-      </button>
-      <button class="nav-tab-btn" id="nav-profile" onclick="switchTab('profile')">
-        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        <span>Profile</span>
-      </button>
+    <!-- ======================== SECONDARY SUB NAVIGATION ==================== -->
+    <nav class="subnav" id="subnav" aria-label="Secondary sections">
+      <button type="button" data-sub="research" aria-selected="true">Research</button>
+      <button type="button" data-sub="tasks">Tasks</button>
+      <button type="button" data-sub="audit">Audit</button>
     </nav>
 
+    <div class="screens">
+
+      <!-- =============================== HOME ============================== -->
+      <section class="screen active" id="screen-home" aria-labelledby="home-title">
+        <h1 class="sr-only" id="home-title">AIRA Home</h1>
+
+        <div class="card">
+          <div class="hero">
+            <div class="core-frame">
+              <canvas id="neural-core" aria-hidden="true"></canvas>
+              <div class="core-caption" id="core-caption">CORE</div>
+            </div>
+            <div class="hero-body">
+              <span class="pill cyan" id="home-phase">PHASE 1 — EARNING</span>
+              <div class="hero-state" id="home-state">INITIALISING</div>
+              <div class="hero-sub" id="home-sub">Reading authoritative state from the AIRA backend.</div>
+              <div class="badge-row" id="home-flags"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">AIRA Status</span>
+            <span class="pill muted" id="home-health-pill">UNKNOWN</span>
+          </div>
+          <div class="grid-3">
+            <div class="tile">
+              <span class="t-label">Active Mode</span>
+              <span class="t-value" id="home-mode">EARNING AGENT</span>
+            </div>
+            <div class="tile">
+              <span class="t-label">Opportunities</span>
+              <span class="t-value" id="home-opp-count">&mdash;</span>
+            </div>
+            <div class="tile">
+              <span class="t-label">Authorized</span>
+              <span class="t-value" id="home-auth">&mdash;</span>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="stack tight">
+            <div class="row"><span class="k">Earned revenue (verified)</span><span class="v muted" id="home-revenue">DATA NOT AVAILABLE</span></div>
+            <div class="row"><span class="k">Confirmed payments</span><span class="v muted" id="home-payments">DATA NOT AVAILABLE</span></div>
+            <div class="row"><span class="k">Submission policy</span><span class="v" id="home-policy">MANUAL OWNER ONLY</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Active Workflow</span>
+            <span class="pill violet" id="home-stage-pill">DISCOVER</span>
+          </div>
+          <div class="pipeline" id="home-pipeline"></div>
+          <div class="tiny-note" id="home-stage-note"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">Next Recommended Action</span></div>
+          <div class="stack tight" id="home-next"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><span class="card-title">Quick Command</span></div>
+          <div class="composer">
+            <div class="field">
+              <label class="sr-only" for="home-command">Command for AIRA</label>
+              <input type="text" id="home-command" placeholder="AIRA, mujhe kamai karni hai." autocomplete="off" enterkeyhint="send">
+            </div>
+            <button class="send-btn" id="home-command-send" type="button" aria-label="Send command">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l20-9L2 3l0 7 15 2-15 2z"/></svg>
+            </button>
+          </div>
+          <div class="divider"></div>
+          <div class="btn-row">
+            <button class="btn sm" type="button" data-goto="research">Research a URL</button>
+            <button class="btn sm" type="button" data-goto="tools">Open Earning Agent</button>
+            <button class="btn sm" type="button" data-goto="tasks">Check Tasks</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- =============================== CHAT ============================== -->
+      <section class="screen" id="screen-chat" aria-labelledby="chat-title">
+        <h2 class="sr-only" id="chat-title">AIRA Conversation</h2>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Conversation</span>
+            <button class="btn sm ghost" type="button" id="chat-clear">Clear</button>
+          </div>
+          <div class="chat-log" id="chat-log" role="log" aria-live="polite"></div>
+          <div class="divider"></div>
+          <div class="composer">
+            <div class="field">
+              <label class="sr-only" for="chat-input">Message</label>
+              <textarea id="chat-input" rows="1" placeholder="Ask AIRA anything..." enterkeyhint="send"></textarea>
+            </div>
+            <button class="send-btn" id="chat-send" type="button" aria-label="Send message">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 21l20-9L2 3l0 7 15 2-15 2z"/></svg>
+            </button>
+          </div>
+          <div class="tiny-note" id="chat-hint">One request is sent per tap. Model output never overrides authoritative backend state.</div>
+        </div>
+      </section>
+
+      <!-- ============================ EARNING AGENT ======================== -->
+      <section class="screen" id="screen-tools" aria-labelledby="tools-title">
+        <h2 class="sr-only" id="tools-title">Earning Agent</h2>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Earning Agent Operator</span>
+            <span class="pill" id="earning-connectivity">CHECKING</span>
+          </div>
+          <div class="tiny-note">DISCOVER &rarr; VERIFY &rarr; CHECK ELIGIBILITY &rarr; CHECK OWNER FIT &rarr; COMPARE &rarr; SCORE &rarr; PREPARE &rarr; REQUEST OWNER APPROVAL &rarr; EXECUTE ONLY WHEN AUTHORIZED &rarr; VERIFY RESULT &rarr; TRACK FOLLOW-UP</div>
+          <div class="divider"></div>
+          <div class="btn-row">
+            <button class="btn sm primary" type="button" id="earning-refresh">Refresh</button>
+            <button class="btn sm" type="button" id="earning-compare">Run COMPARE</button>
+            <button class="btn sm" type="button" id="earning-new">Add Opportunity</button>
+          </div>
+        </div>
+
+        <div class="card" id="earning-form-card" hidden>
+          <div class="card-head">
+            <span class="card-title">New Opportunity</span>
+            <button class="btn sm ghost" type="button" id="earning-form-cancel">Cancel</button>
+          </div>
+          <div class="stack tight">
+            <div class="field">
+              <label for="opp-title">Title (required)</label>
+              <input type="text" id="opp-title" placeholder="e.g. Cloudflare Workers integration">
+            </div>
+            <div class="field">
+              <label for="opp-url">Source URL (evidence link)</label>
+              <input type="url" id="opp-url" placeholder="https://...">
+            </div>
+            <div class="field">
+              <label for="opp-platform">Platform label</label>
+              <input type="text" id="opp-platform" placeholder="Upwork / Fiverr / Direct">
+            </div>
+            <div class="field">
+              <label for="opp-desc">Description / brief</label>
+              <textarea id="opp-desc" placeholder="What the work actually is."></textarea>
+            </div>
+            <button class="btn primary block" type="button" id="earning-create">Create Opportunity</button>
+            <div class="tiny-note">Creating a record is not discovery and not a claim of earnings. A new record is always UNVERIFIED with score 0.</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Opportunities</span>
+            <span class="pill muted" id="earning-count">&mdash;</span>
+          </div>
+          <div class="list" id="earning-list"></div>
+        </div>
+      </section>
+
+      <!-- ============================= RESEARCH ============================ -->
+      <section class="screen" id="screen-research" aria-labelledby="research-title">
+        <h2 class="sr-only" id="research-title">Research</h2>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Research Console</span>
+            <span class="pill" id="research-binding">CHECKING</span>
+          </div>
+          <div class="stack tight">
+            <div class="field">
+              <label for="research-url">Source URL</label>
+              <input type="url" id="research-url" placeholder="https://example.com/article">
+            </div>
+            <button class="btn primary block" type="button" id="research-run">Fetch Source</button>
+          </div>
+          <div class="divider"></div>
+          <div class="stack tight" id="research-result"></div>
+        </div>
+      </section>
+
+      <!-- =============================== TASKS ============================= -->
+      <section class="screen" id="screen-tasks" aria-labelledby="tasks-title">
+        <h2 class="sr-only" id="tasks-title">Tasks</h2>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Task Tracker</span>
+            <span class="pill warn">UNAVAILABLE</span>
+          </div>
+          <div class="state-box warn" id="tasks-state">
+            <strong>TASK TRACKING UNAVAILABLE</strong>
+            <span>No task scheduler or task store is connected to this runtime. AIRA will not display invented task counts or progress.</span>
+          </div>
+          <div class="divider"></div>
+          <div class="stack tight">
+            <div class="row"><span class="k">Task store binding</span><span class="v muted">NOT_CONFIGURED</span></div>
+            <div class="row"><span class="k">Scheduler binding</span><span class="v muted">NOT_CONFIGURED</span></div>
+            <div class="row"><span class="k">Reported tasks completed</span><span class="v muted">DATA NOT AVAILABLE</span></div>
+          </div>
+          <div class="tiny-note">Real work you can act on today is the earning pipeline on the Earning screen.</div>
+        </div>
+      </section>
+
+      <!-- ============================== AUDIT ============================== -->
+      <section class="screen" id="screen-audit" aria-labelledby="audit-title">
+        <h2 class="sr-only" id="audit-title">Audit Log</h2>
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Audit Log</span>
+            <button class="btn sm ghost" type="button" id="audit-refresh">Refresh</button>
+          </div>
+          <div class="tiny-note">Append-only. Owner credential required. This view never writes to the log.</div>
+          <div class="divider"></div>
+          <div class="list" id="audit-list"></div>
+        </div>
+      </section>
+
+      <!-- ============================= PROFILE ============================= -->
+      <section class="screen" id="screen-profile" aria-labelledby="profile-title">
+        <h2 class="sr-only" id="profile-title">Owner Profile</h2>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Owner Authorization</span>
+            <span class="pill" id="profile-auth-pill">UNKNOWN</span>
+          </div>
+          <div class="stack tight" id="profile-auth-body"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Owner Profile</span>
+            <span class="pill muted" id="profile-source-pill">BACKEND RECORD</span>
+          </div>
+          <div class="stack tight" id="profile-fields"></div>
+          <div class="divider"></div>
+          <div class="tiny-note">Only persisted values are shown. Missing values are marked NOT CONFIGURED, never invented. Submission policy is MANUAL OWNER ONLY.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Connection Foundation</span>
+            <button class="btn sm ghost" type="button" id="connections-refresh">Refresh</button>
+          </div>
+          <div class="list" id="connections-list"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Voice Foundation</span>
+            <span class="pill" id="voice-pill">UNKNOWN</span>
+          </div>
+          <div class="stack tight" id="voice-body"></div>
+        </div>
+      </section>
+
+    </div>
   </div>
 
-  <!-- ==========================================================================
-       CANVAS GRAPHICS & INTERACTION SCRIPT
-       ========================================================================== -->
+  <!-- ================================ DOCK ================================= -->
+  <nav class="dock" id="dock" aria-label="Primary">
+    <button type="button" data-nav="home" aria-current="true">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      <span>Home</span>
+    </button>
+    <button type="button" data-nav="chat">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      <span>Chat</span>
+    </button>
+    <button type="button" data-nav="tools">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M14.8 9.2H10.6a1.6 1.6 0 0 0 0 3.2h2.8a1.6 1.6 0 0 1 0 3.2H9"/></svg>
+      <span>Earning</span>
+    </button>
+    <button type="button" data-nav="research">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4.2-4.2"/></svg>
+      <span>Research</span>
+    </button>
+    <button type="button" data-nav="profile">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      <span>Profile</span>
+    </button>
+  </nav>
+
+  <!-- ============================== OWNER AUTH ============================== -->
+  <div class="card" id="owner-auth-panel" hidden
+       style="position:fixed;z-index:90;left:50%;transform:translateX(-50%);top:74px;width:calc(100% - 24px);max-width:420px;background:rgba(6,12,24,0.98);">
+    <div class="card-head">
+      <span class="card-title">Owner Authorization</span>
+      <button class="btn sm ghost" type="button" id="owner-auth-close">Close</button>
+    </div>
+    <div class="stack tight">
+      <div class="field">
+        <label for="owner-token">Owner token</label>
+        <input type="password" id="owner-token" autocomplete="off" placeholder="Paste owner token">
+      </div>
+      <div class="btn-row">
+        <button class="btn primary" type="button" id="owner-auth-save">Use for this session</button>
+        <button class="btn danger" type="button" id="owner-auth-clear">Forget</button>
+      </div>
+      <div class="tiny-note" id="owner-auth-note">The token is held in this page's memory only. It is never written to localStorage, sessionStorage, cookies, the URL or the console, and it disappears when the tab closes.</div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
   <script>
-    /* --------------------------------------------------------------------------
-       1. TAB NAVIGATION CONTROLLER
-       -------------------------------------------------------------------------- */
-    function switchTab(tabId) {
-      document.querySelectorAll('.tab-view').forEach(el => el.classList.remove('active'));
-      document.querySelectorAll('.nav-tab-btn').forEach(el => el.classList.remove('active'));
+    "use strict";
 
-      const targetView = document.getElementById('view-' + tabId);
-      if (targetView) targetView.classList.add('active');
+    /* ==========================================================================
+       AIRA OPERATOR CONSOLE — CLIENT
+       Every value rendered here comes from a real backend response. Absent or
+       unknown values are displayed as DATA NOT AVAILABLE / NOT CONFIGURED /
+       UNKNOWN. Nothing is invented and no action is reported as successful
+       unless the backend confirmed it.
+       ========================================================================== */
 
-      const targetNav = document.getElementById('nav-' + tabId);
-      if (targetNav) targetNav.classList.add('active');
+    /* ------------------------------ UTILITIES ------------------------------ */
+    const $ = (id) => document.getElementById(id);
 
-      if (tabId === 'earning') {
-        loadOpportunitiesFromAPI();
-      } else if (tabId === 'profile') {
-        loadOwnerProfileFromAPI();
-        loadVoiceStateFromAPI();
-        loadConnectionsFromAPI();
-        loadPermissionsFromAPI();
+    function escapeHtml(value) {
+      return String(value === null || value === undefined ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    const NA = "DATA NOT AVAILABLE";
+
+    function text(value) {
+      if (value === null || value === undefined) return "";
+      return String(value).trim();
+    }
+
+    function orNA(value) {
+      const s = text(value);
+      return s === "" ? NA : s;
+    }
+
+    function setText(id, value) {
+      const node = $(id);
+      if (node) node.textContent = value === null || value === undefined ? "" : String(value);
+    }
+
+    let toastTimer = null;
+    function toast(message, kind) {
+      const node = $("toast");
+      if (!node) return;
+      node.textContent = message;
+      node.className = "toast show" + (kind ? " " + kind : "");
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        node.className = "toast" + (kind ? " " + kind : "");
+      }, 4200);
+    }
+
+    function stateBox(kind, title, body) {
+      return '<div class="state-box' + (kind ? " " + kind : "") + '">' +
+        (title ? "<strong>" + escapeHtml(title) + "</strong>" : "") +
+        "<span>" + escapeHtml(body) + "</span></div>";
+    }
+
+    function loadingBox(message) {
+      return '<div class="state-box"><span class="spinner"></span><span>' + escapeHtml(message) + "</span></div>";
+    }
+
+    /* --------------------------- OWNER CREDENTIAL --------------------------
+       Held in a module-scoped variable for the lifetime of this page only.
+       Never persisted to localStorage, sessionStorage, cookies, the URL or the
+       console, and never rendered into the DOM.
+       ---------------------------------------------------------------------- */
+    let ownerToken = "";
+    let authorizationState = "UNKNOWN";
+
+    function ownerHeaders(extra) {
+      const headers = Object.assign({}, extra || {});
+      if (ownerToken) headers.Authorization = "Bearer " + ownerToken;
+      return headers;
+    }
+
+    function isOwnerAuthorized() {
+      return authorizationState === "AUTHORIZED";
+    }
+
+    async function api(path, options) {
+      const opts = Object.assign({}, options || {});
+      opts.headers = ownerHeaders(opts.headers);
+      if (opts.body && typeof opts.body !== "string") {
+        opts.headers["Content-Type"] = "application/json";
+        opts.body = JSON.stringify(opts.body);
+      }
+      let response;
+      try {
+        response = await fetch(path, opts);
+      } catch (err) {
+        return { ok: false, status: 0, networkError: true, error: "NOT CONNECTED — AIRA backend could not be reached." };
+      }
+
+      let payload = null;
+      try {
+        payload = await response.json();
+      } catch (err) {
+        payload = null;
+      }
+
+      if (!response.ok) {
+        const message = (payload && (payload.error || payload.message)) ||
+          ("Request failed with HTTP " + response.status + ".");
+        return {
+          ok: false,
+          status: response.status,
+          denied: response.status === 401 || response.status === 403,
+          error: message,
+          data: payload && payload.data !== undefined ? payload.data : null,
+          raw: payload
+        };
+      }
+
+      return {
+        ok: true,
+        status: response.status,
+        data: payload && payload.data !== undefined ? payload.data : payload,
+        raw: payload
+      };
+    }
+
+    /* ----------------------------- NAVIGATION ----------------------------- */
+    const SCREENS = ["home", "chat", "tools", "research", "tasks", "audit", "profile"];
+    const SUBNAV_SCREENS = ["research", "tasks", "audit"];
+    const loaded = { chat: false };
+
+    function navigate(screen) {
+      if (SCREENS.indexOf(screen) === -1) screen = "home";
+
+      document.querySelectorAll(".screen").forEach((el) => el.classList.remove("active"));
+      const target = $("screen-" + screen);
+      if (target) target.classList.add("active");
+
+      document.querySelectorAll("#dock button").forEach((btn) => {
+        const nav = btn.getAttribute("data-nav");
+        const isCurrent = nav === screen || ((screen === "tasks" || screen === "audit") && nav === "research");
+        btn.setAttribute("aria-current", isCurrent ? "true" : "false");
+      });
+
+      const subnav = $("subnav");
+      if (subnav) {
+        if (SUBNAV_SCREENS.indexOf(screen) !== -1) {
+          subnav.classList.add("visible");
+          subnav.querySelectorAll("button").forEach((btn) => {
+            btn.setAttribute("aria-selected", btn.getAttribute("data-sub") === screen ? "true" : "false");
+          });
+        } else {
+          subnav.classList.remove("visible");
+        }
+      }
+
+      window.scrollTo(0, 0);
+      onScreenShown(screen);
+    }
+
+    function onScreenShown(screen) {
+      if (screen === "home") { loadHome(); return; }
+      if (screen === "tools") { loadEarning(); return; }
+      if (screen === "profile") { loadProfile(); return; }
+      if (screen === "research") { loadResearch(); return; }
+      if (screen === "audit") { loadAudit(); return; }
+      if (screen === "chat" && !loaded.chat) {
+        loaded.chat = true;
+        appendMessage("aira", "AIRA Operator Console ready. Ask about research, earning opportunities or platform status. I report only states the backend confirms.");
       }
     }
 
-    /* --------------------------------------------------------------------------
-       2. DENSE NEURAL BRAIN HERO CANVAS ANIMATION
-       -------------------------------------------------------------------------- */
-    (function initNeuralBrainCanvas() {
-      const canvas = document.getElementById("neural-core-canvas");
+    /* ------------------------- NEURAL CORE (compact) ----------------------
+       Deliberately small: the animation is decoration beside working
+       information, never the main content.
+       ---------------------------------------------------------------------- */
+    function initNeuralCore() {
+      const canvas = $("neural-core");
       if (!canvas) return;
       const ctx = canvas.getContext("2d");
+      let dpr = 1;
+      let w = 0;
+      let h = 0;
 
       function resize() {
         const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width * (window.devicePixelRatio || 1);
-        canvas.height = rect.height * (window.devicePixelRatio || 1);
-        ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+        dpr = window.devicePixelRatio || 1;
+        w = rect.width;
+        h = rect.height;
+        canvas.width = Math.max(1, Math.floor(w * dpr));
+        canvas.height = Math.max(1, Math.floor(h * dpr));
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       }
       resize();
       window.addEventListener("resize", resize);
 
-      // Generate 140 dense, anatomically curved neural brain nodes
       const nodes = [];
-      const nodeCount = 140;
-
-      for (let i = 0; i < nodeCount; i++) {
-        // Create dual hemisphere brain shape (left < 0, right > 0)
-        const isLeft = Math.random() < 0.5;
-        const sideMultiplier = isLeft ? -1 : 1;
-
-        // Polar coordinates relative to hemisphere centers
-        const u = Math.random();
-        const v = Math.random();
-        const radius = 20 + Math.pow(u, 0.5) * 85;
-        const angle = v * Math.PI * 2;
-
-        // Base relative offset shaping a realistic brain silhouette
-        let rx = sideMultiplier * (15 + Math.abs(Math.cos(angle)) * (radius * 0.75));
-        let ry = Math.sin(angle) * (radius * 0.65);
-
-        // Adjust for frontal lobe, occipital lobe, and temporal curve
-        if (ry < -20) rx *= 1.15; // Top expansion
-        if (ry > 20) ry *= 0.85;  // Base flat curve for brainstem
-
+      const COUNT = 34;
+      for (let i = 0; i < COUNT; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const radius = 12 + Math.pow(Math.random(), 0.6) * 40;
         nodes.push({
-          relX: rx,
-          relY: ry,
-          offsetX: 0,
-          offsetY: 0,
-          vx: (Math.random() - 0.5) * 0.35,
-          vy: (Math.random() - 0.5) * 0.35,
-          radius: Math.random() * 2.8 + 1.2,
-          color: isLeft ? "#00f0ff" : "#a855f7",
-          pulse: Math.random() * Math.PI * 2,
-          pulseSpeed: 0.03 + Math.random() * 0.04
+          x: Math.cos(angle) * radius,
+          y: Math.sin(angle) * radius,
+          baseX: Math.cos(angle) * radius,
+          baseY: Math.sin(angle) * radius,
+          vx: (Math.random() - 0.5) * 0.22,
+          vy: (Math.random() - 0.5) * 0.22,
+          r: 1.1 + Math.random() * 1.5,
+          phase: Math.random() * Math.PI * 2,
+          violet: Math.random() < 0.42
         });
       }
 
-      function animate() {
-        const rect = canvas.getBoundingClientRect();
-        const w = rect.width;
-        const h = rect.height;
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      function draw() {
         ctx.clearRect(0, 0, w, h);
-
         const cx = w / 2;
-        const cy = h / 2 - 20;
+        const cy = h / 2;
 
-        // 1. Render Multi-Tier Illuminated Base Pedestal
-        ctx.save();
-        ctx.translate(cx, cy + 115);
-
-        // Outer Pedestal Glow Ring
+        const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 46);
+        glow.addColorStop(0, "rgba(103, 232, 249, 0.8)");
+        glow.addColorStop(0.4, "rgba(34, 211, 238, 0.26)");
+        glow.addColorStop(1, "rgba(4, 8, 18, 0)");
+        ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.ellipse(0, 0, 125, 28, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(0, 240, 255, 0.45)";
-        ctx.lineWidth = 2;
-        ctx.shadowColor = "#00f0ff";
-        ctx.shadowBlur = 18;
-        ctx.stroke();
-
-        // Inner Pedestal Ring
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 85, 20, 0, 0, Math.PI * 2);
-        ctx.strokeStyle = "rgba(168, 85, 247, 0.55)";
-        ctx.lineWidth = 1.5;
-        ctx.shadowColor = "#a855f7";
-        ctx.shadowBlur = 14;
-        ctx.stroke();
-
-        // Core Pedestal Disk
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 50, 12, 0, 0, Math.PI * 2);
-        ctx.fillStyle = "rgba(0, 240, 255, 0.2)";
-        ctx.fill();
-        ctx.restore();
-
-        // 2. Render Vertical Light Beam from Pedestal to Central Brain
-        const beamGrad = ctx.createLinearGradient(cx, cy + 115, cx, cy);
-        beamGrad.addColorStop(0, "rgba(0, 240, 255, 0.25)");
-        beamGrad.addColorStop(1, "rgba(168, 85, 247, 0)");
-        ctx.fillStyle = beamGrad;
-        ctx.beginPath();
-        ctx.moveTo(cx - 55, cy + 115);
-        ctx.lineTo(cx + 55, cy + 115);
-        ctx.lineTo(cx + 30, cy);
-        ctx.lineTo(cx - 30, cy);
-        ctx.closePath();
+        ctx.arc(cx, cy, 46, 0, Math.PI * 2);
         ctx.fill();
 
-        // 3. Central AIRA Nucleus Core Glow
-        ctx.save();
-        const nucGrad = ctx.createRadialGradient(cx, cy, 6, cx, cy, 55);
-        nucGrad.addColorStop(0, "#ffffff");
-        nucGrad.addColorStop(0.25, "rgba(0, 240, 255, 0.95)");
-        nucGrad.addColorStop(0.65, "rgba(168, 85, 247, 0.6)");
-        nucGrad.addColorStop(1, "rgba(3, 5, 12, 0)");
-        ctx.fillStyle = nucGrad;
-        ctx.beginPath();
-        ctx.arc(cx, cy, 55, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
+        for (const n of nodes) {
+          if (!reduceMotion) {
+            n.x += n.vx;
+            n.y += n.vy;
+            if (Math.abs(n.x - n.baseX) > 4) n.vx *= -1;
+            if (Math.abs(n.y - n.baseY) > 4) n.vy *= -1;
+          }
+        }
 
-        // 4. Update Node Positions
-        nodes.forEach(node => {
-          node.offsetX += node.vx;
-          node.offsetY += node.vy;
-          node.pulse += node.pulseSpeed;
-
-          // Tether to base position
-          if (Math.abs(node.offsetX) > 10) node.vx *= -1;
-          if (Math.abs(node.offsetY) > 10) node.vy *= -1;
-
-          node.x = cx + node.relX + node.offsetX;
-          node.y = cy + node.relY + node.offsetY;
-        });
-
-        // 5. Render Interconnected Neural Filaments (Connections)
+        ctx.lineWidth = 1;
         for (let i = 0; i < nodes.length; i++) {
           for (let j = i + 1; j < nodes.length; j++) {
             const dx = nodes[i].x - nodes[j].x;
             const dy = nodes[i].y - nodes[j].y;
             const dist = Math.sqrt(dx * dx + dy * dy);
-
-            if (dist < 48) {
+            if (dist < 22) {
+              ctx.strokeStyle = "rgba(34, 211, 238, " + ((1 - dist / 22) * 0.42).toFixed(3) + ")";
               ctx.beginPath();
-              ctx.moveTo(nodes[i].x, nodes[i].y);
-              ctx.lineTo(nodes[j].x, nodes[j].y);
-              const alpha = (1 - dist / 48) * 0.55;
-              const isCyan = nodes[i].relX < 0;
-              ctx.strokeStyle = isCyan ? "rgba(0, 240, 255, " + alpha + ")" : "rgba(168, 85, 247, " + alpha + ")";
-              ctx.lineWidth = 1;
+              ctx.moveTo(cx + nodes[i].x, cy + nodes[i].y);
+              ctx.lineTo(cx + nodes[j].x, cy + nodes[j].y);
               ctx.stroke();
             }
           }
         }
 
-        // 6. Draw Neural Nodes
-        nodes.forEach(node => {
-          const currentRadius = node.radius + Math.sin(node.pulse) * 0.9;
-
-          ctx.save();
+        for (const n of nodes) {
+          n.phase += 0.035;
+          const r = n.r + (reduceMotion ? 0 : Math.sin(n.phase) * 0.5);
           ctx.beginPath();
-          ctx.arc(node.x, node.y, Math.max(0.6, currentRadius), 0, Math.PI * 2);
-          ctx.fillStyle = node.color;
-          ctx.shadowColor = node.color;
-          ctx.shadowBlur = 10;
+          ctx.arc(cx + n.x, cy + n.y, Math.max(0.6, r), 0, Math.PI * 2);
+          ctx.fillStyle = n.violet ? "#c084fc" : "#67e8f9";
           ctx.fill();
-          ctx.restore();
-        });
+        }
 
-        requestAnimationFrame(animate);
+        if (!reduceMotion) requestAnimationFrame(draw);
       }
+      draw();
+    }
 
-      animate();
-    })();
-
-    /* --------------------------------------------------------------------------
-       3. NEURAL ACTIVITY WAVEFORM GENERATOR
-       -------------------------------------------------------------------------- */
-    (function initWaveform() {
-      const container = document.getElementById('waveform-container');
-      if (!container) return;
-
-      for (let i = 0; i < 24; i++) {
-        const bar = document.createElement('div');
-        bar.className = 'waveform-bar';
-        bar.style.animationDelay = `${(i * 0.08).toFixed(2)}s`;
-        if (i % 2 === 0) bar.style.background = 'var(--neon-violet)';
-        container.appendChild(bar);
-      }
-    })();
-
-    /* --------------------------------------------------------------------------
-       4. KNOWLEDGE MAP CANVAS GRAPH
-       -------------------------------------------------------------------------- */
-    (function initKnowledgeMap() {
-      const canvas = document.getElementById('knowledge-canvas');
+    /* --------------------------- AMBIENT BACKGROUND ------------------------ */
+    function initAura() {
+      const canvas = $("aura-canvas");
       if (!canvas) return;
-      const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext("2d");
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       function resize() {
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = rect.width;
-        canvas.height = rect.height;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
       }
       resize();
+      window.addEventListener("resize", resize);
 
-      const kNodes = [
-        { x: 40, y: 30, label: 'Owner Profile' },
-        { x: 140, y: 70, label: 'Earning Engine' },
-        { x: 260, y: 40, label: 'Verification' },
-        { x: 340, y: 80, label: 'Decision API' }
-      ];
+      const dots = [];
+      for (let i = 0; i < 26; i++) {
+        dots.push({
+          x: Math.random(),
+          y: Math.random(),
+          r: 0.6 + Math.random() * 1.4,
+          speed: 0.00006 + Math.random() * 0.00016,
+          violet: Math.random() < 0.4
+        });
+      }
 
-      function renderKMap() {
+      function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Connect lines
-        ctx.beginPath();
-        for (let i = 0; i < kNodes.length - 1; i++) {
-          ctx.moveTo(kNodes[i].x, kNodes[i].y);
-          ctx.lineTo(kNodes[i+1].x, kNodes[i+1].y);
-        }
-        ctx.strokeStyle = 'rgba(0, 240, 255, 0.3)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // Draw nodes
-        kNodes.forEach(n => {
+        for (const d of dots) {
+          if (!reduceMotion) {
+            d.y -= d.speed * canvas.height;
+            if (d.y < -0.05) { d.y = 1.05; d.x = Math.random(); }
+          }
           ctx.beginPath();
-          ctx.arc(n.x, n.y, 5, 0, Math.PI * 2);
-          ctx.fillStyle = '#00f0ff';
+          ctx.arc(d.x * canvas.width, d.y * canvas.height, d.r, 0, Math.PI * 2);
+          ctx.fillStyle = d.violet ? "rgba(168, 85, 247, 0.5)" : "rgba(34, 211, 238, 0.5)";
           ctx.fill();
-
-          ctx.font = '9px var(--font-family)';
-          ctx.fillStyle = '#94a3b8';
-          ctx.fillText(n.label, n.x - 20, n.y + 16);
-        });
-      }
-      renderKMap();
-    })();
-
-    /* --------------------------------------------------------------------------
-       5. COMMAND & API INTEGRATION HANDLERS (PHASE 1 REAL APIs)
-       -------------------------------------------------------------------------- */
-    async function checkSystemHealth() {
-      const el = document.getElementById('system-health-value');
-      if (!el) return;
-      try {
-        const res = await fetch('/api/health');
-        if (res.ok) {
-          const data = await res.json();
-          // Report the backend's real response instead of a decorative label.
-          const backend = data && data.ok === true ? 'HEALTHY' : 'UNKNOWN';
-          el.textContent = backend;
-          el.style.color = backend === 'HEALTHY' ? '#10b981' : 'var(--text-muted)';
-        } else {
-          el.textContent = 'NOT CONNECTED';
-          el.style.color = '#ef4444';
         }
-      } catch (err) {
-        el.textContent = 'NOT CONNECTED';
-        el.style.color = '#ef4444';
+        if (!reduceMotion) requestAnimationFrame(draw);
       }
+      draw();
     }
-    checkSystemHealth();
 
-    async function sendMainCommand() {
-      const input = document.getElementById('main-command-input');
-      const box = document.getElementById('response-output-box');
-      const text = input ? input.value.trim() : '';
-      if (!text) return;
+    /* ======================================================================
+       AUTHORITATIVE STATE SNAPSHOT
+       A single place that reads the backend. The Home screen, the earning
+       pipeline and the "next action" recommendation are all derived from this
+       snapshot — never from a hard-coded label.
+       ====================================================================== */
+    const AIRA = {
+      health: null,
+      connections: null,
+      permissions: null,
+      profile: null,
+      voice: null,
+      opportunities: null,
+      discovery: null,
+      approvals: null,
+      audit: null,
+      loadedAt: null
+    };
 
-      box.style.display = 'block';
-      box.textContent = 'AIRA processing command...';
+    async function refreshSnapshot() {
+      const [health, connections, permissions, profile, voice, opportunities, discovery] = await Promise.all([
+        api("/api/health"),
+        api("/api/connections"),
+        api("/api/permissions"),
+        api("/api/owner/profile"),
+        api("/api/voice"),
+        api("/api/opportunities"),
+        api("/api/opportunities/discover")
+      ]);
 
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
-        });
-        const data = await res.json();
+      AIRA.health = health.ok ? health.data : null;
+      AIRA.connections = connections.ok ? connections.data : null;
+      AIRA.permissions = permissions.ok ? permissions.data : null;
+      AIRA.profile = profile.ok ? profile.data : null;
+      AIRA.voice = voice.ok ? voice.data : null;
+      AIRA.opportunities = opportunities.ok && Array.isArray(opportunities.data) ? opportunities.data : null;
+      AIRA.discovery = discovery.ok ? discovery.data : null;
+      AIRA.loadedAt = new Date();
 
-        // Never present fabricated output: if the model is unavailable or the
-        // request failed, report the real state instead of an invented answer.
-        if (data.ok === false) {
-          box.textContent = data.error || 'UNAVAILABLE';
-        } else {
-          box.textContent = data.answer || data.response || 'DATA NOT AVAILABLE';
-        }
-      } catch (err) {
-        box.textContent = 'NOT CONNECTED — AIRA backend could not be reached.';
+      if (AIRA.health && AIRA.health.authorization) {
+        const configured = AIRA.health.authorization === "CONFIGURED";
+        if (!configured) authorizationState = "NOT_CONFIGURED";
+        else if (authorizationState !== "AUTHORIZED") authorizationState = "NOT_PRESENTED";
       }
+      return AIRA;
     }
 
-    async function sendChatTabCommand() {
-      const input = document.getElementById('chat-tab-input');
-      const container = document.getElementById('chat-messages-container');
-      const text = input ? input.value.trim() : '';
-      if (!text) return;
+    function findService(name) {
+      const list = AIRA.connections && Array.isArray(AIRA.connections.services) ? AIRA.connections.services : [];
+      return list.find((s) => s.service === name) || null;
+    }
 
-      const userMsg = document.createElement('div');
-      userMsg.style.alignSelf = 'flex-end';
-      userMsg.style.background = 'rgba(0, 240, 255, 0.15)';
-      userMsg.style.padding = '8px 12px';
-      userMsg.style.borderRadius = '12px';
-      userMsg.style.fontSize = '12px';
-      userMsg.textContent = text;
-      container.appendChild(userMsg);
+    function stateClass(state) {
+      const s = String(state || "").toUpperCase();
+      if (s === "CONNECTED" || s === "VOICE_ACTIVE") return "ok";
+      if (s === "PARTIALLY_CONNECTED" || s === "POTENTIALLY_ELIGIBLE" || s === "PARTIALLY_VERIFIED" || s === "POTENTIAL_FIT") return "warn";
+      if (s === "REJECTED" || s === "NOT_ELIGIBLE" || s === "NOT_FIT" || s === "EXPIRED" || s.endsWith("_ERROR")) return "err";
+      if (s === "NEEDS_REAUTH" || s === "UNAVAILABLE" || s === "NOT_CONNECTED") return "muted";
+      if (s === "VERIFIED" || s === "ELIGIBLE" || s === "FIT" || s === "SELECT") return "cyan";
+      return "muted";
+    }
 
-      input.value = '';
+    function pill(state) {
+      return '<span class="pill ' + stateClass(state) + '">' + escapeHtml(orNA(state)) + "</span>";
+    }
 
-      const airaMsg = document.createElement('div');
-      airaMsg.style.alignSelf = 'flex-start';
-      airaMsg.style.background = 'rgba(168, 85, 247, 0.15)';
-      airaMsg.style.padding = '8px 12px';
-      airaMsg.style.borderRadius = '12px';
-      airaMsg.style.fontSize = '12px';
-      airaMsg.style.color = 'var(--neon-cyan)';
-      airaMsg.textContent = 'AIRA processing...';
-      container.appendChild(airaMsg);
+    /* ======================================================================
+       EARNING PIPELINE — the eleven real stages.
 
-      try {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text })
-        });
-        const data = await res.json();
-        if (data.ok === false) {
-          airaMsg.textContent = data.error || 'UNAVAILABLE';
-        } else {
-          airaMsg.textContent = data.answer || data.response || 'DATA NOT AVAILABLE';
-        }
-      } catch (err) {
-        airaMsg.textContent = 'NOT CONNECTED — AIRA backend could not be reached.';
+       A stage is reported as COMPLETE only when the persisted, engine-owned
+       state proves it. Nothing is inferred from a module merely being labelled
+       active, and no stage is reported as successful without evidence.
+       ====================================================================== */
+    const STAGE_DEFS = [
+      { key: "DISCOVER", label: "Discover", owner: false },
+      { key: "VERIFY", label: "Verify", owner: false },
+      { key: "CHECK_ELIGIBILITY", label: "Check Eligibility", owner: false },
+      { key: "CHECK_OWNER_FIT", label: "Check Owner Fit", owner: false },
+      { key: "COMPARE", label: "Compare", owner: false },
+      { key: "SCORE", label: "Score", owner: false },
+      { key: "PREPARE", label: "Prepare", owner: false },
+      { key: "REQUEST_OWNER_APPROVAL", label: "Request Owner Approval", owner: true },
+      { key: "EXECUTE_WHEN_AUTHORIZED", label: "Execute Only When Authorized", owner: true },
+      { key: "VERIFY_RESULT", label: "Verify Result", owner: true },
+      { key: "TRACK_FOLLOW_UP", label: "Track Follow-up", owner: true }
+    ];
+
+    function buildPipeline() {
+      const discoveryConnected = !!(AIRA.discovery && AIRA.discovery.connectivity === "CONNECTED");
+      const rows = Array.isArray(AIRA.opportunities) ? AIRA.opportunities : [];
+      const count = rows.length;
+
+      const verified = rows.filter((r) => String(r.verification_status).toUpperCase() === "VERIFIED").length;
+      const eligibilityKnown = rows.filter((r) => ["ELIGIBLE", "NOT_ELIGIBLE", "POTENTIALLY_ELIGIBLE"].indexOf(String(r.eligibility_status).toUpperCase()) !== -1).length;
+      const ownerFitKnown = rows.filter((r) => ["FIT", "NOT_FIT", "POTENTIAL_FIT"].indexOf(String(r.owner_fit_status).toUpperCase()) !== -1).length;
+      const scored = rows.filter((r) => typeof r.score === "number" && r.score > 0).length;
+      const decided = rows.filter((r) => ["SELECT", "REJECT", "NEEDS_REVIEW"].indexOf(String(r.decision).toUpperCase()) !== -1).length;
+      const approvable = rows.filter((r) => String(r.decision).toUpperCase() === "SELECT").length;
+
+      const stages = [];
+      const add = (key, state, detail) => stages.push(Object.assign({}, STAGE_DEFS.find((s) => s.key === key), { state, detail }));
+
+      add("DISCOVER",
+        discoveryConnected ? (count > 0 ? "COMPLETE" : "READY") : (count > 0 ? "MANUAL" : "NOT_CONNECTED"),
+        discoveryConnected
+          ? count + " persisted opportunit" + (count === 1 ? "y" : "ies") + " from connected discovery."
+          : (count > 0
+              ? "Live marketplace discovery is NOT_CONNECTED. " + count + " record(s) were added manually or through structured intake."
+              : "Live marketplace discovery is NOT_CONNECTED and no opportunity is persisted."));
+
+      add("VERIFY",
+        count === 0 ? "NOT_STARTED" : (verified > 0 ? "COMPLETE" : "BLOCKED"),
+        count === 0 ? "No opportunity to verify." : verified + " of " + count + " verified with FACT evidence.");
+
+      add("CHECK_ELIGIBILITY",
+        count === 0 ? "NOT_STARTED" : (eligibilityKnown > 0 ? "COMPLETE" : "BLOCKED"),
+        count === 0 ? "No opportunity to evaluate." : eligibilityKnown + " of " + count + " carry an eligibility verdict.");
+
+      add("CHECK_OWNER_FIT",
+        count === 0 ? "NOT_STARTED" : (ownerFitKnown > 0 ? "COMPLETE" : "BLOCKED"),
+        count === 0 ? "No opportunity to evaluate." : ownerFitKnown + " of " + count + " carry an owner-fit verdict.");
+
+      add("COMPARE",
+        count < 2 ? "NOT_STARTED" : "READY",
+        count < 2
+          ? "COMPARE ranks two or more persisted opportunities."
+          : "Deterministic read-only ranking is available for " + count + " opportunities.");
+
+      add("SCORE",
+        count === 0 ? "NOT_STARTED" : (scored > 0 ? "COMPLETE" : "BLOCKED"),
+        count === 0 ? "No opportunity to score." : scored + " of " + count + " carry an engine score.");
+
+      add("PREPARE",
+        approvable === 0 ? "BLOCKED" : "READY",
+        approvable === 0
+          ? "PREPARE needs an opportunity the engine scored SELECT. Preparation is never submission."
+          : approvable + " opportunity(ies) are eligible for a preparation package.");
+
+      add("REQUEST_OWNER_APPROVAL", "OWNER_REQUIRED", "Every high-impact action requires an explicit single-use Owner approval.");
+      add("EXECUTE_WHEN_AUTHORIZED", "OWNER_REQUIRED", "Execution runs only with a valid single-use approval and a CONNECTED target service.");
+      add("VERIFY_RESULT", "OWNER_REQUIRED", "Result verification requires real execution evidence, which no connected service can currently supply.");
+      add("TRACK_FOLLOW_UP", "OWNER_REQUIRED", "Follow-up tracking is Owner-controlled and not automatic.");
+
+      return { stages, count, verified, scored, decided, approvable, discoveryConnected };
+    }
+
+    function stageClass(state) {
+      if (state === "COMPLETE") return "done";
+      if (state === "OWNER_REQUIRED") return "owner";
+      if (state === "BLOCKED" || state === "NOT_CONNECTED") return "blocked";
+      return "off";
+    }
+
+    function renderPipeline() {
+      const box = $("home-pipeline");
+      if (!box) return null;
+      const data = buildPipeline();
+
+      box.innerHTML = data.stages.map((s) => (
+        '<div class="stage ' + stageClass(s.state) + '">' +
+          '<div class="stage-rail"><span class="stage-dot"></span></div>' +
+          '<div class="stage-body">' +
+            '<div class="row"><span class="stage-name">' + escapeHtml(s.label) + "</span>" +
+              '<span class="stage-state">' + pill(s.state) + "</span></div>" +
+            '<div class="stage-detail">' + escapeHtml(s.detail) + "</div>" +
+          "</div>" +
+        "</div>"
+      )).join("");
+
+      const active = data.stages.find((s) => s.state === "BLOCKED") ||
+        data.stages.find((s) => s.state === "NOT_CONNECTED") ||
+        data.stages.find((s) => s.state === "NOT_STARTED") ||
+        data.stages.find((s) => s.state === "OWNER_REQUIRED") ||
+        data.stages[0];
+
+      setText("home-stage-pill", active.label.toUpperCase());
+      setText("home-stage-note", active.detail);
+      return data;
+    }
+
+    function renderNextActions(data) {
+      const box = $("home-next");
+      if (!box) return;
+      const actions = [];
+
+      if (!AIRA.permissions || !AIRA.permissions.authorizationConfigured) {
+        actions.push(["Owner credential is NOT_CONFIGURED on the server", "Every state-changing call fails closed. Set OWNER_API_TOKEN as a Cloudflare runtime secret.", "warn"]);
+      } else if (!isOwnerAuthorized()) {
+        actions.push(["Authorize this session", "Open Owner Authorization in the top bar to enable mutating actions. The token stays in memory only.", "warn"]);
       }
+
+      if (!data.discoveryConnected) {
+        actions.push(["Connect a real discovery source", "Marketplace discovery reports NOT_CONNECTED. Add opportunities manually or wire a real source before expecting new work.", "muted"]);
+      }
+
+      if (data.count === 0) {
+        actions.push(["Add the first opportunity", "Open the Earning Agent and add a record with a real source URL so it can be verified.", "cyan"]);
+      } else if (data.verified === 0) {
+        actions.push(["Attach FACT evidence", "No opportunity is VERIFIED. Add real evidence before any eligibility or fit claim can be made.", "warn"]);
+      } else if (data.approvable === 0) {
+        actions.push(["Prepare a review package", "Run the deterministic decision, then PREPARE a draft for an opportunity scored SELECT.", "cyan"]);
+      } else {
+        actions.push(["Request Owner approval", "A preparation package exists. Submission itself remains a manual Owner action.", "violet"]);
+      }
+
+      box.innerHTML = actions.map((a) => (
+        '<div class="list-item">' +
+          '<div class="li-top"><span class="li-name">' + escapeHtml(a[0]) + "</span>" + pill(a[2] === "warn" ? "ACTION REQUIRED" : "NEXT") + "</div>" +
+          '<div class="li-sub">' + escapeHtml(a[1]) + "</div>" +
+        "</div>"
+      )).join("");
     }
 
-    // Escape untrusted API values before they reach innerHTML.
-    function escapeHtml(value) {
-      return String(value === null || value === undefined ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    /* ======================================================================
+       HOME
+       ====================================================================== */
+    async function loadHome() {
+      setText("home-state", "READING STATE");
+      setText("home-sub", "Querying the AIRA backend…");
+
+      await refreshSnapshot();
+      renderHealthPill();
+
+      const health = AIRA.health;
+      const reachable = !!health;
+
+      setText("top-health", reachable ? "ONLINE" : "NOT CONNECTED");
+      const topHealth = $("top-health");
+      if (topHealth) topHealth.className = "pill " + (reachable ? "ok" : "err");
+
+      const aiConnected = !!(health && health.aiConnected);
+      const browserConnected = !!(health && health.browserConnected);
+      const authConfigured = !!(health && health.authorization === "CONFIGURED");
+
+      setText("home-state", reachable ? "AIRA ONLINE" : "AIRA NOT CONNECTED");
+      setText("home-sub", reachable
+        ? "Phase 1 Earning Operator. Every status below is read from the live backend."
+        : "The AIRA backend could not be reached. No status can be verified.");
+
+      const flags = $("home-flags");
+      if (flags) {
+        flags.innerHTML = [
+          '<span class="pill ' + (aiConnected ? "ok" : "err") + '">AI ' + (aiConnected ? "CONNECTED" : "NOT CONNECTED") + "</span>",
+          '<span class="pill ' + (browserConnected ? "ok" : "err") + '">BROWSER ' + (browserConnected ? "CONNECTED" : "NOT CONNECTED") + "</span>",
+          '<span class="pill ' + (authConfigured ? "ok" : "warn") + '">AUTH ' + (authConfigured ? "CONFIGURED" : "NOT CONFIGURED") + "</span>"
+        ].join("");
+      }
+
+      const rows = Array.isArray(AIRA.opportunities) ? AIRA.opportunities : null;
+      setText("home-opp-count", rows === null ? NA : String(rows.length));
+      setText("home-auth", authConfigured ? (isOwnerAuthorized() ? "AUTHORIZED" : "CONFIGURED") : "NOT_CONFIGURED");
+
+      setText("home-revenue", NA);
+      setText("home-payments", NA);
+      setText("home-policy", "MANUAL OWNER ONLY");
+
+      const data = renderPipeline();
+      if (data) renderNextActions(data);
     }
 
-    function renderEmptyState(container, message) {
-      const state = document.getElementById('earning-opportunities-state');
-      if (state) {
-        state.textContent = message;
+    function renderHealthPill() {
+      const node = $("home-health-pill");
+      if (!node) return;
+      const health = AIRA.health;
+      if (!health) {
+        node.textContent = "NOT CONNECTED";
+        node.className = "pill err";
         return;
       }
-      container.innerHTML = `<div class="opp-title">${escapeHtml(message)}</div>`;
+      node.textContent = String(health.status || "UNKNOWN").toUpperCase();
+      node.className = "pill " + (health.ok ? "ok" : "err");
     }
 
-    async function loadOpportunitiesFromAPI() {
-      const container = document.getElementById('earning-opportunities-container');
-      if (!container) return;
+    /* ======================================================================
+       CHAT
+       One request per tap. The send button is disabled while a request is in
+       flight, so a double tap cannot create a second request.
+       ====================================================================== */
+    let chatInFlight = false;
 
-      try {
-        const res = await fetch('/api/opportunities');
+    function appendMessage(who, body, kind) {
+      const log = $("chat-log");
+      if (!log) return null;
+      const wrap = document.createElement("div");
+      wrap.className = "msg " + who + (kind ? " " + kind : "");
+      const label = who === "owner" ? "OWNER" : "AIRA";
+      const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      wrap.innerHTML = '<div class="msg-meta"><span class="msg-who">' + label + "</span><span>" + escapeHtml(time) + "</span></div>" +
+        '<div class="bubble selectable"></div>';
+      wrap.querySelector(".bubble").textContent = body;
+      log.appendChild(wrap);
+      log.scrollTop = log.scrollHeight;
+      return wrap;
+    }
 
-        // The backend wraps results in { ok, data }. An empty list is a real
-        // state (NO OPPORTUNITIES), and a failed request is NOT CONNECTED.
-        if (!res.ok) {
-          renderEmptyState(container, 'NOT CONNECTED — opportunity service unavailable.');
-          return;
+    async function sendChat() {
+      if (chatInFlight) return;
+      const input = $("chat-input");
+      const send = $("chat-send");
+      const message = input ? input.value.trim() : "";
+      if (!message) {
+        toast("Type a message first.", "error");
+        return;
+      }
+
+      chatInFlight = true;
+      if (send) send.disabled = true;
+      if (input) input.value = "";
+
+      appendMessage("owner", message);
+      const pending = appendMessage("aira", "AIRA processing…", "pending");
+
+      const result = await api("/api/chat", { method: "POST", body: { message } });
+
+      chatInFlight = false;
+      if (send) send.disabled = false;
+      if (input) input.focus();
+
+      if (!result.ok) {
+        pending.className = "msg aira error";
+        pending.querySelector(".bubble").textContent = result.error || NA;
+        return;
+      }
+
+      const answer = text(result.raw && (result.raw.answer || result.raw.response));
+      pending.className = "msg aira";
+      pending.querySelector(".bubble").textContent = answer === "" ? NA : answer;
+    }
+
+    function sendHomeCommand() {
+      const input = $("home-command");
+      const message = input ? input.value.trim() : "";
+      if (!message) {
+        toast("Type a command first.", "error");
+        return;
+      }
+      const chatInput = $("chat-input");
+      if (chatInput) chatInput.value = message;
+      if (input) input.value = "";
+      navigate("chat");
+      sendChat();
+    }
+
+    /* ======================================================================
+       EARNING AGENT
+       ====================================================================== */
+    let earningBusy = false;
+
+    /*
+     * Per-opportunity engine output, kept in memory for this page session so a
+     * refresh does not erase what the engine just returned. It is display
+     * state only; the authoritative record always lives on the server.
+     */
+    const opportunityOutput = {};
+
+    function opportunityCard(opp) {
+      const id = escapeHtml(opp.id || "UNKNOWN");
+      const url = text(opp.url);
+      const hasUrl = /^https?:\/\//i.test(url);
+      const cost = text(opp.cost);
+      const risk = text(opp.risk);
+      const effort = text(opp.effort);
+      const earningModel = text(opp.earning_model);
+      const description = text(opp.description);
+      const platform = text(opp.platform);
+      const source = text(opp.source);
+
+      const evidenceCount = Number.isFinite(opp.evidenceCount) ? opp.evidenceCount : null;
+      const score = typeof opp.score === "number" && isFinite(opp.score) ? opp.score : null;
+
+      return '<article class="opp" data-opp="' + id + '">' +
+        '<div class="opp-top">' +
+          '<div><div class="opp-name">' + escapeHtml(orNA(opp.title)) + '</div>' +
+          '<div class="opp-id">ID ' + id + "</div></div>" +
+          '<div class="badge-row">' + pill(opp.verification_status || "UNVERIFIED") + pill(opp.decision || "NEEDS_REVIEW") + "</div>" +
+        "</div>" +
+
+        '<div class="badge-row">' +
+          pill(opp.eligibility_status || "UNKNOWN") +
+          pill(opp.owner_fit_status || "UNKNOWN") +
+          '<span class="pill ' + (score === null ? "muted" : "cyan") + '">SCORE ' + (score === null ? NA : score) + "</span>" +
+          '<span class="pill ' + (evidenceCount === null ? "muted" : "violet") + '" data-evidence-pill="' + id + '">EVIDENCE ' + (evidenceCount === null ? "…" : evidenceCount) + "</span>" +
+        "</div>" +
+
+        '<div class="stack tight">' +
+          '<div class="row"><span class="k">Source URL</span><span class="v">' +
+            (hasUrl
+              ? '<a class="opp-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(url) + "</a>"
+              : escapeHtml(url === "" ? NA : url)) +
+          "</span></div>" +
+          '<div class="row"><span class="k">Platform</span><span class="v">' + escapeHtml(orNA(platform)) + "</span></div>" +
+          '<div class="row"><span class="k">Source label</span><span class="v">' + escapeHtml(orNA(source)) + "</span></div>" +
+          '<div class="row"><span class="k">Estimated cost</span><span class="v">' + escapeHtml(orNA(cost)) + "</span></div>" +
+          '<div class="row"><span class="k">Risk</span><span class="v">' + escapeHtml(orNA(risk)) + "</span></div>" +
+          '<div class="row"><span class="k">Effort</span><span class="v">' + escapeHtml(orNA(effort)) + "</span></div>" +
+          '<div class="row"><span class="k">Earning model</span><span class="v">' + escapeHtml(orNA(earningModel)) + "</span></div>" +
+        "</div>" +
+
+        (description ? '<div class="opp-output">' + escapeHtml(description) + "</div>" : "") +
+
+        '<div class="btn-row">' +
+          '<button class="btn sm" type="button" data-act="evidence" data-id="' + id + '">Evidence</button>' +
+          '<button class="btn sm" type="button" data-act="evaluate" data-id="' + id + '">Evaluate</button>' +
+          '<button class="btn sm" type="button" data-act="prepare" data-id="' + id + '">Prepare</button>' +
+          '<button class="btn sm" type="button" data-act="approval" data-id="' + id + '">Request Approval</button>' +
+        "</div>" +
+        '<div class="stack tight" data-out="' + id + '"></div>' +
+      "</article>";
+    }
+
+    function renderOpportunities(rows) {
+      const list = $("earning-list");
+      if (!list) return;
+      if (!Array.isArray(rows)) {
+        list.innerHTML = stateBox("error", "NOT CONNECTED", "The opportunity service did not return a usable list. Nothing is displayed rather than inventing records.");
+        setText("earning-count", NA);
+        return;
+      }
+      setText("earning-count", String(rows.length));
+      if (rows.length === 0) {
+        list.innerHTML = stateBox("", "NO OPPORTUNITIES", "No opportunity is persisted. Live marketplace discovery reports NOT_CONNECTED, so records must be added with real evidence.");
+        return;
+      }
+      list.innerHTML = rows.map(opportunityCard).join("");
+    }
+
+    async function loadEarning() {
+      if (earningBusy) return;
+      earningBusy = true;
+      setText("earning-connectivity", "CHECKING");
+      const list = $("earning-list");
+      if (list && !list.querySelector(".opp")) list.innerHTML = loadingBox("Reading opportunities…");
+
+      const [opps, discovery] = await Promise.all([
+        api("/api/opportunities"),
+        api("/api/opportunities/discover")
+      ]);
+
+      AIRA.opportunities = opps.ok && Array.isArray(opps.data) ? opps.data : null;
+      AIRA.discovery = discovery.ok ? discovery.data : null;
+
+      const conn = $("earning-connectivity");
+      if (conn) {
+        const connected = !!(AIRA.discovery && AIRA.discovery.connectivity === "CONNECTED");
+        conn.textContent = connected ? "DISCOVERY CONNECTED" : "DISCOVERY NOT CONNECTED";
+        conn.className = "pill " + (connected ? "ok" : "warn");
+      }
+
+      renderOpportunities(AIRA.opportunities);
+      earningBusy = false;
+      restoreOpportunityOutput();
+      hydrateEvidenceCounts();
+    }
+
+    function restoreOpportunityOutput() {
+      document.querySelectorAll("[data-out]").forEach((node) => {
+        const id = node.getAttribute("data-out");
+        if (opportunityOutput[id]) node.innerHTML = opportunityOutput[id];
+      });
+    }
+
+    /*
+     * Evidence reads are Owner-only. The count is only requested when this
+     * session actually holds an owner credential, so an unauthenticated page
+     * load does not fire a request it knows will be refused. When the read is
+     * not permitted the pill says so instead of guessing a number.
+     */
+    async function hydrateEvidenceCounts() {
+      const pills = document.querySelectorAll("[data-evidence-pill]");
+      if (!isOwnerAuthorized()) {
+        pills.forEach((node) => {
+          node.textContent = "EVIDENCE OWNER-ONLY";
+          node.className = "pill muted";
+        });
+        return;
+      }
+      for (const node of pills) {
+        const id = node.getAttribute("data-evidence-pill");
+        const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/evidence");
+        if (result.ok && Array.isArray(result.data)) {
+          node.textContent = "EVIDENCE " + result.data.length;
+          node.className = "pill violet";
+        } else {
+          node.textContent = "EVIDENCE NOT AVAILABLE";
+          node.className = "pill muted";
         }
-
-        const payload = await res.json();
-        const rows = Array.isArray(payload) ? payload : (Array.isArray(payload.data) ? payload.data : null);
-
-        if (rows === null) {
-          renderEmptyState(container, 'DATA NOT AVAILABLE');
-          return;
-        }
-
-        if (rows.length === 0) {
-          renderEmptyState(container, 'NO OPPORTUNITIES');
-          return;
-        }
-
-        container.innerHTML = rows.map(opp => `
-            <div class="opportunity-card">
-              <div class="opp-meta-row">
-                <span style="color:var(--text-muted); font-size:10px;">ID: ${escapeHtml(opp.id || 'N/A')}</span>
-                <span class="state-pill ${opp.verification_status === 'VERIFIED' ? 'verified' : 'unverified'}">${escapeHtml(opp.verification_status || 'UNVERIFIED')}</span>
-              </div>
-              <div class="opp-title">${escapeHtml(opp.title || 'Untitled Opportunity')}</div>
-              <div style="display:flex; gap:6px; margin-top:4px;">
-                <span class="state-pill eligible">${escapeHtml(opp.eligibility_status || 'UNKNOWN')}</span>
-                <span class="state-pill select">${escapeHtml(opp.decision || 'NEEDS_REVIEW')}</span>
-              </div>
-            </div>
-          `).join('');
-      } catch (e) {
-        renderEmptyState(container, 'NOT CONNECTED — opportunity service unreachable.');
       }
     }
 
-    async function loadOwnerProfileFromAPI() {
-      const skillsEl = document.getElementById('profile-skills');
-      const costEl = document.getElementById('profile-max-cost');
-      if (!skillsEl || !costEl) return;
+    async function evaluateOpportunity(id) {
+      const out = document.querySelector('[data-out="' + id + '"]');
+      if (out) out.innerHTML = loadingBox("Running the deterministic decision engine…");
+      const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/decision", { method: "POST", body: {} });
+      if (!result.ok) {
+        if (out) out.innerHTML = stateBox("error", "EVALUATION FAILED", result.error);
+        toast(result.error, "error");
+        return;
+      }
+      const d = result.data || {};
+      const reasons = Array.isArray(d.reasons) ? d.reasons : [];
+      const unknowns = Array.isArray(d.unknowns) ? d.unknowns : [];
+      // Keep the engine output across the refresh that follows, so the Owner
+      // can read the decision the engine actually produced.
+      opportunityOutput[id] =
+        '<div class="divider"></div>' +
+        '<div class="row"><span class="k">Decision (engine-owned)</span><span class="v">' + pill(d.decision) + "</span></div>" +
+        '<div class="row"><span class="k">Score</span><span class="v">' + escapeHtml(d.score === undefined ? NA : d.score) + "</span></div>" +
+        '<div class="row"><span class="k">Verification</span><span class="v">' + escapeHtml(orNA(d.verificationStatus)) + "</span></div>" +
+        '<div class="row"><span class="k">Eligibility</span><span class="v">' + escapeHtml(orNA(d.eligibilityStatus)) + "</span></div>" +
+        '<div class="row"><span class="k">Owner fit</span><span class="v">' + escapeHtml(orNA(d.ownerFitStatus)) + "</span></div>" +
+        (reasons.length ? '<div class="opp-output">' + escapeHtml(reasons.join("\n")) + "</div>" : "") +
+        (unknowns.length ? '<div class="opp-output">' + escapeHtml("UNKNOWNS\n" + unknowns.join("\n")) + "</div>" : "");
+      toast("Decision engine returned " + (d.decision || "UNKNOWN") + ".", "ok");
+      await loadEarning();
+    }
 
-      const unavailable = () => {
-        skillsEl.textContent = 'DATA NOT AVAILABLE';
-        costEl.textContent = 'DATA NOT AVAILABLE';
-      };
+    async function loadEvidence(id) {
+      const out = document.querySelector('[data-out="' + id + '"]');
+      if (out) out.innerHTML = loadingBox("Reading evidence…");
+      const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/evidence");
+      if (!result.ok) {
+        if (out) out.innerHTML = stateBox("error", "EVIDENCE UNAVAILABLE", result.error);
+        return;
+      }
+      const rows = Array.isArray(result.data) ? result.data : [];
+      const html = '<div class="divider"></div>' +
+        '<div class="row"><span class="k">Evidence records</span><span class="v">' + rows.length + "</span></div>" +
+        (rows.length === 0
+          ? stateBox("warn", "NO EVIDENCE", "Without FACT evidence this opportunity cannot be VERIFIED, ELIGIBLE or FIT.")
+          : rows.map((e) => '<div class="list-item"><div class="li-top"><span class="li-name">' + escapeHtml(orNA(e.classification)) + "</span>" + pill(e.classification) + "</div>" +
+              '<div class="li-sub">' + escapeHtml(orNA(e.source)) + "</div>" +
+              '<div class="opp-output">' + escapeHtml(orNA(e.content)) + "</div></div>").join(""));
+      opportunityOutput[id] = html;
+      if (out) out.innerHTML = html;
+    }
 
-      try {
-        const res = await fetch('/api/owner/profile');
-        if (!res.ok) {
-          unavailable();
-          return;
+    async function prepareOpportunity(id) {
+      const out = document.querySelector('[data-out="' + id + '"]');
+      if (out) out.innerHTML = loadingBox("Composing a preparation package…");
+      const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/prepare", { method: "POST", body: {} });
+      if (!result.ok) {
+        if (out) out.innerHTML = stateBox("error", "PREPARE FAILED", result.error);
+        toast(result.error, "error");
+        return;
+      }
+      const p = result.data || {};
+      const materials = Array.isArray(p.materials) ? p.materials : [];
+      const missing = Array.isArray(p.missingInformation) ? p.missingInformation : [];
+      const next = Array.isArray(p.nextActions) ? p.nextActions : [];
+      const html = '<div class="divider"></div>' +
+        '<div class="row"><span class="k">Submission status</span><span class="v">' + pill(p.submissionStatus || "NOT_SUBMITTED") + "</span></div>" +
+        '<div class="row"><span class="k">Owner review required</span><span class="v">' + (p.ownerReviewRequired ? "YES" : "NO") + "</span></div>" +
+        (missing.length ? '<div class="opp-output">' + escapeHtml("MISSING INFORMATION\n" + missing.map((m) => "- " + m).join("\n")) + "</div>" : "") +
+        materials.map((m) => '<div class="list-item"><div class="li-top"><span class="li-name">' + escapeHtml(orNA(m.type)) + "</span>" + pill(m.status) + "</div>" +
+          '<div class="opp-output">' + escapeHtml((m.lines || []).join("\n")) + "</div></div>").join("") +
+        (next.length ? '<div class="opp-output">' + escapeHtml("NEXT ACTIONS\n" + next.map((n) => "- " + n).join("\n")) + "</div>" : "");
+      opportunityOutput[id] = html;
+      if (out) out.innerHTML = html;
+      toast("Preparation package ready. Preparation is not submission.", "ok");
+    }
+
+    async function requestApproval(id) {
+      const out = document.querySelector('[data-out="' + id + '"]');
+      if (!isOwnerAuthorized()) {
+        const message = "Owner authorization required. Open Owner Authorization in the top bar and paste the owner token for this session.";
+        if (out) out.innerHTML = stateBox("warn", "OWNER AUTHORIZATION REQUIRED", message);
+        toast("Owner authorization required.", "error");
+        return;
+      }
+      if (out) out.innerHTML = loadingBox("Creating a single-use approval request…");
+      const result = await api("/api/approvals", {
+        method: "POST",
+        body: {
+          capability: "external_platform_execution",
+          action_type: "SUBMIT",
+          target_resource_id: id,
+          parameters: { opportunity_id: id }
         }
+      });
+      if (!result.ok) {
+        if (out) out.innerHTML = stateBox("error", "APPROVAL REQUEST FAILED", result.error);
+        toast(result.error, "error");
+        return;
+      }
+      const a = result.data || {};
+      const html = '<div class="divider"></div>' +
+        '<div class="row"><span class="k">Approval ID</span><span class="v mono">' + escapeHtml(orNA(a.id)) + "</span></div>" +
+        '<div class="row"><span class="k">Status</span><span class="v">' + pill(a.status || "PENDING") + "</span></div>" +
+        '<div class="row"><span class="k">Expires</span><span class="v">' + escapeHtml(orNA(a.expires_at)) + "</span></div>" +
+        stateBox("warn", "PENDING OWNER DECISION", "Nothing is submitted. The Owner must decide this request explicitly. Submission stays manual.");
+      opportunityOutput[id] = html;
+      if (out) out.innerHTML = html;
+      toast("Approval request created in PENDING state.", "ok");
+    }
 
-        const payload = await res.json();
-        const profile = payload && payload.data ? payload.data : null;
-
-        if (!profile) {
-          unavailable();
-          return;
+    async function createOpportunity() {
+      const title = text($("opp-title") && $("opp-title").value);
+      if (!title) {
+        toast("A title is required.", "error");
+        return;
+      }
+      const button = $("earning-create");
+      if (button) button.disabled = true;
+      const result = await api("/api/opportunities", {
+        method: "POST",
+        body: {
+          title,
+          url: text($("opp-url") && $("opp-url").value),
+          platform: text($("opp-platform") && $("opp-platform").value),
+          description: text($("opp-desc") && $("opp-desc").value),
+          source: "operator-console"
         }
+      });
+      if (button) button.disabled = false;
 
-        // Render only real persisted values. No fabricated defaults.
-        const skills = profile.skills ? String(profile.skills) : '';
-        skillsEl.textContent = skills || 'NOT CONFIGURED';
-        costEl.textContent = profile.max_cost ? String(profile.max_cost) : 'NOT CONFIGURED';
-      } catch (e) {
-        unavailable();
+      if (!result.ok) {
+        toast(result.error, "error");
+        return;
+      }
+      ["opp-title", "opp-url", "opp-platform", "opp-desc"].forEach((id) => { const el = $(id); if (el) el.value = ""; });
+      const form = $("earning-form-card");
+      if (form) form.hidden = true;
+      toast("Opportunity created as UNVERIFIED with score 0.", "ok");
+      await loadEarning();
+    }
+
+    async function runCompare() {
+      const list = $("earning-list");
+      const result = await api("/api/opportunities/compare");
+      if (!result.ok) {
+        if (list) list.innerHTML = stateBox("error", "COMPARE FAILED", result.error);
+        return;
+      }
+      const ranked = result.data && Array.isArray(result.data.ranked) ? result.data.ranked : [];
+      if (!list) return;
+      if (ranked.length === 0) {
+        list.innerHTML = stateBox("", "COMPARE — NOTHING TO RANK", "COMPARE ranks persisted opportunities. None exist yet.");
+        return;
+      }
+      list.innerHTML = ranked.map((r) => (
+        '<div class="list-item"><div class="li-top"><span class="li-name">#' + escapeHtml(r.rank) + " " + escapeHtml(orNA(r.title)) + "</span>" + pill(r.decision) + "</div>" +
+        '<div class="li-sub">' + escapeHtml("Score " + r.score + " · " + orNA(r.verification_status) + " · " + orNA(r.eligibility_status) + " · " + orNA(r.owner_fit_status)) + "</div>" +
+        (r.reason ? '<div class="li-sub">' + escapeHtml(r.reason) + "</div>" : "") + "</div>"
+      )).join("");
+      toast("COMPARE is read-only and did not change any record.", "ok");
+    }
+
+    /* ======================================================================
+       RESEARCH
+       ====================================================================== */
+    async function loadResearch() {
+      const binding = $("research-binding");
+      const result = await api("/api/health");
+      const browserConnected = !!(result.ok && result.data && result.data.browserConnected);
+      if (binding) {
+        binding.textContent = browserConnected ? "BROWSER CONNECTED" : "BROWSER NOT CONNECTED";
+        binding.className = "pill " + (browserConnected ? "ok" : "err");
+      }
+      const box = $("research-result");
+      if (box && !box.dataset.filled) {
+        box.innerHTML = stateBox("", "NO SOURCE FETCHED", "Enter a real URL. AIRA fetches the page through Cloudflare Browser Rendering and shows the extracted text with its verification status.");
       }
     }
 
-    async function loadVoiceStateFromAPI() {
-      const stateEl = document.getElementById('voice-state');
-      const inputEl = document.getElementById('voice-input-cap');
-      const outputEl = document.getElementById('voice-output-cap');
-      const limEl = document.getElementById('voice-limitations');
-      if (!stateEl) return;
-
-      try {
-        const res = await fetch('/api/voice');
-        if (!res.ok) {
-          stateEl.textContent = 'VOICE_UNAVAILABLE';
-          return;
-        }
-        const payload = await res.json();
-        const voice = payload && payload.data ? payload.data : null;
-        if (!voice) {
-          stateEl.textContent = 'VOICE_NOT_CONFIGURED';
-          return;
-        }
-        stateEl.textContent = voice.state || 'VOICE_NOT_CONFIGURED';
-        inputEl.textContent = voice.capabilities && voice.capabilities.speech_input ? 'AVAILABLE' : 'UNAVAILABLE';
-        outputEl.textContent = voice.capabilities && voice.capabilities.speech_output ? 'AVAILABLE' : 'UNAVAILABLE';
-        limEl.textContent = Array.isArray(voice.limitations) ? voice.limitations.join(' ') : 'DATA NOT AVAILABLE';
-      } catch (e) {
-        stateEl.textContent = 'VOICE_UNAVAILABLE';
+    async function runResearch() {
+      const input = $("research-url");
+      const box = $("research-result");
+      const url = text(input && input.value);
+      if (!/^https?:\/\//i.test(url)) {
+        toast("Enter a valid http(s) URL.", "error");
+        return;
+      }
+      if (box) box.innerHTML = loadingBox("Fetching " + url + " …");
+      const result = await api("/api/research", { method: "POST", body: { url } });
+      if (!result.ok) {
+        if (box) box.innerHTML = stateBox("error", "RESEARCH FAILED", result.error);
+        return;
+      }
+      const d = result.raw || {};
+      const content = text(d.content);
+      if (box) {
+        box.dataset.filled = "1";
+        box.innerHTML =
+          '<div class="row"><span class="k">Source URL</span><span class="v"><a class="opp-link" href="' + escapeHtml(orNA(d.url)) + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(orNA(d.url)) + "</a></span></div>" +
+          '<div class="row"><span class="k">Verification</span><span class="v">' + pill(content ? "SOURCE FETCHED" : "NO CONTENT") + "</span></div>" +
+          '<div class="row"><span class="k">Characters extracted</span><span class="v">' + content.length + "</span></div>" +
+          stateBox("warn", "NOT INDEPENDENTLY VERIFIED", "This is raw page text fetched through Browser Rendering. It is not a verified fact and is not evidence until the Owner records it as evidence.") +
+          '<div class="opp-output selectable">' + escapeHtml(content || NA) + "</div>";
       }
     }
 
-    async function loadConnectionsFromAPI() {
-      const container = document.getElementById('connections-list');
-      if (!container) return;
+    /* ======================================================================
+       TASKS — truthfully UNAVAILABLE
+       ====================================================================== */
+    function loadTasks() {
+      const box = $("tasks-state");
+      if (!box) return;
+      box.innerHTML = "<strong>TASK TRACKING UNAVAILABLE</strong>" +
+        "<span>No task scheduler or task store is connected to this runtime. AIRA will not display invented task counts or progress. Use the earning pipeline on the Earning screen for real work.</span>";
+    }
 
-      try {
-        const res = await fetch('/api/connections');
-        if (!res.ok) {
-          container.innerHTML = '<div style="color:var(--text-muted)">NOT CONNECTED</div>';
-          return;
+    /* ======================================================================
+       AUDIT LOG — Owner-only, read-only view
+       ====================================================================== */
+    async function loadAudit() {
+      const list = $("audit-list");
+      if (!list) return;
+      if (!isOwnerAuthorized()) {
+        list.innerHTML = stateBox("warn", "OWNER AUTHORIZATION REQUIRED", "The audit log is Owner-only. Open Owner Authorization in the top bar to read it. No credential is stored in the browser.");
+        return;
+      }
+      list.innerHTML = loadingBox("Reading audit log…");
+      const result = await api("/api/audit-logs");
+      if (!result.ok) {
+        list.innerHTML = stateBox("error", "AUDIT LOG UNAVAILABLE", result.error);
+        return;
+      }
+      const rows = Array.isArray(result.data) ? result.data : [];
+      if (rows.length === 0) {
+        list.innerHTML = stateBox("", "NO AUDIT ENTRIES", "The append-only log is empty.");
+        return;
+      }
+      list.innerHTML = rows.slice(0, 60).map((e) => (
+        '<div class="list-item"><div class="li-top"><span class="li-name">' + escapeHtml(orNA(e.action)) + "</span>" + pill(e.status || "UNKNOWN") + "</div>" +
+        '<div class="li-sub">' + escapeHtml(orNA(e.actor) + " · " + orNA(e.resource_type) + " · " + orNA(e.created_at)) + "</div>" +
+        '<div class="li-sub mono">' + escapeHtml(orNA(e.resource_id)) + "</div></div>"
+      )).join("");
+    }
+
+    /* ======================================================================
+       PROFILE
+       ====================================================================== */
+    function renderAuthorization() {
+      const pillNode = $("profile-auth-pill");
+      const body = $("profile-auth-body");
+      const permissions = AIRA.permissions;
+
+      let state = "UNKNOWN";
+      let note = "The permission model could not be read.";
+      let klass = "muted";
+
+      if (permissions) {
+        if (!permissions.authorizationConfigured) {
+          state = "NOT_CONFIGURED";
+          klass = "warn";
+          note = "OWNER_API_TOKEN is not configured on the server. Every state-changing call fails closed with HTTP 401.";
+        } else if (isOwnerAuthorized()) {
+          state = "AUTHORIZED";
+          klass = "ok";
+          note = "A valid owner credential is held in this page's memory for this session. It is never persisted or logged.";
+        } else {
+          state = "CONFIGURED — CREDENTIAL NOT PRESENTED";
+          klass = "cyan";
+          note = "The server enforces owner authorization. Mutating actions require the owner credential for this session.";
         }
-        const payload = await res.json();
-        const report = payload && payload.data ? payload.data : null;
-        const services = report && Array.isArray(report.services) ? report.services : null;
+      }
 
-        if (!services || services.length === 0) {
-          container.innerHTML = '<div style="color:var(--text-muted)">DATA NOT AVAILABLE</div>';
-          return;
-        }
+      if (pillNode) {
+        pillNode.textContent = state;
+        pillNode.className = "pill " + klass;
+      }
 
-        container.innerHTML = services.map(svc => `
-          <div style="display:flex; justify-content:space-between; gap:8px;">
-            <span style="color:var(--text-muted)">${escapeHtml(svc.name || svc.service)}</span>
-            <span style="color:${svc.state === 'CONNECTED' ? '#10b981' : 'var(--text-muted)'}">${escapeHtml(svc.state)}</span>
-          </div>
-        `).join('');
-      } catch (e) {
-        container.innerHTML = '<div style="color:var(--text-muted)">NOT CONNECTED</div>';
+      if (body) {
+        const rules = permissions && Array.isArray(permissions.rules) ? permissions.rules : [];
+        body.innerHTML =
+          '<div class="row"><span class="k">Enforcement</span><span class="v">' + escapeHtml(orNA(permissions && permissions.enforcement)) + "</span></div>" +
+          '<div class="row"><span class="k">Credential storage</span><span class="v">MEMORY ONLY</span></div>' +
+          '<div class="row"><span class="k">localStorage / sessionStorage / cookies</span><span class="v">NOT USED</span></div>' +
+          '<div class="tiny-note">' + escapeHtml(note) + "</div>" +
+          (rules.length ? rules.map((r) => '<div class="list-item"><div class="li-top"><span class="li-name">' + escapeHtml(orNA(r.capability)) + "</span>" + pill(r.risk) + "</div>" +
+            '<div class="li-sub">Approval: ' + escapeHtml(orNA(r.approval)) + "</div></div>").join("") : "");
+      }
+
+      const homeAuth = $("home-auth");
+      if (homeAuth) homeAuth.textContent = isOwnerAuthorized() ? "AUTHORIZED" : (permissions && permissions.authorizationConfigured ? "CONFIGURED" : "NOT_CONFIGURED");
+    }
+
+    function renderProfile() {
+      const fields = $("profile-fields");
+      if (!fields) return;
+      const p = AIRA.profile;
+      if (!p) {
+        fields.innerHTML = stateBox("error", "PROFILE UNAVAILABLE", "The owner profile record could not be read.");
+        return;
+      }
+      const rows = [
+        ["Skills", p.skills],
+        ["Experience", p.experience],
+        ["Location", p.location],
+        ["Maximum cost", p.max_cost],
+        ["Maximum effort", p.max_effort],
+        ["Accessibility", p.accessibility],
+        ["Other criteria", p.other_criteria]
+      ];
+      fields.innerHTML = rows.map(([k, v]) => {
+        const value = text(v);
+        return '<div class="row"><span class="k">' + escapeHtml(k) + '</span><span class="v' + (value ? "" : " muted") + '">' + escapeHtml(value || "NOT CONFIGURED") + "</span></div>";
+      }).join("") +
+        '<div class="divider"></div>' +
+        '<div class="row"><span class="k">Submission policy</span><span class="v">MANUAL OWNER ONLY</span></div>' +
+        '<div class="row"><span class="k">Record updated</span><span class="v">' + escapeHtml(orNA(p.updated_at)) + "</span></div>";
+    }
+
+    function renderConnections() {
+      const list = $("connections-list");
+      if (!list) return;
+      const report = AIRA.connections;
+      if (!report || !Array.isArray(report.services)) {
+        list.innerHTML = stateBox("error", "CONNECTIONS UNAVAILABLE", "The connection report could not be read.");
+        return;
+      }
+      list.innerHTML = report.services.map((s) => (
+        '<div class="list-item"><div class="li-top"><span class="li-name">' + escapeHtml(orNA(s.name || s.service)) + "</span>" + pill(s.state) + "</div>" +
+        '<div class="li-sub">' + escapeHtml(orNA(s.reason)) + "</div></div>"
+      )).join("");
+    }
+
+    function renderVoice() {
+      const body = $("voice-body");
+      const pillNode = $("voice-pill");
+      const v = AIRA.voice;
+      if (!v) {
+        if (body) body.innerHTML = stateBox("error", "VOICE UNAVAILABLE", "The voice foundation state could not be read.");
+        return;
+      }
+      if (pillNode) {
+        pillNode.textContent = v.state || "UNKNOWN";
+        pillNode.className = "pill " + stateClass(v.state);
+      }
+      if (body) {
+        const caps = v.capabilities || {};
+        body.innerHTML =
+          '<div class="row"><span class="k">Provider</span><span class="v">' + escapeHtml(orNA(v.provider)) + "</span></div>" +
+          '<div class="row"><span class="k">Speech input</span><span class="v">' + (caps.speech_input ? "AVAILABLE" : "UNAVAILABLE") + "</span></div>" +
+          '<div class="row"><span class="k">Speech output</span><span class="v">' + (caps.speech_output ? "AVAILABLE" : "UNAVAILABLE") + "</span></div>" +
+          (Array.isArray(v.limitations) ? '<div class="tiny-note">' + escapeHtml(v.limitations.join(" ")) + "</div>" : "");
       }
     }
 
-    async function loadPermissionsFromAPI() {
-      const stateEl = document.getElementById('auth-state');
-      const rulesEl = document.getElementById('permission-rules');
-      if (!stateEl) return;
+    async function loadProfile() {
+      await refreshSnapshot();
+      renderHealthPill();
+      renderAuthorization();
+      renderProfile();
+      renderConnections();
+      renderVoice();
+    }
 
-      try {
-        const res = await fetch('/api/permissions');
-        if (!res.ok) {
-          stateEl.textContent = 'UNKNOWN';
-          return;
-        }
-        const payload = await res.json();
-        const data = payload && payload.data ? payload.data : null;
-        if (!data) {
-          stateEl.textContent = 'UNKNOWN';
-          return;
-        }
-        stateEl.textContent = data.authorizationState || 'UNKNOWN';
-        rulesEl.textContent = Array.isArray(data.rules)
-          ? data.rules.map(r => `${r.capability}: ${r.approval}`).join(' | ')
-          : 'DATA NOT AVAILABLE';
-      } catch (e) {
-        stateEl.textContent = 'UNKNOWN';
+    /* ======================================================================
+       OWNER AUTHORIZATION PANEL
+       The token lives in a module-scoped variable only. It is never written to
+       localStorage, sessionStorage, cookies, the URL or the console.
+       ====================================================================== */
+    async function saveOwnerToken() {
+      const input = $("owner-token");
+      const value = input ? input.value : "";
+      if (!text(value)) {
+        toast("Paste the owner token first.", "error");
+        return;
       }
+      ownerToken = value;
+      if (input) input.value = "";
+
+      const probe = await api("/api/approvals");
+      if (probe.ok) {
+        authorizationState = "AUTHORIZED";
+        toast("Owner credential accepted for this session.", "ok");
+      } else if (probe.denied) {
+        authorizationState = "REJECTED";
+        ownerToken = "";
+        toast("Owner credential rejected by the server.", "error");
+      } else {
+        authorizationState = "UNKNOWN";
+        toast(probe.error || "Could not verify the credential.", "error");
+      }
+      renderAuthorization();
+      const panel = $("owner-auth-panel");
+      if (panel && authorizationState === "AUTHORIZED") panel.hidden = true;
+    }
+
+    function clearOwnerToken() {
+      ownerToken = "";
+      authorizationState = (AIRA.permissions && AIRA.permissions.authorizationConfigured) ? "NOT_PRESENTED" : "NOT_CONFIGURED";
+      const input = $("owner-token");
+      if (input) input.value = "";
+      toast("Owner credential cleared from memory.", "ok");
+      renderAuthorization();
+    }
+
+    /* ======================================================================
+       WIRING
+       ====================================================================== */
+    function wire() {
+      const dock = $("dock");
+      if (dock) {
+        dock.addEventListener("click", (event) => {
+          const button = event.target.closest("button[data-nav]");
+          if (button) navigate(button.getAttribute("data-nav"));
+        });
+      }
+
+      const subnav = $("subnav");
+      if (subnav) {
+        subnav.addEventListener("click", (event) => {
+          const button = event.target.closest("button[data-sub]");
+          if (button) navigate(button.getAttribute("data-sub"));
+        });
+      }
+
+      document.querySelectorAll("[data-goto]").forEach((button) => {
+        button.addEventListener("click", () => navigate(button.getAttribute("data-goto")));
+      });
+
+      const ownerButton = $("btn-owner");
+      const ownerPanel = $("owner-auth-panel");
+      if (ownerButton && ownerPanel) {
+        ownerButton.addEventListener("click", () => { ownerPanel.hidden = !ownerPanel.hidden; });
+      }
+      const ownerClose = $("owner-auth-close");
+      if (ownerClose && ownerPanel) ownerClose.addEventListener("click", () => { ownerPanel.hidden = true; });
+      const ownerSave = $("owner-auth-save");
+      if (ownerSave) ownerSave.addEventListener("click", saveOwnerToken);
+      const ownerClear = $("owner-auth-clear");
+      if (ownerClear) ownerClear.addEventListener("click", clearOwnerToken);
+      const ownerInput = $("owner-token");
+      if (ownerInput) ownerInput.addEventListener("keydown", (e) => { if (e.key === "Enter") saveOwnerToken(); });
+
+      const homeSend = $("home-command-send");
+      if (homeSend) homeSend.addEventListener("click", sendHomeCommand);
+      const homeInput = $("home-command");
+      if (homeInput) homeInput.addEventListener("keydown", (e) => { if (e.key === "Enter") sendHomeCommand(); });
+
+      const chatSend = $("chat-send");
+      if (chatSend) chatSend.addEventListener("click", sendChat);
+      const chatInput = $("chat-input");
+      if (chatInput) chatInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendChat(); }
+      });
+      const chatClear = $("chat-clear");
+      if (chatClear) chatClear.addEventListener("click", () => {
+        const log = $("chat-log");
+        if (log) log.innerHTML = "";
+        appendMessage("aira", "Conversation cleared. Ask about research, earning opportunities or platform status.");
+      });
+
+      const refresh = $("earning-refresh");
+      if (refresh) refresh.addEventListener("click", loadEarning);
+      const compare = $("earning-compare");
+      if (compare) compare.addEventListener("click", runCompare);
+      const newBtn = $("earning-new");
+      if (newBtn) newBtn.addEventListener("click", () => {
+        const form = $("earning-form-card");
+        if (form) form.hidden = !form.hidden;
+      });
+      const cancel = $("earning-form-cancel");
+      if (cancel) cancel.addEventListener("click", () => { const form = $("earning-form-card"); if (form) form.hidden = true; });
+      const create = $("earning-create");
+      if (create) create.addEventListener("click", createOpportunity);
+
+      const list = $("earning-list");
+      if (list) {
+        list.addEventListener("click", (event) => {
+          const button = event.target.closest("button[data-act]");
+          if (!button) return;
+          const id = button.getAttribute("data-id");
+          const act = button.getAttribute("data-act");
+          if (act === "evidence") loadEvidence(id);
+          else if (act === "evaluate") evaluateOpportunity(id);
+          else if (act === "prepare") prepareOpportunity(id);
+          else if (act === "approval") requestApproval(id);
+        });
+      }
+
+      const researchRun = $("research-run");
+      if (researchRun) researchRun.addEventListener("click", runResearch);
+      const researchInput = $("research-url");
+      if (researchInput) researchInput.addEventListener("keydown", (e) => { if (e.key === "Enter") runResearch(); });
+
+      const auditRefresh = $("audit-refresh");
+      if (auditRefresh) auditRefresh.addEventListener("click", loadAudit);
+      const connectionsRefresh = $("connections-refresh");
+      if (connectionsRefresh) connectionsRefresh.addEventListener("click", async () => { await refreshSnapshot(); renderConnections(); });
+    }
+
+    /* ======================================================================
+       BOOT
+       ====================================================================== */
+    function boot() {
+      initAura();
+      initNeuralCore();
+      wire();
+      loadHome();
+    }
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", boot);
+    } else {
+      boot();
     }
   </script>
 </body>

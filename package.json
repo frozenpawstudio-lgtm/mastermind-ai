@@ -6,7 +6,14 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "test:api": "node test/run_all_tests.mjs",
+    "test:ui": "node test/test_ui_console.mjs",
+    "test:workflow": "node test/test_earning_workflow_e2e.mjs",
+    "test:layout": "node test/layout_audit.mjs home chat tools research profile",
+    "screens": "node test/capture_screens.mjs",
+    "seed": "node test/seed_demo_record.mjs",
+    "seed:clean": "node test/seed_demo_record.mjs --clean"
   },
   "dependencies": {
     "agents": "latest"
