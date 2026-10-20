@@ -20,7 +20,7 @@ const TABS = [
   { name: "home", selector: '#dock button[data-nav="home"]' },
   { name: "chat", selector: '#dock button[data-nav="chat"]' },
   { name: "earning", selector: '#dock button[data-nav="tools"]' },
-  { name: "research", selector: '#dock button[data-nav="research"]' },
+  { name: "research", selector: '#dock button[data-nav="tasks"]', then: '#subnav button[data-sub="research"]' },
   { name: "profile", selector: '#dock button[data-nav="profile"]' }
 ];
 
@@ -41,6 +41,13 @@ try {
       if (!clicked) {
         console.log(`SKIP ${tab.name} (${device.label}px): navigation target not present`);
         continue;
+      }
+      if (tab.then) {
+        await sleep(400);
+        await page.evaluate(`(() => {
+          const el = document.querySelector(${JSON.stringify(tab.then)});
+          if (el) el.click();
+        })()`);
       }
       await sleep(1200);
       const path = `${outDir}/${tab.name}-${device.label}px.png`;
