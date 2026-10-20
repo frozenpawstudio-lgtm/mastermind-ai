@@ -215,7 +215,7 @@
       text-transform: uppercase;
       color: #ffffff;
       min-width: 0;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .card-title::before {
@@ -232,7 +232,7 @@
       font-size: 12px;
       color: var(--text-3);
       line-height: 1.5;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .divider { height: 1px; background: var(--stroke-soft); margin: 10px 0; }
@@ -244,8 +244,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px 10px;
       min-width: 0;
+      flex-wrap: wrap;
     }
 
     .row .k {
@@ -253,7 +254,7 @@
       color: var(--text-3);
       flex: 1 1 auto;
       min-width: 0;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .row .v {
@@ -262,12 +263,18 @@
       color: var(--text);
       text-align: right;
       flex: 0 1 auto;
-      max-width: 58%;
-      overflow-wrap: anywhere;
+      max-width: 100%;
+      overflow-wrap: break-word;
     }
 
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+    /* Two tiles per row on narrow Android screens; three cramped columns
+       force mid-word breaks in labels like "NOT CONNECTED". */
+    @media (max-width: 419px) {
+      .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
 
     .tile {
       background: var(--bg-inset);
@@ -286,17 +293,17 @@
       letter-spacing: 0.7px;
       text-transform: uppercase;
       color: var(--text-3);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .tile .t-value {
       font-size: 14px;
       font-weight: 800;
       color: var(--cyan);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
-    .tile .t-sub { font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
+    .tile .t-sub { font-size: 11px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* -------------------------------- PILLS -------------------------------- */
     .pill {
@@ -313,7 +320,7 @@
       background: rgba(148, 163, 184, 0.1);
       color: var(--text-2);
       max-width: 100%;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       line-height: 1.35;
     }
 
@@ -331,12 +338,13 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       padding: 9px 12px;
       border-radius: var(--r-md);
       border: 1px solid var(--stroke-soft);
       background: linear-gradient(90deg, rgba(0, 229, 255, 0.09), rgba(123, 44, 255, 0.06));
       min-width: 0;
+      flex-wrap: wrap;
     }
 
     .status-strip .ss-label {
@@ -353,7 +361,7 @@
       font-weight: 900;
       letter-spacing: 0.7px;
       text-align: right;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       min-width: 0;
     }
 
@@ -407,7 +415,7 @@
 
     .mod-text { display: flex; flex-direction: column; min-width: 0; }
     .mod-name { font-size: 13px; font-weight: 800; letter-spacing: 0.3px; }
-    .mod-sub { font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
+    .mod-sub { font-size: 11px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* ------------------------------ BUTTONS -------------------------------- */
     .btn {
@@ -427,7 +435,7 @@
       justify-content: center;
       gap: 7px;
       transition: transform 0.14s ease, background 0.2s ease, border-color 0.2s ease;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       text-align: center;
     }
 
@@ -519,7 +527,23 @@
     #screen-chat .chat-log { flex: 1 1 auto; max-height: none; min-height: 180px; }
 
     /* ------------------------------- HERO ---------------------------------- */
-    .hero { display: flex; align-items: center; gap: 14px; }
+    /* Stacked by default: on a 360px Android screen a side-by-side core and
+       text column leaves the text only ~160px wide, which breaks labels
+       mid-word. Full width text avoids that. */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .hero .badge-row { justify-content: center; }
+
+    @media (min-width: 520px) {
+      .hero { flex-direction: row; align-items: center; text-align: left; gap: 14px; }
+      .hero .badge-row { justify-content: flex-start; }
+    }
 
     .core-stack {
       display: flex;
@@ -564,10 +588,10 @@
       font-weight: 900;
       letter-spacing: 0.6px;
       color: #ffffff;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
-    .hero-sub { font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
+    .hero-sub { font-size: 12px; color: var(--text-2); overflow-wrap: break-word; }
 
     /* ------------------------------ PIPELINE ------------------------------- */
     .pipeline { display: flex; flex-direction: column; }
@@ -610,16 +634,23 @@
 
     .stage-body { min-width: 0; }
 
+    /* The stage name and its state pill share one row; on narrow screens the
+       long names ("Execute Only When Authorized") squeeze the pill and break
+       words, so let the pair wrap instead. */
+    .stage-body .row { flex-wrap: wrap; gap: 6px; }
+    .stage-body .row .stage-name { flex: 1 1 auto; min-width: 0; }
+    .stage-body .row .stage-state { flex: 0 0 auto; }
+
     .stage-name {
       font-size: 12px;
       font-weight: 800;
       letter-spacing: 0.7px;
       text-transform: uppercase;
       color: var(--text);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
-    .stage-detail { font-size: 12px; color: var(--text-3); overflow-wrap: anywhere; }
+    .stage-detail { font-size: 12px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* ------------------------------- METER --------------------------------- */
     .meter {
@@ -654,16 +685,16 @@
       font-size: 14px;
       font-weight: 800;
       color: #ffffff;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       min-width: 0;
     }
 
-    .opp-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
+    .opp-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); overflow-wrap: break-word; }
 
     .opp-link {
       font-size: 12px;
       color: var(--cyan-bright);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       text-decoration: underline;
       text-underline-offset: 2px;
     }
@@ -676,7 +707,7 @@
       font-size: 12px;
       color: var(--text-2);
       white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       max-height: 320px;
       overflow-y: auto;
     }
@@ -706,7 +737,7 @@
       padding: 10px 12px;
       font-size: 13.5px;
       line-height: 1.5;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       white-space: pre-wrap;
       border: 1px solid var(--stroke);
       background: rgba(15, 23, 42, 0.72);
@@ -772,8 +803,8 @@
 
     .li-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 
-    .li-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
-    .li-sub { font-size: 11.5px; color: var(--text-3); overflow-wrap: anywhere; }
+    .li-name { font-size: 13px; font-weight: 700; overflow-wrap: break-word; min-width: 0; }
+    .li-sub { font-size: 11.5px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* --------------------------- STATE BOXES ------------------------------- */
     .state-box {
@@ -787,7 +818,7 @@
       flex-direction: column;
       gap: 5px;
       align-items: center;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .state-box strong { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2); }
@@ -877,7 +908,7 @@
       pointer-events: none;
       transition: opacity 0.22s ease, transform 0.22s ease;
       z-index: 80;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       text-align: center;
     }
 
@@ -887,8 +918,8 @@
 
     /* ------------------------------ UTILITIES ------------------------------ */
     .muted { color: var(--text-3); }
-    .tiny-note { font-size: 11px; color: var(--text-3); line-height: 1.5; overflow-wrap: anywhere; }
-    .mono { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+    .tiny-note { font-size: 11px; color: var(--text-3); line-height: 1.5; overflow-wrap: break-word; }
+    .mono { font-family: var(--mono); font-size: 11.5px; overflow-wrap: break-word; }
     .selectable { user-select: text; -webkit-user-select: text; }
     .sr-only {
       position: absolute;
