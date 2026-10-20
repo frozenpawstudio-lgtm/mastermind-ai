@@ -6,6 +6,8 @@ node_modules/
 .wrangler/
 .dev.vars
 .dev.vars.*
+.agent_tmp
+.agent_tmp/
 test
 test/
 package.json
