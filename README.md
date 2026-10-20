@@ -133,6 +133,15 @@ npm run screens after      # writes .agent_tmp/screens/after/*.png
 npm run seed               # optional demo record; npm run seed:clean removes it
 ```
 
+Production verification (runs against the deployed worker, not local):
+
+```bash
+npm run test:live          # real HTTPS browser checks: layout at 360/390/412 px,
+                           # console cleanliness, fail-closed mutations, no
+                           # fabricated earnings, one POST per chat tap
+LIVE_URL=https://<host> npm run test:live
+```
+
 `npm run seed` writes one clearly-labelled local record (`source`
 `screenshot-seed`) so the Earning screen can be reviewed populated. Remove it
 with `npm run seed:clean` before running `npm run test:api`, because the
