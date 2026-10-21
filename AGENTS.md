@@ -42,6 +42,7 @@ node test/audit_honesty.mjs              # no invented earnings/metrics
 node test/audit_secret_exposure.mjs      # token never reaches the DOM or console
 node test/audit_touch_targets.mjs        # >=44px tap targets
 node test/audit_word_breaks.mjs          # no mid-word breaks at 360/390/412px
+node test/test_security_surface.js       # auth posture of every route + read surface
 node test/layout_audit.mjs home chat tools tasks profile   # no horizontal overflow
 node test/capture_screens.mjs <label>    # screenshots to .agent_tmp/screens/<label>/
 node test/build_comparison.mjs           # side-by-side before/after sheets
@@ -68,3 +69,18 @@ There is no `npm test`; run the scripts directly.
   look functional.
 - Never display an earning, metric, task or payment as real without backend
   evidence. Unimplemented capability must read `NOT CONNECTED` / `NOT VERIFIED`.
+
+## Known gaps (measured, not fixed)
+
+`test_security_surface.js` reports these as warnings rather than failures,
+because closing them changes the public API contract and needs an owner
+decision:
+
+- `GET /api/owner/profile` is readable without a credential. It returns the
+  owner's skills, experience, location and cost/effort ceilings. README line
+  ~44 states "Reads stay public", so this is a documented choice, but the
+  profile holds personal business criteria and is arguably Owner-only.
+- `POST /api/chat` and `POST /api/research` are unauthenticated. Both consume
+  billed resources (Workers AI, Browser Rendering) and there is no rate limit
+  anywhere in the Worker, so an unauthenticated caller can burn quota.
+
