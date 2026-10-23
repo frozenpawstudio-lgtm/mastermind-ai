@@ -51,7 +51,7 @@ try {
       assert.strictEqual(active, "screen-home");
     });
 
-    for (const nav of ["chat", "tools", "research", "profile", "home"]) {
+    for (const nav of ["chat", "tools", "tasks", "profile", "home"]) {
       await test(`dock button "${nav}" activates screen-${nav}`, async () => {
         await page.evaluate(`document.querySelector('#dock button[data-nav="${nav}"]').click()`);
         await sleep(700);
@@ -68,7 +68,7 @@ try {
       let visible = await page.evaluate(`document.getElementById('subnav').classList.contains('visible')`);
       assert.strictEqual(visible, false, "subnav should be hidden on tools");
 
-      await page.evaluate(`document.querySelector('#dock button[data-nav="research"]').click()`);
+      await page.evaluate(`document.querySelector('#dock button[data-nav="tasks"]').click()`);
       await sleep(400);
       visible = await page.evaluate(`document.getElementById('subnav').classList.contains('visible')`);
       assert.strictEqual(visible, true, "subnav should be visible on research");
@@ -319,7 +319,7 @@ try {
       });
 
       await test("owner-only audit log is readable once authorized", async () => {
-        await page.evaluate(`document.querySelector('#dock button[data-nav="research"]').click()`);
+        await page.evaluate(`document.querySelector('#dock button[data-nav="tasks"]').click()`);
         await sleep(400);
         await page.evaluate(`document.querySelector('#subnav button[data-sub="audit"]').click()`);
         await sleep(1800);
@@ -328,7 +328,7 @@ try {
       });
     } else {
       await test("owner-only audit log is refused without a credential (OWNER_API_TOKEN not set)", async () => {
-        await page.evaluate(`document.querySelector('#dock button[data-nav="research"]').click()`);
+        await page.evaluate(`document.querySelector('#dock button[data-nav="tasks"]').click()`);
         await sleep(400);
         await page.evaluate(`document.querySelector('#subnav button[data-sub="audit"]').click()`);
         await sleep(1500);
@@ -368,7 +368,7 @@ try {
     });
 
     await test("tasks screen clearly reports UNAVAILABLE and does not invent counts", async () => {
-      await page.evaluate(`document.querySelector('#dock button[data-nav="research"]').click()`);
+      await page.evaluate(`document.querySelector('#dock button[data-nav="tasks"]').click()`);
       await sleep(400);
       await page.evaluate(`document.querySelector('#subnav button[data-sub="tasks"]').click()`);
       await sleep(700);
@@ -378,8 +378,10 @@ try {
     });
 
     await test("research reports the real browser binding state", async () => {
-      await page.evaluate(`document.querySelector('#dock button[data-nav="research"]').click()`);
-      await sleep(1500);
+      await page.evaluate(`document.querySelector('#dock button[data-nav="tasks"]').click()`);
+      await sleep(400);
+      await page.evaluate(`document.querySelector('#subnav button[data-sub="research"]').click()`);
+      await sleep(1800);
       const pillText = await page.evaluate(`document.getElementById('research-binding').textContent`);
       assert.ok(/BROWSER (CONNECTED|NOT CONNECTED)/.test(pillText), `research binding pill should be truthful, got "${pillText}"`);
     });
@@ -396,7 +398,15 @@ try {
 
     for (const screen of ["home", "chat", "tools", "research", "profile"]) {
       await test(`${screen} at ${device.label}px: no horizontal overflow, no sub-10px text`, async () => {
-        await page.evaluate(`document.querySelector('#dock button[data-nav="${screen}"]').click()`);
+        // Research and Audit live under the Tasks hub, so open the hub first
+        // and then the sub-section tab.
+        if (screen === "research" || screen === "tasks" || screen === "audit") {
+          await page.evaluate(`document.querySelector('#dock button[data-nav="tasks"]').click()`);
+          await sleep(400);
+          await page.evaluate(`document.querySelector('#subnav button[data-sub="${screen}"]').click()`);
+        } else {
+          await page.evaluate(`document.querySelector('#dock button[data-nav="${screen}"]').click()`);
+        }
         await sleep(1300);
         const audit = await page.evaluate(LAYOUT_AUDIT);
         assert.strictEqual(audit.horizontalOverflow, false, `document overflows: ${JSON.stringify(audit)}`);
@@ -415,7 +425,13 @@ try {
     page.clearErrors();
     await page.goto(`${BASE_URL}/`, { settleMs: 2000 });
     for (const screen of ["chat", "tools", "research", "profile", "home"]) {
-      await page.evaluate(`document.querySelector('#dock button[data-nav="${screen}"]').click()`);
+      if (screen === "research") {
+        await page.evaluate(`document.querySelector('#dock button[data-nav="tasks"]').click()`);
+        await sleep(500);
+        await page.evaluate(`document.querySelector('#subnav button[data-sub="research"]').click()`);
+      } else {
+        await page.evaluate(`document.querySelector('#dock button[data-nav="${screen}"]').click()`);
+      }
       await sleep(1400);
     }
 

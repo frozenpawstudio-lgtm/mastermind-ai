@@ -12,23 +12,24 @@
        AIRA DESIGN SYSTEM — TOKENS
        ========================================================================== */
     :root {
-      --bg-void: #04070f;
-      --bg-deep: #070c18;
-      --bg-panel: rgba(15, 23, 42, 0.62);
-      --bg-inset: rgba(4, 8, 18, 0.6);
+      --bg-void: #04060e;
+      --bg-deep: #070d1c;
+      --bg-panel: rgba(15, 23, 42, 0.72);
+      --bg-inset: rgba(4, 8, 18, 0.62);
 
-      --stroke: rgba(148, 163, 184, 0.16);
-      --stroke-soft: rgba(148, 163, 184, 0.09);
-      --stroke-cyan: rgba(34, 211, 238, 0.38);
-      --stroke-violet: rgba(168, 85, 247, 0.34);
+      --stroke: rgba(56, 189, 248, 0.20);
+      --stroke-soft: rgba(56, 189, 248, 0.10);
+      --stroke-cyan: rgba(0, 229, 255, 0.42);
+      --stroke-violet: rgba(123, 44, 255, 0.38);
 
-      --cyan: #22d3ee;
-      --cyan-bright: #67e8f9;
+      --cyan: #00e5ff;
+      --cyan-bright: #7df5ff;
       --blue: #3b82f6;
-      --violet: #a855f7;
-      --ok: #34d399;
+      --violet: #7b2cff;
+      --magenta: #ff2d95;
+      --ok: #00e676;
       --warn: #fbbf24;
-      --err: #f87171;
+      --err: #ff3b5c;
       --muted-state: #94a3b8;
 
       --text: #e9effc;
@@ -55,10 +56,12 @@
 
     body {
       min-height: 100vh;
+      min-height: 100dvh;
       background:
-        radial-gradient(1100px 620px at 12% -8%, rgba(34, 211, 238, 0.14), transparent 62%),
-        radial-gradient(900px 560px at 96% 4%, rgba(168, 85, 247, 0.13), transparent 60%),
-        linear-gradient(180deg, #05080f 0%, #04070f 42%, #03060c 100%);
+        radial-gradient(1100px 620px at 12% -8%, rgba(0, 229, 255, 0.15), transparent 62%),
+        radial-gradient(900px 560px at 96% 4%, rgba(123, 44, 255, 0.15), transparent 60%),
+        radial-gradient(760px 520px at 50% 108%, rgba(255, 45, 149, 0.07), transparent 62%),
+        linear-gradient(180deg, #060b18 0%, #050914 42%, #04070f 100%);
       background-attachment: fixed;
       color: var(--text);
       font-family: var(--font);
@@ -119,7 +122,7 @@
       font-size: 16px;
       color: #03121a;
       background: linear-gradient(135deg, var(--cyan-bright), var(--cyan) 45%, var(--violet));
-      box-shadow: 0 0 18px rgba(34, 211, 238, 0.4);
+      box-shadow: 0 0 18px rgba(0, 229, 255, 0.4);
     }
 
     .brand-text { display: flex; flex-direction: column; min-width: 0; }
@@ -159,7 +162,7 @@
 
     .subnav button {
       flex: 1;
-      min-height: 34px;
+      min-height: 44px;
       padding: 0 10px;
       border: 1px solid transparent;
       border-radius: 999px;
@@ -178,7 +181,7 @@
     }
 
     /* ------------------------------ CARDS ---------------------------------- */
-    .screens { display: flex; flex-direction: column; }
+    .screens { display: flex; flex-direction: column; flex: 1 1 auto; }
 
     .screen { display: none; flex-direction: column; gap: 14px; }
     .screen.active { display: flex; }
@@ -212,7 +215,7 @@
       text-transform: uppercase;
       color: #ffffff;
       min-width: 0;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .card-title::before {
@@ -229,7 +232,7 @@
       font-size: 12px;
       color: var(--text-3);
       line-height: 1.5;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .divider { height: 1px; background: var(--stroke-soft); margin: 10px 0; }
@@ -241,8 +244,9 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px 10px;
       min-width: 0;
+      flex-wrap: wrap;
     }
 
     .row .k {
@@ -250,7 +254,7 @@
       color: var(--text-3);
       flex: 1 1 auto;
       min-width: 0;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .row .v {
@@ -259,12 +263,18 @@
       color: var(--text);
       text-align: right;
       flex: 0 1 auto;
-      max-width: 58%;
-      overflow-wrap: anywhere;
+      max-width: 100%;
+      overflow-wrap: break-word;
     }
 
     .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+
+    /* Two tiles per row on narrow Android screens; three cramped columns
+       force mid-word breaks in labels like "NOT CONNECTED". */
+    @media (max-width: 419px) {
+      .grid-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
 
     .tile {
       background: var(--bg-inset);
@@ -283,17 +293,17 @@
       letter-spacing: 0.7px;
       text-transform: uppercase;
       color: var(--text-3);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .tile .t-value {
       font-size: 14px;
       font-weight: 800;
       color: var(--cyan);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
-    .tile .t-sub { font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
+    .tile .t-sub { font-size: 11px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* -------------------------------- PILLS -------------------------------- */
     .pill {
@@ -310,18 +320,102 @@
       background: rgba(148, 163, 184, 0.1);
       color: var(--text-2);
       max-width: 100%;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       line-height: 1.35;
     }
 
-    .pill.ok { color: var(--ok); border-color: rgba(52, 211, 153, 0.35); background: rgba(52, 211, 153, 0.12); }
-    .pill.cyan { color: var(--cyan-bright); border-color: var(--stroke-cyan); background: rgba(34, 211, 238, 0.12); }
-    .pill.violet { color: #d8b4fe; border-color: var(--stroke-violet); background: rgba(168, 85, 247, 0.14); }
+    .pill.ok { color: var(--ok); border-color: rgba(0, 230, 118, 0.38); background: rgba(0, 230, 118, 0.12); }
+    .pill.cyan { color: var(--cyan-bright); border-color: var(--stroke-cyan); background: rgba(0, 229, 255, 0.12); }
+    .pill.violet { color: #d8b4fe; border-color: var(--stroke-violet); background: rgba(123, 44, 255, 0.16); }
     .pill.warn { color: var(--warn); border-color: rgba(251, 191, 36, 0.35); background: rgba(251, 191, 36, 0.12); }
-    .pill.err { color: var(--err); border-color: rgba(248, 113, 113, 0.38); background: rgba(248, 113, 113, 0.13); }
+    .pill.err { color: var(--err); border-color: rgba(255, 59, 92, 0.38); background: rgba(255, 59, 92, 0.13); }
     .pill.muted { color: var(--muted-state); }
 
     .badge-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+    /* --------------------------- SYSTEM STATUS STRIP ----------------------- */
+    .status-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: var(--r-md);
+      border: 1px solid var(--stroke-soft);
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.09), rgba(123, 44, 255, 0.06));
+      min-width: 0;
+      flex-wrap: wrap;
+    }
+
+    .status-strip .ss-label {
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 1.3px;
+      color: var(--text-3);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .status-strip .ss-value {
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.7px;
+      text-align: right;
+      overflow-wrap: break-word;
+      min-width: 0;
+    }
+
+    .status-strip .ss-value.ok { color: var(--ok); }
+    .status-strip .ss-value.warn { color: var(--warn); }
+    .status-strip .ss-value.err { color: var(--err); }
+
+    /* ECG heartbeat line beside the status value */
+    .ecg { flex: 0 0 54px; height: 22px; opacity: 0.9; }
+    .ecg path {
+      fill: none;
+      stroke: var(--ok);
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 3px rgba(0, 230, 118, 0.7));
+    }
+    .ecg.idle path { stroke: var(--text-3); filter: none; }
+
+    /* ---------------------------- MODULE LIST ------------------------------ */
+    .mod-list { display: flex; flex-direction: column; gap: 7px; }
+
+    .mod {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      width: 100%;
+      min-height: 44px;
+      padding: 9px 11px;
+      text-align: left;
+      font: inherit;
+      color: var(--text);
+      border: 1px solid var(--stroke-soft);
+      border-radius: var(--r-md);
+      background: linear-gradient(90deg, rgba(0, 229, 255, 0.06), rgba(123, 44, 255, 0.04));
+      cursor: pointer;
+      transition: border-color 0.16s ease, transform 0.12s ease;
+    }
+
+    .mod:active { transform: scale(0.985); }
+    .mod:hover { border-color: var(--stroke-cyan); }
+
+    .mod-dot {
+      flex: 0 0 8px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 8px rgba(0, 229, 255, 0.85);
+    }
+
+    .mod-text { display: flex; flex-direction: column; min-width: 0; }
+    .mod-name { font-size: 13px; font-weight: 800; letter-spacing: 0.3px; }
+    .mod-sub { font-size: 11px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* ------------------------------ BUTTONS -------------------------------- */
     .btn {
@@ -333,7 +427,7 @@
       font-size: 13px;
       font-weight: 700;
       padding: 10px 14px;
-      min-height: 42px;
+      min-height: 44px;
       border-radius: 12px;
       cursor: pointer;
       display: inline-flex;
@@ -341,7 +435,7 @@
       justify-content: center;
       gap: 7px;
       transition: transform 0.14s ease, background 0.2s ease, border-color 0.2s ease;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       text-align: center;
     }
 
@@ -353,7 +447,7 @@
       background: linear-gradient(135deg, var(--cyan-bright), var(--cyan));
       color: #041019;
       border-color: transparent;
-      box-shadow: 0 6px 18px rgba(34, 211, 238, 0.28);
+      box-shadow: 0 6px 18px rgba(0, 229, 255, 0.28);
     }
 
     .btn.violet {
@@ -364,19 +458,19 @@
 
     .btn.ghost { background: transparent; }
 
-    .btn.danger { color: var(--err); border-color: rgba(248, 113, 113, 0.35); background: rgba(248, 113, 113, 0.1); }
+    .btn.danger { color: var(--err); border-color: rgba(255, 59, 92, 0.35); background: rgba(255, 59, 92, 0.1); }
 
     .btn.block { width: 100%; }
-    .btn.sm { min-height: 36px; font-size: 12px; padding: 7px 10px; border-radius: 10px; }
+    .btn.sm { min-height: 44px; font-size: 12px; padding: 7px 10px; border-radius: 10px; }
 
     .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
     .btn-row .btn { flex: 1 1 118px; }
 
     .icon-btn {
-      width: 36px;
-      height: 36px;
-      flex: 0 0 36px;
-      border-radius: 11px;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      border-radius: 12px;
       border: 1px solid var(--stroke);
       background: rgba(148, 163, 184, 0.1);
       color: var(--text-2);
@@ -406,7 +500,7 @@
     textarea,
     select {
       width: 100%;
-      min-height: 42px;
+      min-height: 44px;
       padding: 10px 12px;
       border-radius: 12px;
       border: 1px solid var(--stroke);
@@ -421,38 +515,70 @@
 
     input:focus, textarea:focus, select:focus {
       border-color: var(--stroke-cyan);
-      box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.13);
+      box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.13);
     }
 
-    input::placeholder, textarea::placeholder { color: var(--text-3); }
+    input::placeholder, textarea::placeholder { color: #93a1c0; }
+
+    /* Chat fills the viewport height so the conversation is the focus and the
+       composer stays at the bottom of the card instead of floating mid-screen. */
+    #screen-chat { min-height: calc(100dvh - var(--dock-height) - 150px); }
+    #screen-chat > .card { flex: 1 1 auto; display: flex; flex-direction: column; }
+    #screen-chat .chat-log { flex: 1 1 auto; max-height: none; min-height: 180px; }
 
     /* ------------------------------- HERO ---------------------------------- */
-    .hero { display: flex; align-items: center; gap: 12px; }
+    /* Stacked by default: on a 360px Android screen a side-by-side core and
+       text column leaves the text only ~160px wide, which breaks labels
+       mid-word. Full width text avoids that. */
+    .hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 12px;
+    }
+
+    .hero .badge-row { justify-content: center; }
+
+    @media (min-width: 520px) {
+      .hero { flex-direction: row; align-items: center; text-align: left; gap: 14px; }
+      .hero .badge-row { justify-content: flex-start; }
+    }
+
+    .core-stack {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 7px;
+      flex: 0 0 auto;
+    }
 
     .core-frame {
       position: relative;
-      width: 128px;
-      height: 128px;
-      flex: 0 0 128px;
-      border-radius: 18px;
-      border: 1px solid var(--stroke-cyan);
-      background: radial-gradient(circle at 50% 46%, rgba(34, 211, 238, 0.16), rgba(4, 8, 18, 0.9) 68%);
+      width: 132px;
+      height: 132px;
+      flex: 0 0 132px;
+      border-radius: 50%;
+      border: 1px solid rgba(0, 229, 255, 0.16);
+      background:
+        radial-gradient(circle at 50% 46%, rgba(0, 229, 255, 0.07), rgba(4, 8, 18, 0.92) 68%),
+        radial-gradient(circle at 50% 50%, rgba(123, 44, 255, 0.08), transparent 72%);
+      box-shadow:
+        0 0 22px rgba(0, 229, 255, 0.14),
+        inset 0 0 18px rgba(0, 229, 255, 0.07);
       overflow: hidden;
     }
 
     #neural-core { width: 100%; height: 100%; display: block; }
 
     .core-caption {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 5px;
       text-align: center;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
-      letter-spacing: 1.1px;
+      letter-spacing: 1.4px;
       color: var(--cyan-bright);
       text-shadow: 0 0 10px rgba(4, 8, 18, 0.95);
+      white-space: nowrap;
     }
 
     .hero-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
@@ -462,10 +588,10 @@
       font-weight: 900;
       letter-spacing: 0.6px;
       color: #ffffff;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
-    .hero-sub { font-size: 12px; color: var(--text-2); overflow-wrap: anywhere; }
+    .hero-sub { font-size: 12px; color: var(--text-2); overflow-wrap: break-word; }
 
     /* ------------------------------ PIPELINE ------------------------------- */
     .pipeline { display: flex; flex-direction: column; }
@@ -501,12 +627,19 @@
       z-index: 1;
     }
 
-    .stage.done .stage-dot { border-color: var(--ok); background: var(--ok); box-shadow: 0 0 9px rgba(52, 211, 153, 0.6); }
+    .stage.done .stage-dot { border-color: var(--ok); background: var(--ok); box-shadow: 0 0 9px rgba(0, 230, 118, 0.6); }
     .stage.blocked .stage-dot { border-color: var(--warn); background: rgba(251, 191, 36, 0.35); }
     .stage.off .stage-dot { border-color: var(--muted-state); background: rgba(148, 163, 184, 0.2); }
-    .stage.owner .stage-dot { border-color: var(--violet); background: rgba(168, 85, 247, 0.35); }
+    .stage.owner .stage-dot { border-color: var(--violet); background: rgba(123, 44, 255, 0.35); }
 
     .stage-body { min-width: 0; }
+
+    /* The stage name and its state pill share one row; on narrow screens the
+       long names ("Execute Only When Authorized") squeeze the pill and break
+       words, so let the pair wrap instead. */
+    .stage-body .row { flex-wrap: wrap; gap: 6px; }
+    .stage-body .row .stage-name { flex: 1 1 auto; min-width: 0; }
+    .stage-body .row .stage-state { flex: 0 0 auto; }
 
     .stage-name {
       font-size: 12px;
@@ -514,10 +647,10 @@
       letter-spacing: 0.7px;
       text-transform: uppercase;
       color: var(--text);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
-    .stage-detail { font-size: 12px; color: var(--text-3); overflow-wrap: anywhere; }
+    .stage-detail { font-size: 12px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* ------------------------------- METER --------------------------------- */
     .meter {
@@ -552,16 +685,16 @@
       font-size: 14px;
       font-weight: 800;
       color: #ffffff;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       min-width: 0;
     }
 
-    .opp-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); overflow-wrap: anywhere; }
+    .opp-id { font-family: var(--mono); font-size: 11px; color: var(--text-3); overflow-wrap: break-word; }
 
     .opp-link {
       font-size: 12px;
       color: var(--cyan-bright);
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       text-decoration: underline;
       text-underline-offset: 2px;
     }
@@ -574,7 +707,7 @@
       font-size: 12px;
       color: var(--text-2);
       white-space: pre-wrap;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       max-height: 320px;
       overflow-y: auto;
     }
@@ -604,31 +737,40 @@
       padding: 10px 12px;
       font-size: 13.5px;
       line-height: 1.5;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       white-space: pre-wrap;
       border: 1px solid var(--stroke);
       background: rgba(15, 23, 42, 0.72);
     }
 
-    .msg.owner .bubble { border-color: var(--stroke-cyan); background: rgba(34, 211, 238, 0.11); }
-    .msg.aira .bubble { border-color: var(--stroke-violet); background: rgba(168, 85, 247, 0.1); }
+    .msg.owner .bubble { border-color: var(--stroke-cyan); background: rgba(0, 229, 255, 0.11); }
+    .msg.aira .bubble { border-color: var(--stroke-violet); background: rgba(123, 44, 255, 0.1); }
 
     .msg.error .bubble {
-      border-color: rgba(248, 113, 113, 0.45);
-      background: rgba(248, 113, 113, 0.12);
+      border-color: rgba(255, 59, 92, 0.45);
+      background: rgba(255, 59, 92, 0.12);
       color: #fecaca;
     }
 
     .msg.pending .bubble { color: var(--text-3); font-style: italic; }
 
-    .composer { display: flex; gap: 8px; align-items: flex-end; }
-
+    .composer { display: flex; gap: 10px; align-items: flex-end; }
     .composer .field { flex: 1 1 auto; }
 
+    /* The chat box is a single-line composer, so it must not inherit the
+       taller global textarea min-height. */
+    #chat-input {
+      min-height: 44px;
+      max-height: 132px;
+      padding: 11px 12px;
+      resize: none;
+      overflow-y: auto;
+    }
+
     .send-btn {
-      width: 46px;
-      height: 46px;
-      flex: 0 0 46px;
+      width: 48px;
+      height: 48px;
+      flex: 0 0 48px;
       border-radius: 14px;
       border: none;
       background: linear-gradient(135deg, var(--cyan-bright), var(--cyan));
@@ -636,7 +778,10 @@
       display: grid;
       place-items: center;
       cursor: pointer;
+      box-shadow: 0 6px 18px rgba(0, 229, 255, 0.24);
     }
+
+    .send-btn:active { transform: scale(0.96); }
 
     .send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
@@ -658,8 +803,8 @@
 
     .li-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 
-    .li-name { font-size: 13px; font-weight: 700; overflow-wrap: anywhere; min-width: 0; }
-    .li-sub { font-size: 11.5px; color: var(--text-3); overflow-wrap: anywhere; }
+    .li-name { font-size: 13px; font-weight: 700; overflow-wrap: break-word; min-width: 0; }
+    .li-sub { font-size: 11.5px; color: var(--text-3); overflow-wrap: break-word; }
 
     /* --------------------------- STATE BOXES ------------------------------- */
     .state-box {
@@ -673,11 +818,11 @@
       flex-direction: column;
       gap: 5px;
       align-items: center;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
     }
 
     .state-box strong { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2); }
-    .state-box.error { border-color: rgba(248, 113, 113, 0.4); color: #fecaca; background: rgba(248, 113, 113, 0.07); }
+    .state-box.error { border-color: rgba(255, 59, 92, 0.4); color: #fecaca; background: rgba(255, 59, 92, 0.07); }
     .state-box.error strong { color: #fecaca; }
     .state-box.warn { border-color: rgba(251, 191, 36, 0.35); color: #fde68a; }
     .state-box.warn strong { color: #fde68a; }
@@ -738,8 +883,8 @@
 
     .dock button[aria-current="true"] {
       color: var(--cyan-bright);
-      background: rgba(34, 211, 238, 0.12);
-      box-shadow: inset 0 0 0 1px rgba(34, 211, 238, 0.28);
+      background: rgba(0, 229, 255, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.28);
     }
 
     .dock button:active { transform: scale(0.96); }
@@ -763,18 +908,18 @@
       pointer-events: none;
       transition: opacity 0.22s ease, transform 0.22s ease;
       z-index: 80;
-      overflow-wrap: anywhere;
+      overflow-wrap: break-word;
       text-align: center;
     }
 
     .toast.show { opacity: 1; transform: translate(-50%, 0); }
-    .toast.error { border-color: rgba(248, 113, 113, 0.5); color: #fecaca; }
-    .toast.ok { border-color: rgba(52, 211, 153, 0.5); }
+    .toast.error { border-color: rgba(255, 59, 92, 0.5); color: #fecaca; }
+    .toast.ok { border-color: rgba(0, 230, 118, 0.5); }
 
     /* ------------------------------ UTILITIES ------------------------------ */
     .muted { color: var(--text-3); }
-    .tiny-note { font-size: 11px; color: var(--text-3); line-height: 1.5; overflow-wrap: anywhere; }
-    .mono { font-family: var(--mono); font-size: 11.5px; overflow-wrap: anywhere; }
+    .tiny-note { font-size: 11px; color: var(--text-3); line-height: 1.5; overflow-wrap: break-word; }
+    .mono { font-family: var(--mono); font-size: 11.5px; overflow-wrap: break-word; }
     .selectable { user-select: text; -webkit-user-select: text; }
     .sr-only {
       position: absolute;
@@ -830,10 +975,20 @@
         <h1 class="sr-only" id="home-title">AIRA Home</h1>
 
         <div class="card">
+          <div class="status-strip">
+            <span class="ss-label">System Status</span>
+            <svg class="ecg idle" id="home-ecg" viewBox="0 0 60 24" aria-hidden="true">
+              <path d="M0 12 H14 l3 -7 l4 14 l3 -7 H60" />
+            </svg>
+            <span class="ss-value" id="home-system-status">READING</span>
+          </div>
+          <div class="divider"></div>
           <div class="hero">
-            <div class="core-frame">
-              <canvas id="neural-core" aria-hidden="true"></canvas>
-              <div class="core-caption" id="core-caption">CORE</div>
+            <div class="core-stack">
+              <div class="core-frame">
+                <canvas id="neural-core" aria-hidden="true"></canvas>
+              </div>
+              <div class="core-caption" id="core-caption">NEURAL CORE</div>
             </div>
             <div class="hero-body">
               <span class="pill cyan" id="home-phase">PHASE 1 — EARNING</span>
@@ -901,6 +1056,43 @@
             <button class="btn sm" type="button" data-goto="research">Research a URL</button>
             <button class="btn sm" type="button" data-goto="tools">Open Earning Agent</button>
             <button class="btn sm" type="button" data-goto="tasks">Check Tasks</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head">
+            <span class="card-title">Command Center</span>
+            <span class="pill muted">MODULES</span>
+          </div>
+          <div class="mod-list">
+            <button class="mod" type="button" data-goto="home">
+              <span class="mod-dot"></span>
+              <span class="mod-text"><span class="mod-name">Command Center</span><span class="mod-sub">Control &amp; overview</span></span>
+            </button>
+            <button class="mod" type="button" data-goto="chat">
+              <span class="mod-dot"></span>
+              <span class="mod-text"><span class="mod-name">AI Chat &amp; Voice</span><span class="mod-sub">Talk with Master Mind</span></span>
+            </button>
+            <button class="mod" type="button" data-goto="tools">
+              <span class="mod-dot"></span>
+              <span class="mod-text"><span class="mod-name">Earning Agent</span><span class="mod-sub">Opportunity radar &amp; pipeline</span></span>
+            </button>
+            <button class="mod" type="button" data-goto="research">
+              <span class="mod-dot"></span>
+              <span class="mod-text"><span class="mod-name">Research Hub</span><span class="mod-sub">Deep research engine</span></span>
+            </button>
+            <button class="mod" type="button" data-goto="tasks">
+              <span class="mod-dot"></span>
+              <span class="mod-text"><span class="mod-name">Tasks &amp; Automation</span><span class="mod-sub">Smart task manager</span></span>
+            </button>
+            <button class="mod" type="button" data-goto="audit">
+              <span class="mod-dot"></span>
+              <span class="mod-text"><span class="mod-name">Audit Log</span><span class="mod-sub">Owner-only append-only trail</span></span>
+            </button>
+            <button class="mod" type="button" data-goto="profile">
+              <span class="mod-dot"></span>
+              <span class="mod-text"><span class="mod-name">Owner Profile</span><span class="mod-sub">Authorization &amp; settings</span></span>
+            </button>
           </div>
         </div>
       </section>
@@ -1092,11 +1284,11 @@
     </button>
     <button type="button" data-nav="tools">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6.5v11M14.8 9.2H10.6a1.6 1.6 0 0 0 0 3.2h2.8a1.6 1.6 0 0 1 0 3.2H9"/></svg>
-      <span>Earning</span>
+      <span>Agents</span>
     </button>
-    <button type="button" data-nav="research">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m20.5 20.5-4.2-4.2"/></svg>
-      <span>Research</span>
+    <button type="button" data-nav="tasks">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      <span>Tasks</span>
     </button>
     <button type="button" data-nav="profile">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1262,7 +1454,10 @@
 
       document.querySelectorAll("#dock button").forEach((btn) => {
         const nav = btn.getAttribute("data-nav");
-        const isCurrent = nav === screen || ((screen === "tasks" || screen === "audit") && nav === "research");
+        // Research and Audit are sub-sections of the Tasks hub, so the Tasks
+        // dock item stays highlighted while either is open.
+        const isCurrent = nav === screen ||
+          ((screen === "research" || screen === "audit") && nav === "tasks");
         btn.setAttribute("aria-current", isCurrent ? "true" : "false");
       });
 
@@ -1294,9 +1489,10 @@
       }
     }
 
-    /* ------------------------- NEURAL CORE (compact) ----------------------
-       Deliberately small: the animation is decoration beside working
-       information, never the main content.
+    /* ------------------------- NEURAL CORE (holographic) ------------------
+       A layered holographic brain: wireframe hemispheres, orbital rings,
+       particles and a light column. Deliberately compact so it never crowds
+       working information. Honours prefers-reduced-motion (static frame).
        ---------------------------------------------------------------------- */
     function initNeuralCore() {
       const canvas = $("neural-core");
@@ -1318,75 +1514,215 @@
       resize();
       window.addEventListener("resize", resize);
 
+      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      /* --- brain: two hemispheres split by a central fissure ---
+         Points are sampled inside an ellipse that is wider than it is tall,
+         and rejected inside a narrow vertical band so the silhouette shows
+         the two lobes and the midline fissure instead of a plain orb. */
       const nodes = [];
-      const COUNT = 34;
+      const COUNT = 58;
+      const HW = 0.54;          // horizontal half-extent
+      const HH = 0.40;          // vertical half-extent
+      const FISSURE = 0.05;     // half-width of the midline gap
       for (let i = 0; i < COUNT; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const radius = 12 + Math.pow(Math.random(), 0.6) * 40;
+        let x = 0, y = 0, d = 0;
+        for (let attempt = 0; attempt < 60; attempt++) {
+          x = (Math.random() * 2 - 1) * HW;
+          y = (Math.random() * 2 - 1) * HH;
+          d = 1 - (x * x) / (HW * HW) - (y * y) / (HH * HH);
+          if (d > 0 && Math.abs(x) > FISSURE) break;
+        }
+        // push each hemisphere slightly outward so the lobes read as rounded
+        x += (x < 0 ? -1 : 1) * 0.03;
+        const z = (Math.random() * 2 - 1) * 0.24 * Math.sqrt(Math.max(0, d));
         nodes.push({
-          x: Math.cos(angle) * radius,
-          y: Math.sin(angle) * radius,
-          baseX: Math.cos(angle) * radius,
-          baseY: Math.sin(angle) * radius,
-          vx: (Math.random() - 0.5) * 0.22,
-          vy: (Math.random() - 0.5) * 0.22,
-          r: 1.1 + Math.random() * 1.5,
+          baseX: x, baseY: y, baseZ: z,
           phase: Math.random() * Math.PI * 2,
-          violet: Math.random() < 0.42
+          r: 0.9 + Math.random() * 1.2,
+          violet: Math.random() < 0.3
         });
       }
 
-      const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      /* --- particles drifting around the brain --- */
+      const particles = [];
+      for (let i = 0; i < 22; i++) {
+        particles.push({
+          a: Math.random() * Math.PI * 2,
+          rad: 0.30 + Math.random() * 0.30,
+          sp: 0.0012 + Math.random() * 0.0032,
+          r: 0.5 + Math.random() * 1.0,
+          violet: Math.random() < 0.3,
+          tw: Math.random() * Math.PI * 2
+        });
+      }
+
+      let t = 0;
+
+      /* --- cortical folds: short arcs inside each hemisphere --- */
+      const folds = [];
+      for (let i = 0; i < 14; i++) {
+        const side = i % 2 === 0 ? -1 : 1;
+        folds.push({
+          side: side,
+          x: side * (0.14 + Math.random() * 0.30),
+          y: (Math.random() * 2 - 1) * 0.28,
+          rad: 0.10 + Math.random() * 0.13,
+          a0: Math.random() * Math.PI * 2,
+          sweep: 0.7 + Math.random() * 1.1,
+          a: 0.16 + Math.random() * 0.20
+        });
+      }
 
       function draw() {
         ctx.clearRect(0, 0, w, h);
         const cx = w / 2;
         const cy = h / 2;
+        const S = Math.min(w, h) * 0.5;   // scale unit
 
-        const glow = ctx.createRadialGradient(cx, cy, 2, cx, cy, 46);
-        glow.addColorStop(0, "rgba(103, 232, 249, 0.8)");
-        glow.addColorStop(0.4, "rgba(34, 211, 238, 0.26)");
+        /* light column beneath the brain */
+        const beam = ctx.createLinearGradient(cx, cy, cx, h);
+        beam.addColorStop(0, "rgba(125, 245, 255, 0.30)");
+        beam.addColorStop(0.55, "rgba(0, 229, 255, 0.10)");
+        beam.addColorStop(1, "rgba(0, 229, 255, 0)");
+        ctx.fillStyle = beam;
+        ctx.fillRect(cx - 1.2, cy, 2.4, h - cy);
+
+        /* core glow — kept soft so it does not wash out the brain silhouette */
+        const glow = ctx.createRadialGradient(cx, cy - S * 0.06, 1, cx, cy, S * 0.86);
+        glow.addColorStop(0, "rgba(125, 245, 255, 0.30)");
+        glow.addColorStop(0.34, "rgba(0, 229, 255, 0.12)");
+        glow.addColorStop(0.68, "rgba(123, 44, 255, 0.08)");
         glow.addColorStop(1, "rgba(4, 8, 18, 0)");
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(cx, cy, 46, 0, Math.PI * 2);
+        ctx.arc(cx, cy, S * 0.86, 0, Math.PI * 2);
         ctx.fill();
 
-        for (const n of nodes) {
-          if (!reduceMotion) {
-            n.x += n.vx;
-            n.y += n.vy;
-            if (Math.abs(n.x - n.baseX) > 4) n.vx *= -1;
-            if (Math.abs(n.y - n.baseY) > 4) n.vy *= -1;
-          }
+        /* brain silhouette: two mirrored lobes with a notch at the base.
+           The explicit outline is what makes the shape read as a brain
+           rather than a generic glowing orb. */
+        const bx = cx, by = cy - S * 0.06;
+        const bw = S * 0.60;   // half-width of the whole brain
+        const bh = S * 0.42;   // half-height
+        ctx.beginPath();
+        ctx.moveTo(bx, by - bh);                                   // crown
+        ctx.bezierCurveTo(bx - bw * 0.55, by - bh * 1.02, bx - bw * 1.04, by - bh * 0.42, bx - bw, by + bh * 0.06);
+        ctx.bezierCurveTo(bx - bw * 0.98, by + bh * 0.66, bx - bw * 0.62, by + bh * 0.98, bx - bw * 0.20, by + bh * 0.90);
+        ctx.bezierCurveTo(bx - bw * 0.10, by + bh * 0.86, bx - bw * 0.05, by + bh * 0.60, bx, by + bh * 0.52);
+        ctx.bezierCurveTo(bx + bw * 0.05, by + bh * 0.60, bx + bw * 0.10, by + bh * 0.86, bx + bw * 0.20, by + bh * 0.90);
+        ctx.bezierCurveTo(bx + bw * 0.62, by + bh * 0.98, bx + bw * 0.98, by + bh * 0.66, bx + bw, by + bh * 0.06);
+        ctx.bezierCurveTo(bx + bw * 1.04, by - bh * 0.42, bx + bw * 0.55, by - bh * 1.02, bx, by - bh);
+        ctx.closePath();
+        ctx.fillStyle = "rgba(0, 229, 255, 0.07)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(125, 245, 255, 0.70)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        /* orbital rings — elliptical, giving perspective depth */
+        const rings = [
+          { rx: 0.62, ry: 0.20, tilt: 0.0,  a: 0.30, col: "125, 245, 255" },
+          { rx: 0.74, ry: 0.26, tilt: 0.32, a: 0.20, col: "0, 229, 255" },
+          { rx: 0.86, ry: 0.32, tilt: -0.24, a: 0.14, col: "123, 44, 255" }
+        ];
+        for (const ring of rings) {
+          ctx.save();
+          ctx.translate(cx, cy + S * 0.14);
+          ctx.rotate(ring.tilt + (reduceMotion ? 0 : Math.sin(t * 0.0006) * 0.06));
+          ctx.beginPath();
+          ctx.ellipse(0, 0, S * ring.rx, S * ring.ry, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(" + ring.col + ", " + ring.a + ")";
+          ctx.lineWidth = 1.1;
+          ctx.stroke();
+          ctx.restore();
         }
 
-        ctx.lineWidth = 1;
-        for (let i = 0; i < nodes.length; i++) {
-          for (let j = i + 1; j < nodes.length; j++) {
-            const dx = nodes[i].x - nodes[j].x;
-            const dy = nodes[i].y - nodes[j].y;
+        /* rotate the brain slowly around Y */
+        const rot = reduceMotion ? 0 : t * 0.00035;
+        const cosR = Math.cos(rot), sinR = Math.sin(rot);
+        const proj = [];
+        for (const n of nodes) {
+          if (!reduceMotion) n.phase += 0.02;
+          const bx = n.baseX + (reduceMotion ? 0 : Math.sin(n.phase) * 0.012);
+          const by = n.baseY + (reduceMotion ? 0 : Math.cos(n.phase * 0.9) * 0.012);
+          const x = bx * cosR - n.baseZ * sinR;
+          const z = bx * sinR + n.baseZ * cosR;
+          proj.push({ px: cx + x * S, py: cy + by * S - S * 0.06, z: z, r: n.r, violet: n.violet });
+        }
+
+        /* neural connections between near neighbours */
+        ctx.lineWidth = 0.9;
+        for (let i = 0; i < proj.length; i++) {
+          for (let j = i + 1; j < proj.length; j++) {
+            const dx = proj[i].px - proj[j].px;
+            const dy = proj[i].py - proj[j].py;
             const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 22) {
-              ctx.strokeStyle = "rgba(34, 211, 238, " + ((1 - dist / 22) * 0.42).toFixed(3) + ")";
+            if (dist < S * 0.30) {
+              const alpha = (1 - dist / (S * 0.30)) * 0.40;
+              ctx.strokeStyle = "rgba(0, 229, 255, " + alpha.toFixed(3) + ")";
               ctx.beginPath();
-              ctx.moveTo(cx + nodes[i].x, cy + nodes[i].y);
-              ctx.lineTo(cx + nodes[j].x, cy + nodes[j].y);
+              ctx.moveTo(proj[i].px, proj[i].py);
+              ctx.lineTo(proj[j].px, proj[j].py);
               ctx.stroke();
             }
           }
         }
 
-        for (const n of nodes) {
-          n.phase += 0.035;
-          const r = n.r + (reduceMotion ? 0 : Math.sin(n.phase) * 0.5);
+        /* cortical folds inside each hemisphere, drawn under the nodes */
+        for (const f of folds) {
           ctx.beginPath();
-          ctx.arc(cx + n.x, cy + n.y, Math.max(0.6, r), 0, Math.PI * 2);
-          ctx.fillStyle = n.violet ? "#c084fc" : "#67e8f9";
+          ctx.arc(
+            cx + f.x * S,
+            cy + f.y * S - S * 0.06,
+            f.rad * S,
+            f.a0 + (reduceMotion ? 0 : t * 0.0002 * f.side),
+            f.a0 + f.sweep + (reduceMotion ? 0 : t * 0.0002 * f.side)
+          );
+          ctx.strokeStyle = "rgba(0, 229, 255, " + f.a.toFixed(3) + ")";
+          ctx.lineWidth = 0.9;
+          ctx.stroke();
+        }
+
+        /* central fissure separating the hemispheres */
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - S * 0.34);
+        ctx.lineTo(cx, cy + S * 0.26);
+        ctx.strokeStyle = "rgba(125, 245, 255, 0.22)";
+        ctx.lineWidth = 1.0;
+        ctx.stroke();
+
+        /* nodes, brighter when nearer the viewer */
+        for (const p of proj) {
+          const depth = (p.z + 0.4) / 0.8;
+          const r = Math.max(0.5, p.r * (0.7 + depth * 0.7));
+          ctx.beginPath();
+          ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
+          ctx.fillStyle = p.violet ? "rgba(255, 45, 149, 0.95)" : "rgba(125, 245, 255, 0.95)";
           ctx.fill();
         }
 
-        if (!reduceMotion) requestAnimationFrame(draw);
+        /* particles */
+        for (const pt of particles) {
+          if (!reduceMotion) {
+            pt.a += pt.sp * 16;
+            pt.tw += 0.05;
+          }
+          const tw = 0.5 + 0.5 * Math.sin(pt.tw);
+          const px = cx + Math.cos(pt.a) * pt.rad * S;
+          const py = cy + Math.sin(pt.a) * pt.rad * S * 0.42 + S * 0.06;
+          ctx.beginPath();
+          ctx.arc(px, py, pt.r, 0, Math.PI * 2);
+          ctx.fillStyle = pt.violet
+            ? "rgba(123, 44, 255, " + (0.35 + tw * 0.5).toFixed(3) + ")"
+            : "rgba(125, 245, 255, " + (0.35 + tw * 0.5).toFixed(3) + ")";
+          ctx.fill();
+        }
+
+        if (!reduceMotion) {
+          t += 16;
+          requestAnimationFrame(draw);
+        }
       }
       draw();
     }
@@ -1425,7 +1761,7 @@
           }
           ctx.beginPath();
           ctx.arc(d.x * canvas.width, d.y * canvas.height, d.r, 0, Math.PI * 2);
-          ctx.fillStyle = d.violet ? "rgba(168, 85, 247, 0.5)" : "rgba(34, 211, 238, 0.5)";
+          ctx.fillStyle = d.violet ? "rgba(123, 44, 255, 0.5)" : "rgba(0, 229, 255, 0.5)";
           ctx.fill();
         }
         if (!reduceMotion) requestAnimationFrame(draw);
@@ -1666,6 +2002,32 @@
       const aiConnected = !!(health && health.aiConnected);
       const browserConnected = !!(health && health.browserConnected);
       const authConfigured = !!(health && health.authorization === "CONFIGURED");
+
+      // SYSTEM STATUS reflects only what the backend actually reported. When the
+      // backend is unreachable or a capability is missing, it says so plainly.
+      const sysStatus = $("home-system-status");
+      const ecg = $("home-ecg");
+      if (sysStatus) {
+        let label = "NOT CONNECTED";
+        let cls = "err";
+        if (reachable) {
+          const missing = [];
+          if (!aiConnected) missing.push("AI");
+          if (!browserConnected) missing.push("BROWSER");
+          if (!authConfigured) missing.push("OWNER AUTH");
+          if (missing.length === 0) {
+            label = "FULLY OPERATIONAL";
+            cls = "ok";
+          } else {
+            label = "PARTIALLY OPERATIONAL — " + missing.join(", ") + " NOT CONNECTED";
+            cls = "warn";
+          }
+        }
+        sysStatus.textContent = label;
+        sysStatus.className = "ss-value " + cls;
+        // className is read-only on SVG elements, so set the attribute instead.
+        if (ecg) ecg.setAttribute("class", "ecg" + (cls === "ok" ? "" : " idle"));
+      }
 
       setText("home-state", reachable ? "AIRA ONLINE" : "AIRA NOT CONNECTED");
       setText("home-sub", reachable
