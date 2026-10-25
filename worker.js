@@ -997,6 +997,20 @@ const INFORMATIONAL_MARKERS = [
   "रिपोर्ट"
 ];
 
+/*
+ * Evidence text that is negated, pending or unresolved must never count as a
+ * positive confirmation ("NOT YET eligible", "not verified", "fit NO",
+ * "pending", "unclear"). Used by eligibility and owner-fit detection.
+ */
+const UNCERTAIN_EVIDENCE_PATTERN = /\b(not yet|not verified|unverified|not confirmed|unconfirmed|pending|unclear|unknown|undetermined|tbd|to be determined|not sure|uncertain|awaiting|needs? (?:to be )?(?:checked|verified|confirmed))\b/i;
+const EXPLICIT_NO_ELIGIBLE_PATTERN = /\b(eligible|eligibility|eligibility confirmed)\s*[:?=-]*\s*(no|false|negative)\b/i;
+const EXPLICIT_NO_FIT_PATTERN = /\b(fit|owner fit|owner fit confirmed|fit confirmed|fit verified|skills match|skills match verified)\s*[:?=-]*\s*(no|false|negative)\b/i;
+
+function evidenceIsUncertain(text) {
+  const t = String(text || "");
+  return UNCERTAIN_EVIDENCE_PATTERN.test(t);
+}
+
 function containsAny(text, list) {
   return list.some((marker) => text.includes(marker));
 }
@@ -1704,25 +1718,30 @@ export class MasterMindAgent extends Agent {
       }
     }
 
-    // Atomic single-use update requiring status = 'APPROVED'
-    const updateResult = this.sql`UPDATE owner_approvals
-      SET status = 'CONSUMED', consumed_at = ${now}, updated_at = ${now}
-      WHERE id = ${id} AND status = 'APPROVED' AND expires_at > ${now};`;
+    // Atomic single-use claim. The UPDATE itself is the decision: only the caller
+    // whose statement returns the claimed row owns the approval. Anything other
+    // than exactly one returned row (zero rows, unexpected shape, no RETURNING
+    // support) is treated as NOT consumed and fails closed.
+    let claimedRows = [];
+    try {
+      claimedRows = Array.from(this.sql`UPDATE owner_approvals
+        SET status = 'CONSUMED', consumed_at = ${now}, updated_at = ${now}
+        WHERE id = ${id} AND status = 'APPROVED' AND expires_at > ${now}
+        RETURNING id;`);
+    } catch {
+      claimedRows = [];
+    }
 
-    const rowsAffected = updateResult && typeof updateResult.rowsAffected === "number"
-      ? updateResult.rowsAffected
-      : (updateResult && typeof updateResult.changes === "number" ? updateResult.changes : null);
-
-    if (rowsAffected === 0) {
+    if (claimedRows.length !== 1) {
       this.logAudit({
         actor: "SYSTEM",
         action: "APPROVAL_CONSUMPTION_FAILED",
         resource_type: "OWNER_APPROVAL",
         resource_id: id,
         status: "FAILED",
-        details: { reason: "rowsAffected === 0 (already consumed or expired)" }
+        details: { reason: "single-use claim did not return exactly one row (already consumed, expired or unverifiable)" }
       });
-      throw new Error("Atomic single-use approval transition failed: Approval was already consumed or expired.");
+      throw new Error("Atomic single-use approval transition failed: Approval was already consumed, expired or could not be verified.");
     }
 
     const rechecked = this.getApprovalRequest(id);
@@ -1808,6 +1827,14 @@ export class MasterMindAgent extends Agent {
         'default', ${skills}, ${experience}, ${location}, ${max_cost}, ${max_effort}, ${accessibility}, ${other_criteria}, ${updated_at}
       );`;
     }
+    this.logAudit({
+      actor: "OWNER",
+      action: "OWNER_PROFILE_UPDATED",
+      resource_type: "OWNER_PROFILE",
+      resource_id: "owner_profile",
+      status: "SUCCESS",
+      details: { fields: Object.keys(data && typeof data === "object" ? data : {}) }
+    });
     return this.getOwnerProfile();
   }
 
@@ -1841,7 +1868,7 @@ export class MasterMindAgent extends Agent {
 
     const hasIneligibleFact = factEvidences.some(e => {
       const c = e.content.toLowerCase();
-      return c.includes("ineligible") || c.includes("not eligible") || c.includes("banned") || c.includes("restricted country") || c.includes("disqualified");
+      return c.includes("ineligible") || c.includes("not eligible") || c.includes("banned") || c.includes("restricted country") || c.includes("disqualified") || EXPLICIT_NO_ELIGIBLE_PATTERN.test(c);
     });
 
     if (hasIneligibleFact || currentNorm === "NOT_ELIGIBLE") {
@@ -1850,7 +1877,8 @@ export class MasterMindAgent extends Agent {
     } else {
       const hasEligibleFact = factEvidences.some(e => {
         const c = e.content.toLowerCase();
-        return c.includes("eligible") || c.includes("eligibility confirmed") || c.includes("verified location") || c.includes("verified account") || c.includes("contract eligible");
+        if (evidenceIsUncertain(c)) return false;
+        return /\beligible\b/.test(c) || c.includes("eligibility confirmed") || c.includes("verified location") || c.includes("verified account") || c.includes("contract eligible");
       });
 
       if (hasEligibleFact) {
@@ -1925,7 +1953,7 @@ export class MasterMindAgent extends Agent {
 
     const hasUnfitFact = factEvidences.some(e => {
       const c = e.content.toLowerCase();
-      return c.includes("unfit") || c.includes("not fit") || c.includes("lacks required skill") || c.includes("exceeds cost limit") || c.includes("conflict");
+      return c.includes("unfit") || c.includes("not fit") || c.includes("lacks required skill") || c.includes("exceeds cost limit") || c.includes("conflict") || EXPLICIT_NO_FIT_PATTERN.test(c);
     });
 
     if (hasUnfitFact || currentNorm === "NOT_FIT") {
@@ -1934,6 +1962,7 @@ export class MasterMindAgent extends Agent {
     } else {
       const hasFitFact = factEvidences.some(e => {
         const c = e.content.toLowerCase();
+        if (evidenceIsUncertain(c) || EXPLICIT_NO_FIT_PATTERN.test(c)) return false;
         return c.includes("owner fit confirmed") || c.includes("skills match verified") || c.includes("fit verified") || c.includes("fit confirmed");
       });
 
@@ -2248,6 +2277,14 @@ export class MasterMindAgent extends Agent {
       ${created_at}, ${updated_at}
     );`;
 
+    this.logAudit({
+      actor: "OWNER",
+      action: "OPPORTUNITY_CREATED",
+      resource_type: "OPPORTUNITY",
+      resource_id: id,
+      status: "SUCCESS",
+      details: { fields: Object.keys(data && typeof data === "object" ? data : {}) }
+    });
     return this.getOpportunity(id);
   }
 
@@ -2362,6 +2399,14 @@ export class MasterMindAgent extends Agent {
       updated_at = ${updated_at}
       WHERE id = ${id};`;
 
+    this.logAudit({
+      actor: "OWNER",
+      action: "OPPORTUNITY_UPDATED",
+      resource_type: "OPPORTUNITY",
+      resource_id: id,
+      status: "SUCCESS",
+      details: { fields: Object.keys(data && typeof data === "object" ? data : {}) }
+    });
     return this.getOpportunity(id);
   }
 
@@ -2373,6 +2418,14 @@ export class MasterMindAgent extends Agent {
     }
     this.sql`DELETE FROM evidence WHERE opportunity_id = ${id};`;
     this.sql`DELETE FROM opportunities WHERE id = ${id};`;
+    this.logAudit({
+      actor: "OWNER",
+      action: "OPPORTUNITY_DELETED",
+      resource_type: "OPPORTUNITY",
+      resource_id: id,
+      status: "SUCCESS",
+      details: {}
+    });
     return true;
   }
 
@@ -2435,6 +2488,14 @@ export class MasterMindAgent extends Agent {
     // decision) instead of only verification.
     this.evaluateDecision(opportunityId);
 
+    this.logAudit({
+      actor: "OWNER",
+      action: "EVIDENCE_CREATED",
+      resource_type: "EVIDENCE",
+      resource_id: id,
+      status: "SUCCESS",
+      details: { opportunity_id: data && data.opportunity_id ? String(data.opportunity_id) : null }
+    });
     return this.getEvidence(id);
   }
 
@@ -2590,6 +2651,14 @@ export class MasterMindAgent extends Agent {
       // stale score/SELECT could survive the deletion.
       this.evaluateDecision(opportunityId);
     }
+    this.logAudit({
+      actor: "OWNER",
+      action: "EVIDENCE_DELETED",
+      resource_type: "EVIDENCE",
+      resource_id: id,
+      status: "SUCCESS",
+      details: {}
+    });
     return true;
   }
 
@@ -3082,6 +3151,9 @@ export class MasterMindAgent extends Agent {
 
     if (url.pathname.includes("/owner/profile")) {
       if (request.method === "GET") {
+        // Private owner criteria: Owner credential required, fail-closed.
+        const profileDenied = authorizeRequest(request, this.env, RISK.MUTATE);
+        if (profileDenied) return profileDenied;
         const profile = this.getOwnerProfile();
         return Response.json({ ok: true, data: profile });
       }
@@ -3152,6 +3224,9 @@ export class MasterMindAgent extends Agent {
       url.pathname.endsWith("/chat") &&
       request.method === "POST"
     ) {
+      // Owner-only: this branch runs AI inference and persists chat memory.
+      const chatDenied = authorizeRequest(request, this.env, RISK.MUTATE);
+      if (chatDenied) return chatDenied;
       let body;
 
       try {
@@ -3275,12 +3350,22 @@ export class MasterMindAgent extends Agent {
  * EXISTING API + AGENT ROUTER
  */
 
+function ownerCredentialHeaders(request) {
+  const headers = {};
+  if (!request || !request.headers) return headers;
+  const auth = request.headers.get("Authorization");
+  const owner = request.headers.get("X-Owner-Token");
+  if (auth) headers["Authorization"] = auth;
+  if (owner) headers["X-Owner-Token"] = owner;
+  return headers;
+}
+
 /*
  * Legacy /api/chat has no direct agent instance, so persisted status is read
  * through the DO stub. If the stub is unavailable the status is reported as
  * unavailable rather than guessed.
  */
-async function buildEarningContextForEnv(env) {
+async function buildEarningContextForEnv(env, request) {
   const base = {
     authority: "PERSISTED_STATE",
     connections: connectionReport(env).services.map((s) => ({
@@ -3303,7 +3388,11 @@ async function buildEarningContextForEnv(env) {
     const stub = env.MasterMindAgent.get(id);
     const [oppsRes, profileRes] = await Promise.all([
       stub.fetch(new Request("http://agent/agents/master-mind-agent/default/opportunities")),
-      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/owner/profile"))
+      // The profile route is Owner-gated: forward the already-authorised caller's
+      // credential headers (never logged or stored).
+      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/owner/profile", {
+        headers: ownerCredentialHeaders(request)
+      }))
     ]);
 
     const oppsJson = await oppsRes.json();
@@ -3547,6 +3636,9 @@ async function handleAPI(request, env) {
     url.pathname === "/api/research" &&
     request.method === "POST"
   ) {
+    // Owner-only: drives a server-side Browser Rendering fetch (paid quota).
+    const researchDenied = authorizeRequest(request, env, RISK.MUTATE);
+    if (researchDenied) return cors(researchDenied);
     let body;
 
     try {
@@ -3617,6 +3709,9 @@ async function handleAPI(request, env) {
     url.pathname === "/api/chat" &&
     request.method === "POST"
   ) {
+    // Owner-only: runs AI inference (paid quota) and may fetch a URL.
+    const chatDenied = authorizeRequest(request, env, RISK.MUTATE);
+    if (chatDenied) return cors(chatDenied);
     let body;
 
     try {
@@ -3685,7 +3780,7 @@ async function handleAPI(request, env) {
           intents,
           research,
           earningIntent: earningIntent.isEarningIntent,
-          status: buildEarningContextForEnv(env),
+          status: await buildEarningContextForEnv(env, request),
           voice: resolveVoiceState(env)
         }
       );
@@ -3750,8 +3845,61 @@ async function handleAPI(request, env) {
   return null;
 }
 
+/*
+ * Agent-route guard (F1). Runs BEFORE routeAgentRequest so that neither a
+ * WebSocket handshake nor an arbitrary Durable Object instance can reach the
+ * Agents SDK.
+ *
+ *  - Any protocol-upgrade request (WebSocket) is refused. The AIRA UI is plain
+ *    HTTP and never opens a socket, and a browser WebSocket cannot send an
+ *    Authorization header, so authenticating it would require a token in the
+ *    URL, which is forbidden. Refusing the upgrade also blocks synchronised
+ *    agent state (chat messages) and client-initiated state writes.
+ *  - Only /agents/master-mind-agent/default is allowed. The worker itself only
+ *    ever uses the "default" instance, so any other name is unknown. Matching
+ *    is on the RAW path segments (no decoding, no case folding of the
+ *    instance), so an encoded or case-variant name cannot slip past the check
+ *    and then be interpreted differently by the SDK. Rejection happens without
+ *    touching the Durable Object namespace, so no object is created.
+ *
+ * Nothing from the request (URL, headers, token) is echoed or logged.
+ */
+function guardAgentRoute(request) {
+  const headers = request.headers;
+  const wantsUpgrade =
+    String(headers.get("Upgrade") || "").trim() !== "" ||
+    headers.has("Sec-WebSocket-Key") ||
+    headers.has("Sec-WebSocket-Version");
+
+  if (wantsUpgrade) {
+    return Response.json(
+      { ok: false, error: "WebSocket and protocol upgrades are not supported by this service." },
+      { status: 403 }
+    );
+  }
+
+  const path = new URL(request.url).pathname.replace(/\/{2,}/g, "/");
+  if (/^\/agents(\/|$)/i.test(path)) {
+    const seg = path.split("/");
+    // seg: ["", "agents", <class>, <instance>, ...rest]
+    const classOk = String(seg[2] || "").toLowerCase() === "master-mind-agent";
+    const instanceOk = seg[3] === "default";
+    if (!classOk || !instanceOk) {
+      return Response.json(
+        { ok: false, error: "Unknown agent route." },
+        { status: 404 }
+      );
+    }
+  }
+
+  return null;
+}
+
 export default {
   async fetch(request, env) {
+    const agentGuard = guardAgentRoute(request);
+    if (agentGuard) return agentGuard;
+
     /*
      * FIRST:
      * Route real Agent requests.

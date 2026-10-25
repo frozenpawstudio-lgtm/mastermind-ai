@@ -1780,6 +1780,7 @@
       connections: null,
       permissions: null,
       profile: null,
+      profileState: "AUTH_REQUIRED",
       voice: null,
       opportunities: null,
       discovery: null,
@@ -1793,7 +1794,7 @@
         api("/api/health"),
         api("/api/connections"),
         api("/api/permissions"),
-        api("/api/owner/profile"),
+        isOwnerAuthorized() ? api("/api/owner/profile") : Promise.resolve({ ok: false, status: 0, skipped: true, denied: true }),
         api("/api/voice"),
         api("/api/opportunities"),
         api("/api/opportunities/discover")
@@ -1803,6 +1804,7 @@
       AIRA.connections = connections.ok ? connections.data : null;
       AIRA.permissions = permissions.ok ? permissions.data : null;
       AIRA.profile = profile.ok ? profile.data : null;
+      AIRA.profileState = profile.ok ? "LOADED" : (profile.skipped || profile.denied ? "AUTH_REQUIRED" : "UNAVAILABLE");
       AIRA.voice = voice.ok ? voice.data : null;
       AIRA.opportunities = opportunities.ok && Array.isArray(opportunities.data) ? opportunities.data : null;
       AIRA.discovery = discovery.ok ? discovery.data : null;
@@ -2097,6 +2099,13 @@
       const message = input ? input.value.trim() : "";
       if (!message) {
         toast("Type a message first.", "error");
+        return;
+      }
+
+      if (!isOwnerAuthorized()) {
+        appendMessage("owner", message);
+        const denied = appendMessage("aira", "Owner authorization required. Open Owner Authorization in the top bar and paste the owner token for this session.", "error");
+        toast("Owner authorization required.", "error");
         return;
       }
 
@@ -2467,6 +2476,11 @@
         toast("Enter a valid http(s) URL.", "error");
         return;
       }
+      if (!isOwnerAuthorized()) {
+        if (box) box.innerHTML = stateBox("warn", "OWNER AUTHORIZATION REQUIRED", "Owner authorization required. Open Owner Authorization in the top bar and paste the owner token for this session. No request was sent.");
+        toast("Owner authorization required.", "error");
+        return;
+      }
       if (box) box.innerHTML = loadingBox("Fetching " + url + " …");
       const result = await api("/api/research", { method: "POST", body: { url } });
       if (!result.ok) {
@@ -2576,6 +2590,10 @@
       const fields = $("profile-fields");
       if (!fields) return;
       const p = AIRA.profile;
+      if (!p && (!isOwnerAuthorized() || AIRA.profileState === "AUTH_REQUIRED")) {
+        fields.innerHTML = stateBox("warn", "OWNER AUTHORIZATION REQUIRED", "The owner profile is private. Open Owner Authorization in the top bar and paste the owner token for this session. No request was sent.");
+        return;
+      }
       if (!p) {
         fields.innerHTML = stateBox("error", "PROFILE UNAVAILABLE", "The owner profile record could not be read.");
         return;
@@ -2670,6 +2688,13 @@
         authorizationState = "UNKNOWN";
         toast(probe.error || "Could not verify the credential.", "error");
       }
+      if (authorizationState === "AUTHORIZED") {
+        await refreshSnapshot();
+        renderProfile();
+        renderConnections();
+        renderVoice();
+        renderHealthPill();
+      }
       renderAuthorization();
       const panel = $("owner-auth-panel");
       if (panel && authorizationState === "AUTHORIZED") panel.hidden = true;
@@ -2680,8 +2705,11 @@
       authorizationState = (AIRA.permissions && AIRA.permissions.authorizationConfigured) ? "NOT_PRESENTED" : "NOT_CONFIGURED";
       const input = $("owner-token");
       if (input) input.value = "";
+      AIRA.profile = null;
+      AIRA.profileState = "AUTH_REQUIRED";
       toast("Owner credential cleared from memory.", "ok");
       renderAuthorization();
+      renderProfile();
     }
 
     /* ======================================================================

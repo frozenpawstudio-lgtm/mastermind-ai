@@ -133,45 +133,53 @@ async function run() {
     assert.notStrictEqual(allow, "*", "wildcard origin returned");
   });
 
-  // ---- 4. Unauthenticated read surface: measure and report ---------------
+  // ---- 4. Owner-gated surface: asserted (formerly WARN-only) -------------
   console.log("");
-  console.log("4. Unauthenticated read surface (measured, not asserted)");
+  console.log("4. Owner-gated surface (missing / invalid / valid credential)");
 
-  const surface = [
+  const DO_CHAT = "/agents/master-mind-agent/default/chat";
+  const DO_PROFILE = "/agents/master-mind-agent/default/owner/profile";
+  const gated = [
     { path: "/api/owner/profile", method: "GET", label: "owner profile (personal criteria)" },
-    { path: "/api/opportunities/discover", method: "GET", label: "discovery status" }
+    { path: DO_PROFILE, method: "GET", label: "direct DO owner profile" },
+    { path: "/api/chat", method: "POST", label: "chat (AI quota)", payload: { message: "security-surface-probe" } },
+    { path: "/api/research", method: "POST", label: "research (browser quota)", payload: { url: "https://example.com" } },
+    { path: DO_CHAT, method: "POST", label: "direct DO chat (AI quota + memory write)", payload: { message: "security-surface-probe" } }
   ];
+  const reqFor = (g, headers) => g.method === "POST"
+    ? { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(g.payload) }
+    : { method: "GET", headers };
 
-  for (const { path, method, label } of surface) {
-    const r = await probe(path, { method });
-    const reachable = r.status >= 200 && r.status < 300;
-    const hasData = r.body && r.body.data !== null && r.body.data !== undefined;
-    console.log(
-      `  ${reachable ? "WARN" : " ok "} ${method} ${path} -> ${r.status}` +
-        (reachable ? ` (${label}${hasData ? ", returns data" : ", empty"})` : "")
-    );
-    if (reachable && hasData) {
-      warnings.push(`${method} ${path} returns ${label} without a credential`);
+  for (const g of gated) {
+    await check(`${g.method} ${g.path} without credential -> 401 (${g.label})`, async () => {
+      const r = await probe(g.path, reqFor(g, {}));
+      assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+      assert.ok(!r.body || r.body.data === undefined, "response leaked data");
+    });
+    await check(`${g.method} ${g.path} with invalid credential -> 401`, async () => {
+      const r = await probe(g.path, reqFor(g, { Authorization: "Bearer not-the-owner-token" }));
+      assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+    });
+    await check(`${g.method} ${g.path} token in query string is ignored -> 401`, async () => {
+      const r = await probe(`${g.path}?token=${encodeURIComponent(OWNER_TOKEN || "x")}`, reqFor(g, {}));
+      assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+    });
+    if (OWNER_TOKEN) {
+      await check(`${g.method} ${g.path} with valid credential is not rejected`, async () => {
+        const r = await probe(g.path, reqFor(g, { Authorization: `Bearer ${OWNER_TOKEN}` }));
+        assert.notStrictEqual(r.status, 401, "valid Owner credential was rejected");
+        assert.notStrictEqual(r.status, 403, "valid Owner credential was forbidden");
+      });
+    } else {
+      console.log(`  - NOT RUN: valid-credential case for ${g.path} (OWNER_API_TOKEN not supplied to the test)`);
     }
   }
 
-  // Chat and research are POST surfaces that consume AI/browser quota.
-  const chat = await probe("/api/chat", jsonPost({ message: "security-surface-probe" }));
-  console.log(
-    `  ${chat.status < 500 ? "WARN" : " ok "} POST /api/chat -> ${chat.status}` +
-      (chat.status < 500 ? " (no credential required; consumes AI quota)" : "")
-  );
-  if (chat.status < 500) {
-    warnings.push("POST /api/chat is reachable without a credential and consumes AI quota");
-  }
-
-  const research = await probe("/api/research", jsonPost({ url: "https://example.com" }));
-  console.log(
-    `  ${research.status < 500 ? "WARN" : " ok "} POST /api/research -> ${research.status}` +
-      (research.status < 500 ? " (no credential required; drives server-side fetch)" : "")
-  );
-  if (research.status < 500) {
-    warnings.push("POST /api/research is reachable without a credential and drives a server-side fetch");
+  // Public-by-design read, still measured and reported (not asserted).
+  const disc = await probe("/api/opportunities/discover", { method: "GET" });
+  console.log(`  info GET /api/opportunities/discover -> ${disc.status} (public discovery status, measured)`);
+  if (disc.status >= 200 && disc.status < 300) {
+    warnings.push("GET /api/opportunities/discover is readable without a credential (discovery status only)");
   }
 
   // ---- Summary -----------------------------------------------------------

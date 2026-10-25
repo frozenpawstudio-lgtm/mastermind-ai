@@ -334,7 +334,7 @@ async function runPrepareTests() {
     const coreSnapshot = async () => {
       const opps = (await getJson("/api/opportunities")).body.data;
       const ev = (await getJson("/api/evidence", { headers: authHeaders })).body.data;
-      const prof = (await getJson("/api/owner/profile")).body.data;
+      const prof = (await getJson("/api/owner/profile", { headers: authHeaders })).body.data;
       assert.ok(prof, "Owner profile must be present (non-null) for a meaningful read-only check");
       assert.strictEqual(prof.skills, "Snapshot Integrity Skill", "Owner profile must expose the seeded real data");
       return JSON.stringify({

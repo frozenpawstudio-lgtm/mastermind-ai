@@ -233,10 +233,10 @@ async function runCompareTests() {
     const snapshot = async () => JSON.stringify({
       opportunities: (await getJson("/api/opportunities")).body,
       evidence: (await getJson("/api/evidence", { headers: authHeaders })).body,
-      ownerProfile: (await getJson("/api/owner/profile")).body
+      ownerProfile: (await getJson("/api/owner/profile", { headers: authHeaders })).body
     });
     const before = await snapshot();
-    const beforeProfile = await getJson("/api/owner/profile");
+    const beforeProfile = await getJson("/api/owner/profile", { headers: authHeaders });
     assert.strictEqual(beforeProfile.res.status, 200, "Owner profile read must respond 200");
     assert.ok(beforeProfile.body.data, "Owner profile must be present (non-null) for a meaningful read-only check");
     assert.strictEqual(beforeProfile.body.data.skills, "Compare Readonly Skill", "Owner profile must expose the seeded real data");

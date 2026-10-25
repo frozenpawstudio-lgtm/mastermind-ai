@@ -103,6 +103,13 @@ try {
     const page = await newPage(browser, { width: 390, height: 844 });
     await page.goto(`${BASE_URL}/`, { settleMs: 1500 });
 
+    // Chat is Owner-gated: the app sends no /api/chat request until the Owner
+    // credential has been accepted for this session (held in memory only).
+    if (OWNER_TOKEN) {
+      await page.evaluate(`document.getElementById('owner-token').value = ${JSON.stringify(OWNER_TOKEN)}; document.getElementById('owner-auth-save').click();`);
+      await sleep(1500);
+    }
+
     await test("chat send issues exactly one POST /api/chat per tap", async () => {
       await page.evaluate(`document.querySelector('#dock button[data-nav="chat"]').click()`);
       await sleep(500);

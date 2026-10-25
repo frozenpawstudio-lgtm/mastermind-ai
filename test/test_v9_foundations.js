@@ -86,7 +86,11 @@ async function runFoundationTests() {
   // --- 6. Owner profile contract ------------------------------------------
   // When no profile row exists the endpoint must report that honestly
   // (data:null) rather than fabricating Owner values.
-  const profile = await getJson("/api/owner/profile");
+  // Owner profile is private: present the Owner credential (GET is Owner-gated).
+  const profileToken = process.env.OWNER_API_TOKEN;
+  const profile = await getJson("/api/owner/profile", {
+    headers: profileToken ? { Authorization: `Bearer ${profileToken}` } : {}
+  });
   assert.strictEqual(profile.res.status, 200, "Owner profile must respond 200");
   assert.strictEqual(profile.body.ok, true);
   assert.ok(
@@ -161,7 +165,10 @@ async function runFoundationTests() {
   for (const message of positiveCases) {
     const chat = await getJson("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.OWNER_API_TOKEN ? { Authorization: `Bearer ${process.env.OWNER_API_TOKEN}` } : {})
+      },
       body: JSON.stringify({ message })
     });
     assert.strictEqual(chat.res.status, 200, `Chat must respond 200 for: ${message}`);
@@ -194,7 +201,10 @@ async function runFoundationTests() {
   for (const message of negativeCases) {
     const chat = await getJson("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(process.env.OWNER_API_TOKEN ? { Authorization: `Bearer ${process.env.OWNER_API_TOKEN}` } : {})
+      },
       body: JSON.stringify({ message })
     });
     assert.strictEqual(chat.res.status, 200, `Chat must respond 200 for: ${message}`);

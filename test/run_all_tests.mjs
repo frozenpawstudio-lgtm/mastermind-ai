@@ -25,7 +25,8 @@ const SUITES = [
   "test_v9_foundations.js",
   "test_p5_data_integrity.js",
   "test_phase0_security.js",
-  "test_security_surface.js"
+  "test_security_surface.js",
+  "test_phase1_regressions.js"
 ];
 
 function run(file) {
