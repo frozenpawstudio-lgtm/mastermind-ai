@@ -15,3 +15,6 @@ package-lock.json
 worker.js
 wrangler.jsonc
 README.md
+
+docs
+docs/
