@@ -52,7 +52,7 @@ async function runTests() {
   console.log("✓ Opportunity creation passed (client score rejected, unsupported ELIGIBLE/FIT fell back to UNKNOWN):", createdOpp.id);
 
   // 3. Get Opportunity
-  const getRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`);
+  const getRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, { headers: authHeaders });
   assert.strictEqual(getRes.status, 200, "Get opportunity failed");
   const getJson = await getRes.json();
   assert.strictEqual(getJson.ok, true);
@@ -61,7 +61,7 @@ async function runTests() {
   console.log("✓ Get opportunity passed");
 
   // 4. List Opportunities
-  const listRes = await fetch(`${BASE_URL}/api/opportunities?source=manual`);
+  const listRes = await fetch(`${BASE_URL}/api/opportunities?source=manual`, { headers: authHeaders });
   assert.strictEqual(listRes.status, 200, "List opportunities failed");
   const listJson = await listRes.json();
   assert.strictEqual(listJson.ok, true);
@@ -132,7 +132,7 @@ async function runTests() {
   console.log("✓ Delete opportunity passed");
 
   // Verify it is gone
-  const getAfterDeleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`);
+  const getAfterDeleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, { headers: authHeaders });
   assert.strictEqual(getAfterDeleteRes.status, 404, "Get after delete should return 404");
   console.log("✓ Get after delete verified 404");
 

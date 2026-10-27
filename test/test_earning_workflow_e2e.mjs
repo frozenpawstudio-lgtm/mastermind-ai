@@ -71,7 +71,7 @@ try {
     await sleep(2000);
 
     const found = await page.evaluate(`(async () => {
-      const res = await fetch('/api/opportunities');
+      const res = await fetch('/api/opportunities', { headers: { Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} } });
       const body = await res.json();
       const row = (body.data || []).find(r => r.title === ${JSON.stringify(title)});
       return row ? { id: row.id, verification: row.verification_status, score: row.score, decision: row.decision } : null;
@@ -132,7 +132,7 @@ try {
     await sleep(2500);
 
     const state = await page.evaluate(`(async () => {
-      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)});
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)}, { headers: { Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} } });
       const body = await res.json();
       return { verification: body.data.verification_status, eligibility: body.data.eligibility_status, ownerFit: body.data.owner_fit_status, score: body.data.score, decision: body.data.decision };
     })()`);

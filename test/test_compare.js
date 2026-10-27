@@ -78,7 +78,7 @@ async function runCompareTests() {
 
   try {
     // --- Zero opportunities (fresh worker only) ---------------------------
-    const initialList = await getJson("/api/opportunities");
+    const initialList = await getJson("/api/opportunities", { headers: authHeaders });
     assert.strictEqual(initialList.res.status, 200, "Opportunity list must respond 200");
     const initialRows = Array.isArray(initialList.body.data) ? initialList.body.data : [];
     const zeroCompare = await getJson("/api/opportunities/compare");
@@ -156,7 +156,7 @@ async function runCompareTests() {
     console.log(`✓ Score ordering verified (SELECT score ${selectEntry.score} > NEEDS_REVIEW score ${reviewEntry.score})`);
 
     // --- Persisted truth matches ranked truth -----------------------------
-    const listAfter = await getJson("/api/opportunities");
+    const listAfter = await getJson("/api/opportunities", { headers: authHeaders });
     const rowsAfter = listAfter.body.data;
     for (const entry of ranked) {
       const persisted = rowsAfter.find((r) => r.id === entry.id);
@@ -231,12 +231,12 @@ async function runCompareTests() {
     });
     assert.strictEqual(seedProfile.res.status, 200, "Owner profile seed must respond 200");
     const snapshot = async () => JSON.stringify({
-      opportunities: (await getJson("/api/opportunities")).body,
+      opportunities: (await getJson("/api/opportunities", { headers: authHeaders })).body,
       evidence: (await getJson("/api/evidence", { headers: authHeaders })).body,
-      ownerProfile: (await getJson("/api/owner/profile")).body
+      ownerProfile: (await getJson("/api/owner/profile", { headers: authHeaders })).body
     });
     const before = await snapshot();
-    const beforeProfile = await getJson("/api/owner/profile");
+    const beforeProfile = await getJson("/api/owner/profile", { headers: authHeaders });
     assert.strictEqual(beforeProfile.res.status, 200, "Owner profile read must respond 200");
     assert.ok(beforeProfile.body.data, "Owner profile must be present (non-null) for a meaningful read-only check");
     assert.strictEqual(beforeProfile.body.data.skills, "Compare Readonly Skill", "Owner profile must expose the seeded real data");

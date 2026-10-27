@@ -1789,23 +1789,36 @@
     };
 
     async function refreshSnapshot() {
-      const [health, connections, permissions, profile, voice, opportunities, discovery] = await Promise.all([
+      const [health, connections, permissions, voice, discovery] = await Promise.all([
         api("/api/health"),
         api("/api/connections"),
         api("/api/permissions"),
-        api("/api/owner/profile"),
         api("/api/voice"),
-        api("/api/opportunities"),
         api("/api/opportunities/discover")
       ]);
 
       AIRA.health = health.ok ? health.data : null;
       AIRA.connections = connections.ok ? connections.data : null;
       AIRA.permissions = permissions.ok ? permissions.data : null;
-      AIRA.profile = profile.ok ? profile.data : null;
       AIRA.voice = voice.ok ? voice.data : null;
-      AIRA.opportunities = opportunities.ok && Array.isArray(opportunities.data) ? opportunities.data : null;
       AIRA.discovery = discovery.ok ? discovery.data : null;
+
+      // The opportunity list and the Owner profile carry private business data,
+      // so both are Owner-only. They are only requested once the session holds
+      // an accepted credential. Requesting them earlier would just produce a
+      // 401 and a console error on every load.
+      if (isOwnerAuthorized()) {
+        const [opportunities, profile] = await Promise.all([
+          api("/api/opportunities"),
+          api("/api/owner/profile")
+        ]);
+        AIRA.opportunities = opportunities.ok && Array.isArray(opportunities.data) ? opportunities.data : null;
+        AIRA.profile = profile.ok ? profile.data : null;
+      } else {
+        AIRA.opportunities = null;
+        AIRA.profile = null;
+      }
+
       AIRA.loadedAt = new Date();
 
       if (AIRA.health && AIRA.health.authorization) {
@@ -1858,8 +1871,12 @@
 
     function buildPipeline() {
       const discoveryConnected = !!(AIRA.discovery && AIRA.discovery.connectivity === "CONNECTED");
-      const rows = Array.isArray(AIRA.opportunities) ? AIRA.opportunities : [];
-      const count = rows.length;
+      // The opportunity list is Owner-only. When it has not been read the
+      // pipeline must not claim "no opportunities exist" — that would be an
+      // invented fact. The data-dependent stages report OWNER_REQUIRED instead.
+      const listKnown = Array.isArray(AIRA.opportunities);
+      const rows = listKnown ? AIRA.opportunities : [];
+      const count = listKnown ? rows.length : null;
 
       const verified = rows.filter((r) => String(r.verification_status).toUpperCase() === "VERIFIED").length;
       const eligibilityKnown = rows.filter((r) => ["ELIGIBLE", "NOT_ELIGIBLE", "POTENTIALLY_ELIGIBLE"].indexOf(String(r.eligibility_status).toUpperCase()) !== -1).length;
@@ -1868,51 +1885,63 @@
       const decided = rows.filter((r) => ["SELECT", "REJECT", "NEEDS_REVIEW"].indexOf(String(r.decision).toUpperCase()) !== -1).length;
       const approvable = rows.filter((r) => String(r.decision).toUpperCase() === "SELECT").length;
 
+      const OWNER_ONLY_DETAIL = "The opportunity list is Owner-only. Authorize this session to read it.";
+
       const stages = [];
       const add = (key, state, detail) => stages.push(Object.assign({}, STAGE_DEFS.find((s) => s.key === key), { state, detail }));
 
-      add("DISCOVER",
-        discoveryConnected ? (count > 0 ? "COMPLETE" : "READY") : (count > 0 ? "MANUAL" : "NOT_CONNECTED"),
-        discoveryConnected
-          ? count + " persisted opportunit" + (count === 1 ? "y" : "ies") + " from connected discovery."
-          : (count > 0
-              ? "Live marketplace discovery is NOT_CONNECTED. " + count + " record(s) were added manually or through structured intake."
-              : "Live marketplace discovery is NOT_CONNECTED and no opportunity is persisted."));
+      if (!listKnown) {
+        add("DISCOVER", discoveryConnected ? "READY" : "NOT_CONNECTED",
+          discoveryConnected
+            ? "Discovery is connected, but the persisted list is Owner-only."
+            : "Live marketplace discovery is NOT_CONNECTED and the persisted list is Owner-only.");
+        for (const key of ["VERIFY", "CHECK_ELIGIBILITY", "CHECK_OWNER_FIT", "COMPARE", "SCORE", "PREPARE"]) {
+          add(key, "OWNER_REQUIRED", OWNER_ONLY_DETAIL);
+        }
+      } else {
+        add("DISCOVER",
+          discoveryConnected ? (count > 0 ? "COMPLETE" : "READY") : (count > 0 ? "MANUAL" : "NOT_CONNECTED"),
+          discoveryConnected
+            ? count + " persisted opportunit" + (count === 1 ? "y" : "ies") + " from connected discovery."
+            : (count > 0
+                ? "Live marketplace discovery is NOT_CONNECTED. " + count + " record(s) were added manually or through structured intake."
+                : "Live marketplace discovery is NOT_CONNECTED and no opportunity is persisted."));
 
-      add("VERIFY",
-        count === 0 ? "NOT_STARTED" : (verified > 0 ? "COMPLETE" : "BLOCKED"),
-        count === 0 ? "No opportunity to verify." : verified + " of " + count + " verified with FACT evidence.");
+        add("VERIFY",
+          count === 0 ? "NOT_STARTED" : (verified > 0 ? "COMPLETE" : "BLOCKED"),
+          count === 0 ? "No opportunity to verify." : verified + " of " + count + " verified with FACT evidence.");
 
-      add("CHECK_ELIGIBILITY",
-        count === 0 ? "NOT_STARTED" : (eligibilityKnown > 0 ? "COMPLETE" : "BLOCKED"),
-        count === 0 ? "No opportunity to evaluate." : eligibilityKnown + " of " + count + " carry an eligibility verdict.");
+        add("CHECK_ELIGIBILITY",
+          count === 0 ? "NOT_STARTED" : (eligibilityKnown > 0 ? "COMPLETE" : "BLOCKED"),
+          count === 0 ? "No opportunity to evaluate." : eligibilityKnown + " of " + count + " carry an eligibility verdict.");
 
-      add("CHECK_OWNER_FIT",
-        count === 0 ? "NOT_STARTED" : (ownerFitKnown > 0 ? "COMPLETE" : "BLOCKED"),
-        count === 0 ? "No opportunity to evaluate." : ownerFitKnown + " of " + count + " carry an owner-fit verdict.");
+        add("CHECK_OWNER_FIT",
+          count === 0 ? "NOT_STARTED" : (ownerFitKnown > 0 ? "COMPLETE" : "BLOCKED"),
+          count === 0 ? "No opportunity to evaluate." : ownerFitKnown + " of " + count + " carry an owner-fit verdict.");
 
-      add("COMPARE",
-        count < 2 ? "NOT_STARTED" : "READY",
-        count < 2
-          ? "COMPARE ranks two or more persisted opportunities."
-          : "Deterministic read-only ranking is available for " + count + " opportunities.");
+        add("COMPARE",
+          count < 2 ? "NOT_STARTED" : "READY",
+          count < 2
+            ? "COMPARE ranks two or more persisted opportunities."
+            : "Deterministic read-only ranking is available for " + count + " opportunities.");
 
-      add("SCORE",
-        count === 0 ? "NOT_STARTED" : (scored > 0 ? "COMPLETE" : "BLOCKED"),
-        count === 0 ? "No opportunity to score." : scored + " of " + count + " carry an engine score.");
+        add("SCORE",
+          count === 0 ? "NOT_STARTED" : (scored > 0 ? "COMPLETE" : "BLOCKED"),
+          count === 0 ? "No opportunity to score." : scored + " of " + count + " carry an engine score.");
 
-      add("PREPARE",
-        approvable === 0 ? "BLOCKED" : "READY",
-        approvable === 0
-          ? "PREPARE needs an opportunity the engine scored SELECT. Preparation is never submission."
-          : approvable + " opportunity(ies) are eligible for a preparation package.");
+        add("PREPARE",
+          approvable === 0 ? "BLOCKED" : "READY",
+          approvable === 0
+            ? "PREPARE needs an opportunity the engine scored SELECT. Preparation is never submission."
+            : approvable + " opportunity(ies) are eligible for a preparation package.");
+      }
 
       add("REQUEST_OWNER_APPROVAL", "OWNER_REQUIRED", "Every high-impact action requires an explicit single-use Owner approval.");
       add("EXECUTE_WHEN_AUTHORIZED", "OWNER_REQUIRED", "Execution runs only with a valid single-use approval and a CONNECTED target service.");
       add("VERIFY_RESULT", "OWNER_REQUIRED", "Result verification requires real execution evidence, which no connected service can currently supply.");
       add("TRACK_FOLLOW_UP", "OWNER_REQUIRED", "Follow-up tracking is Owner-controlled and not automatic.");
 
-      return { stages, count, verified, scored, decided, approvable, discoveryConnected };
+      return { stages, count, listKnown, verified, scored, decided, approvable, discoveryConnected };
     }
 
     function stageClass(state) {
@@ -1964,7 +1993,9 @@
         actions.push(["Connect a real discovery source", "Marketplace discovery reports NOT_CONNECTED. Add opportunities manually or wire a real source before expecting new work.", "muted"]);
       }
 
-      if (data.count === 0) {
+      if (!data.listKnown) {
+        actions.push(["Authorize to read the opportunity list", "The persisted opportunity list is Owner-only. Open Owner Authorization in the top bar to read it. The token stays in memory only.", "warn"]);
+      } else if (data.count === 0) {
         actions.push(["Add the first opportunity", "Open the Earning Agent and add a record with a real source URL so it can be verified.", "cyan"]);
       } else if (data.verified === 0) {
         actions.push(["Attach FACT evidence", "No opportunity is VERIFIED. Add real evidence before any eligibility or fit claim can be made.", "warn"]);
@@ -2094,6 +2125,11 @@
       if (chatInFlight) return;
       const input = $("chat-input");
       const send = $("chat-send");
+      if (!isOwnerAuthorized()) {
+        appendMessage("aira", "Owner authorization required. Open Owner Authorization in the top bar and paste the owner token for this session.", "error");
+        toast("Owner authorization required.", "error");
+        return;
+      }
       const message = input ? input.value.trim() : "";
       if (!message) {
         toast("Type a message first.", "error");
@@ -2228,12 +2264,10 @@
       const list = $("earning-list");
       if (list && !list.querySelector(".opp")) list.innerHTML = loadingBox("Reading opportunities…");
 
-      const [opps, discovery] = await Promise.all([
-        api("/api/opportunities"),
-        api("/api/opportunities/discover")
-      ]);
-
-      AIRA.opportunities = opps.ok && Array.isArray(opps.data) ? opps.data : null;
+      // The opportunity list is Owner-only. Only fetch it when this session
+      // holds an accepted credential; otherwise say so explicitly rather than
+      // firing a request that would just return 401.
+      const discovery = await api("/api/opportunities/discover");
       AIRA.discovery = discovery.ok ? discovery.data : null;
 
       const conn = $("earning-connectivity");
@@ -2242,6 +2276,23 @@
         conn.textContent = connected ? "DISCOVERY CONNECTED" : "DISCOVERY NOT CONNECTED";
         conn.className = "pill " + (connected ? "ok" : "warn");
       }
+
+      if (!isOwnerAuthorized()) {
+        AIRA.opportunities = null;
+        setText("earning-count", NA);
+        if (list) {
+          list.innerHTML = stateBox(
+            "error",
+            "OWNER AUTHORIZATION REQUIRED",
+            "The opportunity list is Owner-only because it carries private business data. Open Owner Authorization in the top bar to read it. The token stays in memory only."
+          );
+        }
+        earningBusy = false;
+        return;
+      }
+
+      const opps = await api("/api/opportunities");
+      AIRA.opportunities = opps.ok && Array.isArray(opps.data) ? opps.data : null;
 
       renderOpportunities(AIRA.opportunities);
       earningBusy = false;
@@ -2462,6 +2513,11 @@
     async function runResearch() {
       const input = $("research-url");
       const box = $("research-result");
+      if (!isOwnerAuthorized()) {
+        if (box) box.innerHTML = stateBox("warn", "OWNER AUTHORIZATION REQUIRED", "Web research runs on the server through Browser Rendering. Open Owner Authorization in the top bar and paste the owner token for this session.");
+        toast("Owner authorization required.", "error");
+        return;
+      }
       const url = text(input && input.value);
       if (!/^https?:\/\//i.test(url)) {
         toast("Enter a valid http(s) URL.", "error");
@@ -2577,7 +2633,9 @@
       if (!fields) return;
       const p = AIRA.profile;
       if (!p) {
-        fields.innerHTML = stateBox("error", "PROFILE UNAVAILABLE", "The owner profile record could not be read.");
+        fields.innerHTML = isOwnerAuthorized()
+          ? stateBox("error", "PROFILE UNAVAILABLE", "The owner profile record could not be read.")
+          : stateBox("warn", "OWNER AUTHORIZATION REQUIRED", "The owner profile is Owner-only. Open Owner Authorization in the top bar and paste the owner token for this session.");
         return;
       }
       const rows = [
@@ -2672,7 +2730,14 @@
       }
       renderAuthorization();
       const panel = $("owner-auth-panel");
-      if (panel && authorizationState === "AUTHORIZED") panel.hidden = true;
+      if (panel && authorizationState === "AUTHORIZED") {
+        panel.hidden = true;
+        // Re-read the Owner-only snapshot now that a credential is held, so the
+        // profile reflects real server state instead of the pre-auth blank.
+        await refreshSnapshot();
+        renderProfile();
+        renderHealthPill();
+      }
     }
 
     function clearOwnerToken() {

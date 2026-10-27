@@ -256,11 +256,11 @@ async function runPrepareTests() {
     console.log("✓ No fabricated Owner facts");
 
     // --- 7. No mutation of authoritative state ----------------------------
-    const before = await getJson(`/api/opportunities/${grounded.id}`);
+    const before = await getJson(`/api/opportunities/${grounded.id}`, { headers: authHeaders });
     await postJson(`/api/opportunities/${grounded.id}/prepare`, {});
     await postJson(`/api/opportunities/${grounded.id}/prepare`, { type: "cover_letter" });
     await postJson(`/api/opportunities/${grounded.id}/prepare`, { type: "submission_checklist" });
-    const after = await getJson(`/api/opportunities/${grounded.id}`);
+    const after = await getJson(`/api/opportunities/${grounded.id}`, { headers: authHeaders });
 
     for (const field of ["verification_status", "eligibility_status", "owner_fit_status", "score", "decision"]) {
       assert.strictEqual(
@@ -332,9 +332,9 @@ async function runPrepareTests() {
     // Compare the authoritative engine fields, record identities and the profile
     // row's updated_at: PREPARE must touch none of them.
     const coreSnapshot = async () => {
-      const opps = (await getJson("/api/opportunities")).body.data;
+      const opps = (await getJson("/api/opportunities", { headers: authHeaders })).body.data;
       const ev = (await getJson("/api/evidence", { headers: authHeaders })).body.data;
-      const prof = (await getJson("/api/owner/profile")).body.data;
+      const prof = (await getJson("/api/owner/profile", { headers: authHeaders })).body.data;
       assert.ok(prof, "Owner profile must be present (non-null) for a meaningful read-only check");
       assert.strictEqual(prof.skills, "Snapshot Integrity Skill", "Owner profile must expose the seeded real data");
       return JSON.stringify({
