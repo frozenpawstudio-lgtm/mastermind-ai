@@ -2781,18 +2781,15 @@ export class MasterMindAgent extends Agent {
       const parts = url.pathname.split("/opportunities");
       const subpath = parts[1] || "";
 
-      // Declared public READ surface: opportunity list, a single record,
-      // COMPARE, and discovery status. GET on the three evaluation routes is
-      // also let through the guard so the route itself answers 405 (they are
-      // POST-only and never mutate on GET). Everything else is MUTATE and
-      // requires the Owner credential. Evidence reads are deliberately NOT
-      // public and remain Owner-only.
+      // Declared public READ surface: COMPARE, discovery status, and GET on the
+      // three evaluation routes (let through so the route itself answers 405;
+      // they are POST-only and never mutate on GET). The opportunity LIST and a
+      // SINGLE opportunity record carry private business data (title, source
+      // URL, platform, score, decision), so they are Owner-only, as are evidence
+      // reads. Everything else is MUTATE and requires the Owner credential.
       const isPublicRead =
         request.method === "GET" &&
-        (subpath === "" ||
-          subpath === "/" ||
-          /^\/[^\/]+$/.test(subpath) ||
-          subpath === "/compare" ||
+        (subpath === "/compare" ||
           subpath.startsWith("/compare?") ||
           subpath === "/discover" ||
           subpath.startsWith("/discover?") ||
@@ -3082,6 +3079,10 @@ export class MasterMindAgent extends Agent {
 
     if (url.pathname.includes("/owner/profile")) {
       if (request.method === "GET") {
+        // The profile carries the Owner's personal business criteria (skills,
+        // location, cost/effort ceilings), so reads are Owner-only too.
+        const denied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+        if (denied) return denied;
         const profile = this.getOwnerProfile();
         return Response.json({ ok: true, data: profile });
       }
@@ -3152,6 +3153,13 @@ export class MasterMindAgent extends Agent {
       url.pathname.endsWith("/chat") &&
       request.method === "POST"
     ) {
+      // Chat invokes the billed Workers AI binding. Without an Owner check any
+      // caller could spend the account's AI quota, so require the credential
+      // here as well as at the /api edge (the DO is reachable directly under
+      // /agents/<name>/<instance>).
+      const chatDenied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+      if (chatDenied) return chatDenied;
+
       let body;
 
       try {
@@ -3345,6 +3353,27 @@ async function handleAPI(request, env) {
         json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
       );
     }
+
+    /*
+     * The opportunity LIST and a SINGLE record expose private business data
+     * (title, source URL, platform, score, decision), so those GETs are
+     * Owner-only at the edge as well as in the Durable Object. COMPARE,
+     * discovery status and the POST-only evaluation routes stay public.
+     */
+    const oppSubpath = url.pathname.replace(/^\/api\/opportunities/, "");
+    const oppPublicRead =
+      request.method === "GET" &&
+      (oppSubpath === "/compare" ||
+        oppSubpath.startsWith("/compare?") ||
+        oppSubpath === "/discover" ||
+        oppSubpath.startsWith("/discover?") ||
+        /^\/[^\/]+\/decision$/.test(oppSubpath) ||
+        /^\/[^\/]+\/eligibility$/.test(oppSubpath) ||
+        /^\/[^\/]+\/owner-fit$/.test(oppSubpath) ||
+        /^\/[^\/]+\/prepare$/.test(oppSubpath));
+    const oppDenied = authorizeRequest(request, env, oppPublicRead ? RISK.READ : RISK.MUTATE);
+    if (oppDenied) return cors(oppDenied);
+
     const id = env.MasterMindAgent.idFromName("default");
     const stub = env.MasterMindAgent.get(id);
 
@@ -3488,7 +3517,9 @@ async function handleAPI(request, env) {
         json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
       );
     }
-    const denied = authorizeRequest(request, env, request.method === "GET" ? RISK.READ : RISK.MUTATE);
+    // Owner-only for every method: the profile holds the Owner's personal
+    // business criteria, so an unauthenticated read must fail closed.
+    const denied = authorizeRequest(request, env, RISK.OWNER_CONTROLLED);
     if (denied) return cors(denied);
     const id = env.MasterMindAgent.idFromName("default");
     const stub = env.MasterMindAgent.get(id);
@@ -3547,6 +3578,11 @@ async function handleAPI(request, env) {
     url.pathname === "/api/research" &&
     request.method === "POST"
   ) {
+    // Research drives billed Browser Rendering on a caller-supplied URL, so it
+    // is Owner-only; unauthenticated callers must not consume that quota.
+    const researchDenied = authorizeRequest(request, env, RISK.OWNER_CONTROLLED);
+    if (researchDenied) return cors(researchDenied);
+
     let body;
 
     try {
@@ -3617,6 +3653,11 @@ async function handleAPI(request, env) {
     url.pathname === "/api/chat" &&
     request.method === "POST"
   ) {
+    // Chat invokes the billed Workers AI binding; require the Owner credential
+    // before any model call is made.
+    const chatDenied = authorizeRequest(request, env, RISK.OWNER_CONTROLLED);
+    if (chatDenied) return cors(chatDenied);
+
     let body;
 
     try {

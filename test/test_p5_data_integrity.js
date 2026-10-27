@@ -122,7 +122,7 @@ async function runP5DataIntegrityTests() {
   });
   assert.strictEqual(evidence.res.status, 201, "FACT evidence create must respond 201");
 
-  const afterCreate = await getJson(`/api/opportunities/${oppId}`);
+  const afterCreate = await getJson(`/api/opportunities/${oppId}`, { headers: authHeaders });
   const createdState = state(afterCreate.body.data);
   assert.strictEqual(createdState.verification_status, "VERIFIED", "FACT evidence must drive VERIFIED");
   assert.strictEqual(createdState.eligibility_status, "ELIGIBLE", "Chain must recompute eligibility to ELIGIBLE");
@@ -137,7 +137,7 @@ async function runP5DataIntegrityTests() {
   const deleted = await del(`/api/evidence/${evidenceId}`);
   assert.strictEqual(deleted.res.status, 200, "Evidence delete must respond 200");
 
-  const afterDelete = await getJson(`/api/opportunities/${oppId}`);
+  const afterDelete = await getJson(`/api/opportunities/${oppId}`, { headers: authHeaders });
   const deletedState = state(afterDelete.body.data);
   // The existing engine's deterministic fallback, asserted as-is.
   assert.strictEqual(deletedState.verification_status, "UNVERIFIED", "Deletion must return verification to UNVERIFIED");
@@ -176,12 +176,12 @@ async function runP5DataIntegrityTests() {
   assert.strictEqual(factB.res.status, 201);
 
   await del(`/api/evidence/${factA.body.data.id}`);
-  const afterPartialDelete = await getJson(`/api/opportunities/${oppId}`);
+  const afterPartialDelete = await getJson(`/api/opportunities/${oppId}`, { headers: authHeaders });
   assert.strictEqual(afterPartialDelete.body.data.verification_status, "VERIFIED", "One FACT record still remains");
 
   // Removing the last FACT record must clear the positive verdicts again.
   await del(`/api/evidence/${factB.body.data.id}`);
-  const afterFullDelete = await getJson(`/api/opportunities/${oppId}`);
+  const afterFullDelete = await getJson(`/api/opportunities/${oppId}`, { headers: authHeaders });
   assert.notStrictEqual(afterFullDelete.body.data.eligibility_status, "ELIGIBLE", "No FACT records left, so ELIGIBLE must clear");
   assert.notStrictEqual(afterFullDelete.body.data.owner_fit_status, "FIT", "No FACT records left, so FIT must clear");
   console.log("✓ Partial/full evidence deletion recomputed the chain correctly");

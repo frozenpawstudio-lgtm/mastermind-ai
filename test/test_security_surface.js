@@ -85,6 +85,21 @@ async function run() {
     assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
   });
 
+  await check("GET /api/owner/profile -> 401", async () => {
+    const r = await probe("/api/owner/profile");
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+  });
+
+  await check("POST /api/chat -> 401", async () => {
+    const r = await probe("/api/chat", jsonPost({ message: "security-surface-probe" }));
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+  });
+
+  await check("POST /api/research -> 401", async () => {
+    const r = await probe("/api/research", jsonPost({ url: "https://example.com" }));
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+  });
+
   await check("POST /api/approvals -> 401", async () => {
     const r = await probe("/api/approvals", jsonPost({ action: "x" }));
     assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
@@ -105,11 +120,59 @@ async function run() {
     assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
   });
 
+  // ---- 1b. Private opportunity reads must fail closed --------------------
+  // The opportunity list and a single record carry private business data
+  // (title, source URL, platform, score, decision). They must never be
+  // readable without an Owner credential, at the edge or in the Durable Object.
+  console.log("");
+  console.log("1b. Private opportunity reads fail closed");
+
+  await check("GET /api/opportunities (list) -> 401", async () => {
+    const r = await probe("/api/opportunities");
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+    assert.strictEqual(r.body.action, "DENIED");
+  });
+
+  await check("GET /api/opportunities/:id (single record) -> 401", async () => {
+    const r = await probe("/api/opportunities/private-record-probe");
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+    assert.strictEqual(r.body.action, "DENIED");
+  });
+
+  await check("GET /api/opportunities/:id does not leak record fields", async () => {
+    const r = await probe("/api/opportunities/private-record-probe");
+    const text = JSON.stringify(r.body);
+    for (const field of ["title", "source_url", "platform", "score", "decision"]) {
+      assert.ok(!text.includes(`"${field}"`), `refused read must not expose "${field}"`);
+    }
+  });
+
+  await check("invalid token on GET /api/opportunities -> 401", async () => {
+    const r = await probe("/api/opportunities", { headers: { Authorization: "Bearer not-the-owner-token" } });
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+  });
+
+  await check("foreign Origin does not open the opportunity list", async () => {
+    const r = await probe("/api/opportunities", { headers: { Origin: "https://evil.example.com" } });
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+  });
+
+  // A valid Owner credential must still read the private surface.
+  if (OWNER_TOKEN) {
+    await check("GET /api/opportunities with the Owner credential -> 200", async () => {
+      const r = await probe("/api/opportunities", { headers: { Authorization: `Bearer ${OWNER_TOKEN}` } });
+      assert.strictEqual(r.status, 200, `expected 200, got ${r.status}`);
+      assert.ok(Array.isArray(r.body.data), "Owner list read must return the { ok, data } envelope");
+    });
+  } else {
+    console.log("  (skipped Owner-positive read check: OWNER_API_TOKEN not supplied)");
+  }
+
   // ---- 2. Documented public reads stay available -------------------------
   console.log("");
   console.log("2. Documented public reads");
 
-  for (const path of ["/api/health", "/api/permissions", "/api/opportunities", "/api/connections", "/api/voice"]) {
+  for (const path of ["/api/health", "/api/permissions", "/api/connections", "/api/voice"]) {
     await check(`GET ${path} -> 200`, async () => {
       const r = await probe(path);
       assert.strictEqual(r.status, 200, `expected 200, got ${r.status}`);
@@ -133,9 +196,9 @@ async function run() {
     assert.notStrictEqual(allow, "*", "wildcard origin returned");
   });
 
-  // ---- 4. Unauthenticated read surface: measure and report ---------------
+  // ---- 4. Read surface: measure and report --------------------------------
   console.log("");
-  console.log("4. Unauthenticated read surface (measured, not asserted)");
+  console.log("4. Read surface without a credential (measured, not asserted)");
 
   const surface = [
     { path: "/api/owner/profile", method: "GET", label: "owner profile (personal criteria)" },
@@ -155,23 +218,19 @@ async function run() {
     }
   }
 
-  // Chat and research are POST surfaces that consume AI/browser quota.
-  const chat = await probe("/api/chat", jsonPost({ message: "security-surface-probe" }));
-  console.log(
-    `  ${chat.status < 500 ? "WARN" : " ok "} POST /api/chat -> ${chat.status}` +
-      (chat.status < 500 ? " (no credential required; consumes AI quota)" : "")
-  );
-  if (chat.status < 500) {
-    warnings.push("POST /api/chat is reachable without a credential and consumes AI quota");
-  }
-
-  const research = await probe("/api/research", jsonPost({ url: "https://example.com" }));
-  console.log(
-    `  ${research.status < 500 ? "WARN" : " ok "} POST /api/research -> ${research.status}` +
-      (research.status < 500 ? " (no credential required; drives server-side fetch)" : "")
-  );
-  if (research.status < 500) {
-    warnings.push("POST /api/research is reachable without a credential and drives a server-side fetch");
+  // Chat and research consume billed AI / Browser Rendering quota and are
+  // Owner-only. They are asserted as 401 in section 3; log the measured status
+  // here so a regression shows up as a warning as well.
+  for (const { path, body } of [
+    { path: "/api/chat", body: { message: "security-surface-probe" } },
+    { path: "/api/research", body: { url: "https://example.com" } }
+  ]) {
+    const r = await probe(path, jsonPost(body));
+    const open = r.status < 400;
+    console.log(`  ${open ? "WARN" : " ok "} POST ${path} -> ${r.status}`);
+    if (open) {
+      warnings.push(`POST ${path} is reachable without a credential and consumes billed quota`);
+    }
   }
 
   // ---- Summary -----------------------------------------------------------

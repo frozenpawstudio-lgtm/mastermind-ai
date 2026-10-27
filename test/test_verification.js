@@ -75,7 +75,7 @@ async function runVerificationTests() {
   assert.strictEqual(assumptionEvidence.classification, "ASSUMPTION");
 
   // Fetch opportunity to verify status auto-evaluated to PARTIALLY_VERIFIED
-  const oppAfterAssumptionRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`);
+  const oppAfterAssumptionRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`, { headers: authHeaders });
   const oppAfterAssumptionJson = await oppAfterAssumptionRes.json();
   assert.strictEqual(oppAfterAssumptionJson.data.verification_status, "PARTIALLY_VERIFIED");
   console.log("✓ ASSUMPTION evidence updated status to PARTIALLY_VERIFIED");
@@ -148,7 +148,7 @@ async function runVerificationTests() {
   assert.strictEqual(postRejectFactRes.status, 201);
   const postRejectEvidence = (await postRejectFactRes.json()).data;
 
-  let oppCheckRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`);
+  let oppCheckRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`, { headers: authHeaders });
   assert.strictEqual((await oppCheckRes.json()).data.verification_status, "REJECTED", "REJECTED status must NOT be overwritten by new evidence");
   console.log("✓ REJECTED status preserved when adding new evidence");
 
@@ -175,7 +175,7 @@ async function runVerificationTests() {
   assert.strictEqual(deleteAssumptionRes.status, 200);
 
   // Status should be re-evaluated to UNVERIFIED since no evidence remains
-  const oppFinalRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`);
+  const oppFinalRes = await fetch(`${BASE_URL}/api/opportunities/${opp.id}`, { headers: authHeaders });
   const oppFinalJson = await oppFinalRes.json();
   assert.strictEqual(oppFinalJson.data.verification_status, "UNVERIFIED", "Status should return to UNVERIFIED when all evidence is deleted");
   console.log("✓ Status auto-evaluated back to UNVERIFIED when all evidence deleted");

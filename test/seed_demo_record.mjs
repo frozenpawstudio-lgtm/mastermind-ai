@@ -30,7 +30,7 @@ async function json(path, init) {
 }
 
 async function clean() {
-  const list = await json("/api/opportunities");
+  const list = await json("/api/opportunities", { headers });
   const rows = Array.isArray(list.body?.data) ? list.body.data : [];
   const mine = rows.filter((r) => r.source === SOURCE);
   for (const row of mine) {
@@ -40,7 +40,7 @@ async function clean() {
 }
 
 async function seed() {
-  const existing = await json("/api/opportunities");
+  const existing = await json("/api/opportunities", { headers });
   const rows = Array.isArray(existing.body?.data) ? existing.body.data : [];
   if (rows.some((r) => r.source === SOURCE)) {
     console.log("seed: a demonstration record already exists, nothing to do");
