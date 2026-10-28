@@ -3288,7 +3288,7 @@ export class MasterMindAgent extends Agent {
  * through the DO stub. If the stub is unavailable the status is reported as
  * unavailable rather than guessed.
  */
-async function buildEarningContextForEnv(env) {
+async function buildEarningContextForEnv(env, request) {
   const base = {
     authority: "PERSISTED_STATE",
     connections: connectionReport(env).services.map((s) => ({
@@ -3309,9 +3309,22 @@ async function buildEarningContextForEnv(env) {
   try {
     const id = env.MasterMindAgent.idFromName("default");
     const stub = env.MasterMindAgent.get(id);
+
+    /*
+     * The opportunity list and Owner profile are Owner-only reads, so the DO
+     * rejects a credential-less internal call. This helper only runs from an
+     * already-authorized request, so forward just the credential the caller
+     * presented — never unrelated headers, and never a credential in the URL.
+     */
+    const authHeader = request ? request.headers.get("Authorization") : "";
+    const ownerHeader = request ? request.headers.get("X-Owner-Token") : "";
+    const forwardHeaders = {};
+    if (authHeader) forwardHeaders.Authorization = authHeader;
+    else if (ownerHeader) forwardHeaders["X-Owner-Token"] = ownerHeader;
+
     const [oppsRes, profileRes] = await Promise.all([
-      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/opportunities")),
-      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/owner/profile"))
+      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/opportunities", { headers: forwardHeaders })),
+      stub.fetch(new Request("http://agent/agents/master-mind-agent/default/owner/profile", { headers: forwardHeaders }))
     ]);
 
     const oppsJson = await oppsRes.json();
@@ -3726,7 +3739,7 @@ async function handleAPI(request, env) {
           intents,
           research,
           earningIntent: earningIntent.isEarningIntent,
-          status: buildEarningContextForEnv(env),
+          status: await buildEarningContextForEnv(env, request),
           voice: resolveVoiceState(env)
         }
       );
