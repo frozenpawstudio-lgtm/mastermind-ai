@@ -1484,6 +1484,11 @@ export class MasterMindAgent extends Agent {
         details TEXT,
         created_at TEXT NOT NULL
       );`;
+      this.sql`CREATE TABLE IF NOT EXISTS chat_rate_limits (
+        key TEXT NOT NULL,
+        timestamp INTEGER NOT NULL
+      );`;
+      this.sql`CREATE INDEX IF NOT EXISTS idx_chat_rate_limits ON chat_rate_limits(key, timestamp);`;
       this.sql`CREATE TABLE IF NOT EXISTS owner_approvals (
         id TEXT PRIMARY KEY,
         capability TEXT NOT NULL,
@@ -1526,6 +1531,27 @@ export class MasterMindAgent extends Agent {
     );`;
 
     return { id, timestamp, actor, action, resource_type, resource_id, status, request_ip, user_agent, details, created_at };
+  }
+
+  checkChatRateLimit(key, windowSec = 60, maxRequests = 30) {
+    this.initDb();
+    const now = Math.floor(Date.now() / 1000);
+    const windowStart = now - windowSec;
+
+    // Clean stale entries older than window
+    this.sql`DELETE FROM chat_rate_limits WHERE timestamp < ${windowStart};`;
+
+    // Count requests in window
+    const rows = [...this.sql`SELECT COUNT(*) as cnt FROM chat_rate_limits WHERE key = ${key} AND timestamp >= ${windowStart};`];
+    const currentCount = (rows[0] && rows[0].cnt) ? Number(rows[0].cnt) : 0;
+
+    if (currentCount >= maxRequests) {
+      return { allowed: false, currentCount, maxRequests, retryAfter: windowSec };
+    }
+
+    // Insert new request entry
+    this.sql`INSERT INTO chat_rate_limits (key, timestamp) VALUES (${key}, ${now});`;
+    return { allowed: true, currentCount: currentCount + 1, maxRequests };
   }
 
   listAuditLogs(filters = {}) {
@@ -3152,6 +3178,38 @@ export class MasterMindAgent extends Agent {
       url.pathname.endsWith("/chat") &&
       request.method === "POST"
     ) {
+      // Identity key derivation: prefer trusted CF-Connecting-IP, then x-forwarded-for from trusted proxies, then fallback
+      const cfIp = request.headers.get("cf-connecting-ip");
+      const xff = request.headers.get("x-forwarded-for");
+      const clientIp = (cfIp || (xff ? xff.split(",")[0].trim() : null) || "anonymous_client").trim();
+
+      try {
+        const rateCheck = this.checkChatRateLimit(clientIp, 60, 30);
+        if (!rateCheck.allowed) {
+          return Response.json(
+            {
+              ok: false,
+              error: "Rate limit exceeded. Please wait 60 seconds before sending another chat request.",
+              limit: rateCheck.maxRequests,
+              retryAfter: rateCheck.retryAfter
+            },
+            {
+              status: 429,
+              headers: { "Retry-After": String(rateCheck.retryAfter) }
+            }
+          );
+        }
+      } catch (rateErr) {
+        return Response.json(
+          {
+            ok: false,
+            error: "Rate limit check error. Request denied for security.",
+            details: rateErr.message
+          },
+          { status: 500 }
+        );
+      }
+
       let body;
 
       try {
@@ -3617,90 +3675,18 @@ async function handleAPI(request, env) {
     url.pathname === "/api/chat" &&
     request.method === "POST"
   ) {
-    let body;
-
-    try {
-      body = await request.json();
-    } catch {
+    if (!env.MasterMindAgent) {
       return cors(
-        json(
-          {
-            ok: false,
-            error: "Invalid JSON."
-          },
-          400
-        )
+        json({ ok: false, error: "MasterMindAgent binding is missing" }, 500)
       );
     }
+    const id = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(id);
 
-    const message =
-      String(body.message || "").trim();
-
-    if (!message) {
-      return cors(
-        json(
-          {
-            ok: false,
-            error: "Message खाली है।"
-          },
-          400
-        )
-      );
-    }
-
-    const intents =
-      detectIntent(message);
-
-    const earningIntent =
-      detectEarningIntent(message);
-
-    if (earningIntent.isEarningIntent) {
-      intents.push("earning");
-    }
-
-    let research = null;
-
-    if (
-      intents.includes("web_research")
-    ) {
-      const match =
-        message.match(
-          /https?:\/\/[^\s]+/i
-        );
-
-      if (match) {
-        research =
-          await researchWeb(
-            env,
-            match[0]
-          );
-      }
-    }
-
-    const result =
-      await runAI(
-        env,
-        message,
-        {
-          intents,
-          research,
-          earningIntent: earningIntent.isEarningIntent,
-          status: buildEarningContextForEnv(env),
-          voice: resolveVoiceState(env)
-        }
-      );
-
-    return cors(
-      json({
-        ...result,
-        mode: "legacy-api",
-        intents,
-        earningIntent: earningIntent.isEarningIntent,
-        earningIntentReason: earningIntent.reason,
-        researched:
-          !!research?.ok
-      })
-    );
+    const agentUrl = new URL(`http://agent/agents/master-mind-agent/default/chat`);
+    const agentRequest = new Request(agentUrl.toString(), request);
+    const agentResponse = await stub.fetch(agentRequest);
+    return cors(agentResponse);
   }
 
   if (
