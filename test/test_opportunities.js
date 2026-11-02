@@ -121,7 +121,26 @@ async function runTests() {
   assert.strictEqual(patchUnknownJson.data.owner_fit_status, "UNKNOWN");
   console.log("✓ PATCH ELIGIBLE/FIT without FACT evidence rejected; UNKNOWN preserved");
 
-  // 6. Delete Opportunity
+  // 6. Unsupported HTTP method on a single record must be refused.
+  // POST is valid only on the collection (/api/opportunities) to create; on a
+  // single record it is unsupported, so it must answer 405 and never fall
+  // through to a generic 200. Regression for an accidentally removed guard.
+  const methodNotAllowedRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "must not be created by POST on a single record" })
+  });
+  assert.strictEqual(
+    methodNotAllowedRes.status,
+    405,
+    `POST /api/opportunities/:id must be 405, got ${methodNotAllowedRes.status}`
+  );
+  const methodNotAllowedJson = await methodNotAllowedRes.json();
+  assert.strictEqual(methodNotAllowedJson.ok, false, "405 body must report ok:false");
+  assert.strictEqual(methodNotAllowedJson.error, "Method not allowed", "405 body must carry the method error");
+  console.log("✓ Unsupported POST on a single record returned 405 (no fall-through)");
+
+  // 7. Delete Opportunity
   const deleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
     method: "DELETE",
     headers: authHeaders

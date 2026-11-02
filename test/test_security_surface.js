@@ -157,6 +157,68 @@ async function run() {
     assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
   });
 
+  // ---- 1c. COMPARE ranks the same private records, so it fails closed -----
+  // COMPARE returns title, platform, source, score and decision for every
+  // persisted opportunity — the identical private fields the list route
+  // protects. It must therefore be Owner-only too, on the edge route and on
+  // the directly reachable /agents/... path.
+  console.log("");
+  console.log("1c. COMPARE (private ranking) fails closed");
+
+  await check("GET /api/opportunities/compare -> 401", async () => {
+    const r = await probe("/api/opportunities/compare");
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+    assert.strictEqual(r.body.action, "DENIED");
+  });
+
+  await check("GET /api/opportunities/compare does not leak ranking fields", async () => {
+    const r = await probe("/api/opportunities/compare");
+    const text = JSON.stringify(r.body);
+    for (const field of ["ranked", "title", "platform", "score", "decision", "topOpportunityId"]) {
+      assert.ok(!text.includes(`"${field}"`), `refused compare must not expose "${field}"`);
+    }
+  });
+
+  await check("invalid token on GET /api/opportunities/compare -> 401", async () => {
+    const r = await probe("/api/opportunities/compare", { headers: { Authorization: "Bearer not-the-owner-token" } });
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+  });
+
+  await check("GET /agents/.../opportunities/compare -> 401 (direct DO path)", async () => {
+    const r = await probe("/agents/master-mind-agent/default/opportunities/compare");
+    assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+  });
+
+  if (OWNER_TOKEN) {
+    await check("GET /api/opportunities/compare with the Owner credential -> 200", async () => {
+      const r = await probe("/api/opportunities/compare", { headers: { Authorization: `Bearer ${OWNER_TOKEN}` } });
+      assert.strictEqual(r.status, 200, `expected 200, got ${r.status}`);
+      assert.ok(Array.isArray(r.body.data && r.body.data.ranked), "Owner compare must return the ranked list");
+    });
+  } else {
+    console.log("  (skipped Owner-positive compare check: OWNER_API_TOKEN not supplied)");
+  }
+
+  // ---- 1d. Malformed credentials must never authorize ---------------------
+  console.log("");
+  console.log("1d. Malformed credentials never authorize a private read");
+
+  const malformed = [
+    ["empty Bearer value", { Authorization: "Bearer " }],
+    ["wrong scheme (Basic)", { Authorization: "Basic not-the-owner-token" }],
+    ["credential with no scheme", { Authorization: "not-the-owner-token" }],
+    ["valid token plus trailing junk", { Authorization: "Bearer not-the-owner-token-extra" }],
+    ["wrong X-Owner-Token", { "X-Owner-Token": "not-the-owner-token" }],
+    ["empty X-Owner-Token", { "X-Owner-Token": "" }]
+  ];
+
+  for (const [label, headers] of malformed) {
+    await check(`${label} on GET /api/opportunities -> 401`, async () => {
+      const r = await probe("/api/opportunities", { headers });
+      assert.strictEqual(r.status, 401, `expected 401, got ${r.status}`);
+    });
+  }
+
   // A valid Owner credential must still read the private surface.
   if (OWNER_TOKEN) {
     await check("GET /api/opportunities with the Owner credential -> 200", async () => {

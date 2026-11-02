@@ -81,7 +81,7 @@ async function runCompareTests() {
     const initialList = await getJson("/api/opportunities", { headers: authHeaders });
     assert.strictEqual(initialList.res.status, 200, "Opportunity list must respond 200");
     const initialRows = Array.isArray(initialList.body.data) ? initialList.body.data : [];
-    const zeroCompare = await getJson("/api/opportunities/compare");
+    const zeroCompare = await getJson("/api/opportunities/compare", { headers: authHeaders });
     assert.strictEqual(zeroCompare.res.status, 200, "Compare must respond 200");
     assert.strictEqual(zeroCompare.body.ok, true, "Compare ok must be true");
     if (initialRows.length === 0) {
@@ -97,7 +97,7 @@ async function runCompareTests() {
     // --- One opportunity --------------------------------------------------
     const single = await createOpportunity(`COMPARE single ${Date.now()}`);
     createdIds.push(single.id);
-    const oneCompare = await getJson("/api/opportunities/compare");
+    const oneCompare = await getJson("/api/opportunities/compare", { headers: authHeaders });
     assert.strictEqual(oneCompare.res.status, 200);
     const oneEntry = oneCompare.body.data.ranked.find((r) => r.id === single.id);
     assert.ok(oneEntry, "The created opportunity must appear in the ranking");
@@ -128,7 +128,7 @@ async function runCompareTests() {
       "Owner is ineligible, banned and restricted country; unfit and not fit for required skill"
     );
 
-    const compare = await getJson("/api/opportunities/compare");
+    const compare = await getJson("/api/opportunities/compare", { headers: authHeaders });
     assert.strictEqual(compare.res.status, 200);
     const ranked = compare.body.data.ranked;
     const byId = new Map(ranked.map((r) => [r.id, r]));
@@ -182,8 +182,8 @@ async function runCompareTests() {
     }
 
     const expectedTieOrder = [tieA.id, tieB.id].sort((a, b) => String(a).localeCompare(String(b)));
-    const tieCompare1 = await getJson("/api/opportunities/compare");
-    const tieCompare2 = await getJson("/api/opportunities/compare");
+    const tieCompare1 = await getJson("/api/opportunities/compare", { headers: authHeaders });
+    const tieCompare2 = await getJson("/api/opportunities/compare", { headers: authHeaders });
     const tieIds1 = tieCompare1.body.data.ranked.filter((r) => r.id === tieA.id || r.id === tieB.id).map((r) => r.id);
     const tieIds2 = tieCompare2.body.data.ranked.filter((r) => r.id === tieA.id || r.id === tieB.id).map((r) => r.id);
     assert.deepStrictEqual(tieIds1, expectedTieOrder, "Identical states must tie-break by stable opportunity id");
@@ -240,8 +240,8 @@ async function runCompareTests() {
     assert.strictEqual(beforeProfile.res.status, 200, "Owner profile read must respond 200");
     assert.ok(beforeProfile.body.data, "Owner profile must be present (non-null) for a meaningful read-only check");
     assert.strictEqual(beforeProfile.body.data.skills, "Compare Readonly Skill", "Owner profile must expose the seeded real data");
-    await getJson("/api/opportunities/compare");
-    await getJson("/api/opportunities/compare");
+    await getJson("/api/opportunities/compare", { headers: authHeaders });
+    await getJson("/api/opportunities/compare", { headers: authHeaders });
     const after = await snapshot();
     assert.strictEqual(after, before, "COMPARE must not mutate opportunities, evidence or owner profile");
     console.log("✓ COMPARE is read-only (opportunities, evidence and owner profile unchanged across compare calls)");

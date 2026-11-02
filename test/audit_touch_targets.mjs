@@ -76,6 +76,8 @@ try {
   for (const o of byKey.values()) {
     console.log(`  ${o.screen.padEnd(9)} ${o.tag.padEnd(8)} ${String(o.w).padStart(3)}x${String(o.h).padStart(3)}  ${o.id ? "#" + o.id : ""} ${o.label}`);
   }
+
+  if (offenders.length > 0) process.exitCode = 1;
 } finally {
   await closeBrowser(browser);
 }
