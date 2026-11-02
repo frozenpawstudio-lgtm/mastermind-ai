@@ -41,8 +41,12 @@ unavailable values read `DATA NOT AVAILABLE` or `NOT CONFIGURED`.
 The owner token is held in a module-scoped JavaScript variable for the lifetime
 of the page. It is never written to `localStorage`, `sessionStorage`, cookies,
 the URL or the console, and never rendered into the DOM. Closing the tab
-discards it. Reads stay public; every mutation fails closed with HTTP 401
-without the credential.
+discards it. Public reads stay public; private reads and every mutation fail
+closed with HTTP 401 without the credential. The public read surface is exactly
+`/api/health`, `/api/self-check`, `/api/permissions`, `/api/connections`,
+`/api/voice` and discovery status (`GET /api/opportunities/discover`). Owner
+data — the opportunity list, a single opportunity, COMPARE, evidence, the Owner
+profile, audit logs and approvals — is Owner-only.
 
 ## Environment configuration
 
@@ -68,24 +72,31 @@ allowed.
 | `/api/permissions` | GET | Permission model and authorization state |
 | `/api/voice` | GET | Voice foundation state |
 | `/api/voice/command` | POST | Voice command intake (requires VOICE_ACTIVE) |
-| `/api/opportunities` | GET/POST | Opportunity list / create |
-| `/api/opportunities/:id` | GET/PATCH/DELETE | Opportunity record |
-| `/api/opportunities/discover` | GET/POST | Discovery intake (truthful NOT_CONNECTED state) |
+| `/api/opportunities` | GET/POST | Owner-only opportunity list / create |
+| `/api/opportunities/:id` | GET/PATCH/DELETE | Owner-only opportunity record |
+| `/api/opportunities/discover` | GET/POST | Discovery intake (truthful NOT_CONNECTED state). GET is the one public opportunity read |
 | `/api/opportunities/:id/decision` | POST | Deterministic decision evaluation. POST-only; GET returns 405 and does not mutate |
 | `/api/opportunities/:id/eligibility` | POST | Eligibility evaluation. POST-only; GET returns 405 and does not mutate |
 | `/api/opportunities/:id/owner-fit` | POST | Owner-fit evaluation. POST-only; GET returns 405 and does not mutate |
-| `/api/opportunities/compare` | GET | Read-only deterministic ranking of persisted opportunities (COMPARE) |
+| `/api/opportunities/compare` | GET | Owner-only read-only deterministic ranking of persisted opportunities (COMPARE) |
 | `/api/opportunities/:id/prepare` | POST | Owner-reviewable preparation package (PREPARE). Preparation only — never submits |
 | `/api/evidence` | GET/POST/DELETE | Owner-only structured evidence records (valid Owner credential required) |
-| `/api/owner/profile` | GET/POST | Owner profile record |
+| `/api/owner/profile` | GET/POST | Owner-only Owner profile record (reads fail closed without the credential) |
 | `/api/audit-logs` | GET | Owner-only append-only audit log |
 | `/api/approvals`, `/api/approvals/:id`, `/api/approvals/:id/decide` | GET/POST | Owner-only approval records and decisions |
-| `/api/chat` | POST | AIRA conversation |
+| `/api/chat` | POST | Owner-only AIRA conversation (Owner credential required; rate limited to 30 requests / 60 s) |
+| `/api/research` | POST | Owner-only research intake (Owner credential required; rate limited, distinct bucket) |
 
 Authorization is applied by each route's declared risk, not by HTTP method.
-Opportunity list, a single opportunity, COMPARE and discovery status are public
-reads. Every other endpoint — including audit logs, approval records, evidence
-reads, and all state-changing evaluations — requires a valid Owner credential.
+Opportunity list, a single opportunity and COMPARE all return the same private
+business records (title, source URL, platform, score, decision), so all three are
+Owner-only. The public read surface is exactly runtime/foundation status —
+`/api/health`, `/api/self-check`, `/api/permissions`, `/api/connections`,
+`/api/voice` — plus discovery status (`GET /api/opportunities/discover`). Every
+other endpoint — including the Owner profile, audit logs, approval records,
+evidence reads, and all state-changing evaluations — requires a valid Owner
+credential. `POST /api/chat` and `POST /api/research` are Owner-only and rate
+limited.
 State-changing evaluations are POST-only and never mutate state through GET.
 
 Decision score and decision are owned by the deterministic decision engine.

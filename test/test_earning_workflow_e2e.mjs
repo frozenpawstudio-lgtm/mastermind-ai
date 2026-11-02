@@ -71,7 +71,7 @@ try {
     await sleep(2000);
 
     const found = await page.evaluate(`(async () => {
-      const res = await fetch('/api/opportunities');
+      const res = await fetch('/api/opportunities', { headers: { Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} } });
       const body = await res.json();
       const row = (body.data || []).find(r => r.title === ${JSON.stringify(title)});
       return row ? { id: row.id, verification: row.verification_status, score: row.score, decision: row.decision } : null;
@@ -132,7 +132,7 @@ try {
     await sleep(2500);
 
     const state = await page.evaluate(`(async () => {
-      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)});
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)}, { headers: { Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} } });
       const body = await res.json();
       return { verification: body.data.verification_status, eligibility: body.data.eligibility_status, ownerFit: body.data.owner_fit_status, score: body.data.score, decision: body.data.decision };
     })()`);
@@ -211,6 +211,166 @@ try {
     assert.ok(/COMPLETE/.test(byName["Verify"]), `Verify should be COMPLETE, got ${byName["Verify"]}`);
     assert.ok(/COMPLETE/.test(byName["Score"]), `Score should be COMPLETE, got ${byName["Score"]}`);
     assert.ok(/OWNER_REQUIRED/.test(byName["Execute Only When Authorized"]), "execution must remain Owner-required");
+  });
+
+  await test("tracking surface records a stage, a follow-up and a payment through the UI", async () => {
+    await page.evaluate(`document.querySelector('#dock button[data-nav="tools"]').click()`);
+    await sleep(2000);
+    await page.evaluate(`document.querySelector('[data-act="track"][data-id="${opportunityId}"]').click()`);
+    await sleep(1200);
+
+    const controls = await page.evaluate(`(() => ({
+      stage: !!document.querySelector('[data-track-stage="${opportunityId}"]'),
+      payment: !!document.querySelector('[data-track-payment="${opportunityId}"]'),
+      followup: !!document.querySelector('[data-track-next="${opportunityId}"]')
+    }))()`);
+    assert.ok(controls.stage && controls.payment && controls.followup, "tracking controls must render");
+
+    // Record a real lifecycle stage through the UI.
+    await page.evaluate(`(() => {
+      const sel = document.querySelector('[data-track-stage="${opportunityId}"]');
+      sel.value = 'SELECTED';
+      document.querySelector('[data-act="track-stage"][data-id="${opportunityId}"]').click();
+      return true;
+    })()`);
+    await sleep(1500);
+
+    // Add a real follow-up through the UI.
+    await page.evaluate(`(() => {
+      const next = document.querySelector('[data-track-next="${opportunityId}"]');
+      next.value = 'Follow up in 7 days';
+      document.querySelector('[data-act="track-followup"][data-id="${opportunityId}"]').click();
+      return true;
+    })()`);
+    await sleep(1500);
+
+    const summary = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/tracking', {
+        headers: { Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} }
+      });
+      return await res.json();
+    })()`);
+    assert.strictEqual(summary.ok, true, "tracking summary must be readable by the Owner");
+    assert.strictEqual(summary.data.current_stage, "SELECTED", "the recorded stage must persist");
+    assert.ok(Array.isArray(summary.data.follow_ups) && summary.data.follow_ups.length >= 1, "the follow-up must persist");
+  });
+
+  await test("CONFIRMED_PAID is refused without FACT evidence and accepted with it", async () => {
+    const refused = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({ status: 'PENDING' })
+      });
+      return res.status;
+    })()`);
+    assert.strictEqual(refused, 201, "a PENDING payment needs no evidence and must be accepted");
+
+    // This record already carries FACT evidence from the verification stage, so
+    // CONFIRMED_PAID is legitimate here. Confirm it is accepted and reported.
+    const confirmed = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({ status: 'CONFIRMED_PAID' })
+      });
+      return { status: res.status, body: await res.json() };
+    })()`);
+    assert.strictEqual(confirmed.status, 201, `expected 201 with FACT evidence, got ${confirmed.status}`);
+    assert.strictEqual(confirmed.body.data.status, "CONFIRMED_PAID");
+
+    const summary = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/tracking', {
+        headers: { Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} }
+      });
+      return await res.json();
+    })()`);
+    assert.strictEqual(summary.data.confirmed_payment, true, "the summary must reflect the evidenced payment");
+  });
+
+  await test("rejection learning refuses an invented reason and records an evidenced one", async () => {
+    // Drive the record to REJECTED through the real lifecycle API.
+    const stages = ["PREPARING", "APPROVAL_PENDING", "APPROVED", "SUBMITTED", "ASSESSMENT", "REJECTED"];
+    for (const stage of stages) {
+      const status = await page.evaluate(`(async () => {
+        const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/lifecycle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+          body: JSON.stringify({ stage: ${JSON.stringify(stage)} })
+        });
+        return res.status;
+      })()`);
+      assert.strictEqual(status, 201, `stage ${stage} must be accepted, got ${status}`);
+    }
+
+    const invented = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/rejection-lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({ cause: 'MADE_UP_REASON', evidence: 'x' })
+      });
+      return res.status;
+    })()`);
+    assert.strictEqual(invented, 400, "an invented rejection cause must be refused");
+
+    const unnamed = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/rejection-lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({ cause: 'PRICE' })
+      });
+      return res.status;
+    })()`);
+    assert.strictEqual(unnamed, 400, "a named cause without evidence must be refused");
+
+    const recorded = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/' + ${JSON.stringify(opportunityId)} + '/rejection-lessons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({ cause: 'PRICE', evidence: 'client stated budget below quote', lesson: 'qualify budget earlier' })
+      });
+      return { status: res.status, body: await res.json() };
+    })()`);
+    assert.strictEqual(recorded.status, 201, "an evidenced rejection cause must be recorded");
+    assert.strictEqual(recorded.body.data.lesson, "qualify budget earlier");
+  });
+
+  await test("opportunity memory only accepts source-referenced entries and recalls them", async () => {
+    const unsupported = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({ category: 'SKILL_GAP', summary: 'no source' })
+      });
+      return res.status;
+    })()`);
+    assert.strictEqual(unsupported, 400, "a memory entry without a source reference must be refused");
+
+    const stored = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/memory', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({
+          category: 'APPLICATION_OUTCOME',
+          summary: 'budget qualification changed the outcome',
+          source_ref: 'opportunity:' + ${JSON.stringify(opportunityId)},
+          opportunity_id: ${JSON.stringify(opportunityId)}
+        })
+      });
+      return res.status;
+    })()`);
+    assert.strictEqual(stored, 201, "a sourced memory entry must be stored");
+
+    const recalled = await page.evaluate(`(async () => {
+      const res = await fetch('/api/opportunities/memory/recall', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + ${JSON.stringify(OWNER_TOKEN)} },
+        body: JSON.stringify({ opportunity_id: ${JSON.stringify(opportunityId)} })
+      });
+      const body = await res.json();
+      return body.data.length;
+    })()`);
+    assert.ok(recalled >= 1, "recall must return the sourced precedent for this opportunity");
   });
 
   await test("cleanup: the proof record and its approval are removed", async () => {

@@ -26,6 +26,11 @@ async function getJson(path, init) {
 async function runFoundationTests() {
   console.log(`Starting V9 foundation tests against ${BASE_URL}...`);
 
+  // Owner credential. Chat, research and the Owner profile are Owner-only
+  // surfaces, so every call to them must present the credential.
+  const ownerToken = process.env.OWNER_API_TOKEN;
+  const ownerAuth = ownerToken ? { Authorization: `Bearer ${ownerToken}` } : {};
+
   // --- 1. Health contract --------------------------------------------------
   const health = await getJson("/api/health");
   assert.strictEqual(health.res.status, 200, "Health endpoint must respond 200");
@@ -77,7 +82,7 @@ async function runFoundationTests() {
   console.log("✓ Voice contract passed (state:", voice.body.data.state + ")");
 
   // --- 5. Opportunity list envelope + truthful empty state -----------------
-  const list = await getJson("/api/opportunities");
+  const list = await getJson("/api/opportunities", { headers: ownerAuth });
   assert.strictEqual(list.res.status, 200, "Opportunity list must respond 200");
   assert.strictEqual(list.body.ok, true, "Opportunity list must use { ok, data } envelope");
   assert.ok(Array.isArray(list.body.data), "Opportunity list data must be an array");
@@ -85,8 +90,9 @@ async function runFoundationTests() {
 
   // --- 6. Owner profile contract ------------------------------------------
   // When no profile row exists the endpoint must report that honestly
-  // (data:null) rather than fabricating Owner values.
-  const profile = await getJson("/api/owner/profile");
+  // (data:null) rather than fabricating Owner values. The profile is Owner-only,
+  // so the read presents the credential.
+  const profile = await getJson("/api/owner/profile", { headers: ownerAuth });
   assert.strictEqual(profile.res.status, 200, "Owner profile must respond 200");
   assert.strictEqual(profile.body.ok, true);
   assert.ok(
@@ -106,9 +112,6 @@ async function runFoundationTests() {
   // --- 7. Deterministic score protection ----------------------------------
   // When the permission foundation is CONFIGURED, mutations must present the
   // Owner credential. The suite mirrors a real authorized Owner client.
-  const ownerToken = process.env.OWNER_API_TOKEN;
-  const ownerAuth = ownerToken ? { Authorization: `Bearer ${ownerToken}` } : {};
-
   const unique = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const created = await getJson("/api/opportunities", {
     method: "POST",
@@ -161,7 +164,7 @@ async function runFoundationTests() {
   for (const message of positiveCases) {
     const chat = await getJson("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...ownerAuth },
       body: JSON.stringify({ message })
     });
     assert.strictEqual(chat.res.status, 200, `Chat must respond 200 for: ${message}`);
@@ -194,7 +197,7 @@ async function runFoundationTests() {
   for (const message of negativeCases) {
     const chat = await getJson("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...ownerAuth },
       body: JSON.stringify({ message })
     });
     assert.strictEqual(chat.res.status, 200, `Chat must respond 200 for: ${message}`);
@@ -234,12 +237,28 @@ async function runFoundationTests() {
     console.log("! Destructive endpoint protection NOT_CONFIGURED (OWNER_API_TOKEN absent) — reported truthfully, not faked");
   }
 
-  // Reads must remain available without an owner credential in both modes.
-  const readAfter = await fetch(`${BASE_URL}/api/opportunities`, {
+  // The opportunity LIST is Owner-only (it carries private business data), so a
+  // cross-origin read without a credential must be refused when authorization is
+  // configured, and must still be readable with a valid Owner credential.
+  const crossOriginRead = await fetch(`${BASE_URL}/api/opportunities`, {
     headers: { Origin: "https://evil.example" }
   });
-  assert.strictEqual(readAfter.status, 200, "Read endpoints must remain available");
-  console.log("✓ Read access unaffected by mutation authorization");
+  if (authState === "CONFIGURED") {
+    assert.strictEqual(crossOriginRead.status, 401, "Private opportunity read must be refused without a credential");
+    console.log("✓ Private opportunity read refused without a credential (authorization CONFIGURED)");
+  } else {
+    assert.strictEqual(crossOriginRead.status, 200, "With authorization NOT_CONFIGURED the boundary is not enforced");
+    console.log("! Private opportunity read not enforced (OWNER_API_TOKEN absent) — reported truthfully, not faked");
+  }
+
+  const ownerRead = await getJson("/api/opportunities", { headers: ownerAuth });
+  if (ownerToken) {
+    assert.strictEqual(ownerRead.res.status, 200, "Owner credential must still read the opportunity list");
+    assert.ok(Array.isArray(ownerRead.body.data), "Owner list read must return the { ok, data } envelope");
+    console.log("✓ Owner credential reads the opportunity list");
+  } else {
+    console.log("! Owner-positive list read not checked (OWNER_API_TOKEN absent)");
+  }
 
   // --- 11. Voice command is blocked without verified voice ----------------
   const voiceCmd = await getJson("/api/voice/command", {

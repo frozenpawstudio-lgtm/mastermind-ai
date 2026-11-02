@@ -2,7 +2,8 @@ import assert from "node:assert";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:8787";
 // Mutations require the Owner credential when the permission foundation is
-// configured (OWNER_API_TOKEN set on the worker). Reads stay public.
+// configured (OWNER_API_TOKEN set on the worker). Public reads (runtime and
+// foundation status) stay public; private reads and mutations fail closed.
 const OWNER_TOKEN = process.env.OWNER_API_TOKEN;
 const authHeaders = OWNER_TOKEN ? { Authorization: `Bearer ${OWNER_TOKEN}` } : {};
 
@@ -52,7 +53,7 @@ async function runTests() {
   console.log("✓ Opportunity creation passed (client score rejected, unsupported ELIGIBLE/FIT fell back to UNKNOWN):", createdOpp.id);
 
   // 3. Get Opportunity
-  const getRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`);
+  const getRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, { headers: authHeaders });
   assert.strictEqual(getRes.status, 200, "Get opportunity failed");
   const getJson = await getRes.json();
   assert.strictEqual(getJson.ok, true);
@@ -61,7 +62,7 @@ async function runTests() {
   console.log("✓ Get opportunity passed");
 
   // 4. List Opportunities
-  const listRes = await fetch(`${BASE_URL}/api/opportunities?source=manual`);
+  const listRes = await fetch(`${BASE_URL}/api/opportunities?source=manual`, { headers: authHeaders });
   assert.strictEqual(listRes.status, 200, "List opportunities failed");
   const listJson = await listRes.json();
   assert.strictEqual(listJson.ok, true);
@@ -121,7 +122,26 @@ async function runTests() {
   assert.strictEqual(patchUnknownJson.data.owner_fit_status, "UNKNOWN");
   console.log("✓ PATCH ELIGIBLE/FIT without FACT evidence rejected; UNKNOWN preserved");
 
-  // 6. Delete Opportunity
+  // 6. Unsupported HTTP method on a single record must be refused.
+  // POST is valid only on the collection (/api/opportunities) to create; on a
+  // single record it is unsupported, so it must answer 405 and never fall
+  // through to a generic 200. Regression for an accidentally removed guard.
+  const methodNotAllowedRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
+    method: "POST",
+    headers: { ...authHeaders, "Content-Type": "application/json" },
+    body: JSON.stringify({ title: "must not be created by POST on a single record" })
+  });
+  assert.strictEqual(
+    methodNotAllowedRes.status,
+    405,
+    `POST /api/opportunities/:id must be 405, got ${methodNotAllowedRes.status}`
+  );
+  const methodNotAllowedJson = await methodNotAllowedRes.json();
+  assert.strictEqual(methodNotAllowedJson.ok, false, "405 body must report ok:false");
+  assert.strictEqual(methodNotAllowedJson.error, "Method not allowed", "405 body must carry the method error");
+  console.log("✓ Unsupported POST on a single record returned 405 (no fall-through)");
+
+  // 7. Delete Opportunity
   const deleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, {
     method: "DELETE",
     headers: authHeaders
@@ -132,7 +152,7 @@ async function runTests() {
   console.log("✓ Delete opportunity passed");
 
   // Verify it is gone
-  const getAfterDeleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`);
+  const getAfterDeleteRes = await fetch(`${BASE_URL}/api/opportunities/${createdOpp.id}`, { headers: authHeaders });
   assert.strictEqual(getAfterDeleteRes.status, 404, "Get after delete should return 404");
   console.log("✓ Get after delete verified 404");
 

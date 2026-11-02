@@ -103,6 +103,14 @@ try {
     const page = await newPage(browser, { width: 390, height: 844 });
     await page.goto(`${BASE_URL}/`, { settleMs: 1500 });
 
+    // Chat is Owner-only, so authorize this page before exercising it. Without
+    // a credential the UI refuses the send and no POST is issued.
+    if (OWNER_TOKEN) {
+      await page.evaluate(`document.getElementById('owner-token').value = ${JSON.stringify(OWNER_TOKEN)};`);
+      await page.evaluate(`document.getElementById('owner-auth-save').click()`);
+      await sleep(1200);
+    }
+
     await test("chat send issues exactly one POST /api/chat per tap", async () => {
       await page.evaluate(`document.querySelector('#dock button[data-nav="chat"]').click()`);
       await sleep(500);
@@ -183,13 +191,17 @@ try {
     const page = await newPage(browser, { width: 390, height: 844 });
     await page.goto(`${BASE_URL}/`, { settleMs: 1500 });
 
-    await test("earning screen loads real opportunities from the API", async () => {
+    await test("earning screen reports the opportunity list as Owner-only without a credential", async () => {
       await page.evaluate(`document.querySelector('#dock button[data-nav="tools"]').click()`);
       await sleep(1800);
       const pillText = await page.evaluate(`document.getElementById('earning-connectivity').textContent`);
       assert.ok(/DISCOVERY/.test(pillText), `connectivity pill should report discovery state, got "${pillText}"`);
       const hasState = await page.evaluate(`document.querySelectorAll('#earning-list .opp, #earning-list .state-box').length > 0`);
       assert.strictEqual(hasState, true, "earning list must show either cards or an explicit state box");
+      // The list carries private business data, so without a credential the
+      // screen must say so rather than showing records or a fake empty list.
+      const listText = await page.evaluate(`document.getElementById('earning-list').textContent`);
+      assert.ok(/OWNER AUTHORIZATION REQUIRED/i.test(listText), `expected an Owner-only message, got: ${listText.slice(0, 120)}`);
     });
 
     await test("the eleven-stage workflow is documented on the earning screen", async () => {
