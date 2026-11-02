@@ -3,6 +3,61 @@ import { Agent, routeAgentRequest } from "agents";
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
 /*
+ * Chat rate limiting: 30 authorized requests per 60-second fixed window, per
+ * identity. The counter lives in the Durable Object's SQLite so both the
+ * /api/chat edge route and the directly reachable /agents/.../chat route share
+ * one authority (an edge-only limit would be bypassable under /agents/...).
+ */
+const RATE_LIMIT_WINDOW_SECONDS = 60;
+const RATE_LIMIT_MAX_REQUESTS = 30;
+
+/*
+ * The Agent instance that owns authoritative state, including the shared chat
+ * rate-limit counter. The SDK maps /agents/<namespace>/<name>/... to
+ * idFromName(<name>), so a caller-chosen name would otherwise address a
+ * *separate* Durable Object with its own SQLite database and its own quota
+ * bucket — one credential could then sidestep the 30-request limit by varying
+ * the name, and each new name would create a new database. The Worker therefore
+ * pins every Agent request to this one instance before routing, so all chat
+ * entry points consume from a single counter. The app is single-instance by
+ * design: every internal call already addresses "default".
+ */
+const AGENT_INSTANCE_NAME = "default";
+
+/*
+ * Collapse the caller-controlled instance segment of an /agents/... path to
+ * AGENT_INSTANCE_NAME. Only the two segments the SDK routing contract defines
+ * (namespace + instance name) are rewritten; any deeper path is preserved, and
+ * the request is left untouched when the URL is not an Agent URL. WebSocket
+ * upgrades are never rewritten (they are not a chat surface, and the app uses
+ * none).
+ */
+function canonicalAgentRequest(request) {
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch {
+    return request;
+  }
+
+  const parts = url.pathname.split("/").filter(Boolean);
+  if (
+    parts.length < 3 ||
+    parts[0] !== "agents" ||
+    parts[1] !== "master-mind-agent"
+  ) {
+    return request;
+  }
+  if ((request.headers.get("Upgrade") || "").toLowerCase() === "websocket") {
+    return request;
+  }
+
+  parts[2] = AGENT_INSTANCE_NAME;
+  url.pathname = "/" + parts.join("/");
+  return new Request(url.toString(), request);
+}
+
+/*
  * V9 truth states. Only these values may be stored or displayed.
  * Anything unrecognised collapses to UNKNOWN instead of being persisted.
  */
@@ -22,6 +77,65 @@ const VERIFICATION_STATES = ["VERIFIED", "PARTIALLY_VERIFIED", "UNVERIFIED", "RE
 const ELIGIBILITY_STATES = ["ELIGIBLE", "POTENTIALLY_ELIGIBLE", "NOT_ELIGIBLE", "UNKNOWN"];
 const OWNER_FIT_STATES = ["FIT", "POTENTIAL_FIT", "NOT_FIT", "UNKNOWN"];
 const DECISION_STATES = ["SELECT", "NEEDS_REVIEW", "REJECT"];
+
+// V9 section 25 — opportunity lifecycle. Order is significant: a transition may
+// only move forward, and the evidence-gated stages cannot be reached without
+// supporting FACT evidence.
+const LIFECYCLE_STAGES = [
+  "DISCOVERED",
+  "VERIFIED",
+  "ELIGIBILITY_CHECKED",
+  "SELECTED",
+  "PREPARING",
+  "APPROVAL_PENDING",
+  "APPROVED",
+  "SUBMITTED",
+  "ASSESSMENT",
+  "INTERVIEW",
+  "OFFER",
+  "ACCEPTED",
+  "REJECTED"
+];
+
+// V9 section 25/24 — reaching SUBMITTED claims a real external submission, so it
+// requires recorded FACT evidence (confirmation page, reference ID, timestamp).
+const EVIDENCE_GATED_STAGES = ["SUBMITTED"];
+
+// V9 section 26 — payment statuses. CONFIRMED_PAID is the only one that asserts
+// money arrived, so it too requires FACT evidence.
+const PAYMENT_STATES = ["PENDING", "CONFIRMED_PAID", "FAILED", "UNKNOWN"];
+const EVIDENCE_GATED_PAYMENT_STATES = ["CONFIRMED_PAID"];
+
+// V9 section 28 — rejection learning. The possible-cause vocabulary is fixed so
+// a cause can never be a free-text assertion. UNKNOWN_REASON is the mandatory
+// value when no cause can be evidenced, so a reason is never invented.
+const REJECTION_CAUSES = [
+  "SKILL_GAP",
+  "EXPERIENCE_GAP",
+  "PRICE",
+  "TIMING",
+  "COMPETITION",
+  "REQUIREMENTS_MISMATCH",
+  "LOCATION_OR_ELIGIBILITY",
+  "NO_RESPONSE",
+  "WITHDRAWN",
+  "UNKNOWN_REASON"
+];
+
+// V9 section 29 — opportunity memory. Only evidence-based categories are stored,
+// mirroring the source list, and each entry must carry a source reference.
+const MEMORY_CATEGORIES = [
+  "VERIFIED_OPPORTUNITY",
+  "PLATFORM_PERFORMANCE",
+  "APPLICATION_OUTCOME",
+  "SKILL_GAP",
+  "CUSTOMER_PATTERN",
+  "SUCCESSFUL_APPROACH",
+  "UNSUCCESSFUL_APPROACH",
+  "PRICING_OUTCOME",
+  "RESPONSE_PATTERN",
+  "VERIFIED_RISK"
+];
 
 const VOICE_STATES = [
   "VOICE_ACTIVE",
@@ -626,6 +740,56 @@ function isSameOriginRequest(request) {
 }
 
 /*
+ * Rate-limit bucket key. Derived from the *verified* Owner credential rather
+ * than any request header: X-Forwarded-For is client-controlled and CF-Ray is
+ * a request id, not an identity, so neither may be trusted. The credential
+ * itself is never persisted, only a non-cryptographic bucketing hash of it.
+ */
+function chatRateLimitIdentity(request) {
+  const token = extractOwnerToken(request) || "";
+  let h = 0x811c9dc5;
+  for (let i = 0; i < token.length; i++) {
+    h ^= token.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return "owner-" + h.toString(16).padStart(8, "0");
+}
+
+/*
+ * 429 with an accurate Retry-After. The body carries only the limit numbers,
+ * never an internal exception message.
+ */
+function rateLimitExceededResponse(info) {
+  const retryAfter = Math.max(1, Number(info?.retryAfter) || 1);
+  return json(
+    {
+      ok: false,
+      error: "Chat rate limit exceeded. Retry later.",
+      limit: RATE_LIMIT_MAX_REQUESTS,
+      remaining: 0,
+      retryAfter
+    },
+    429,
+    { "Retry-After": String(retryAfter) }
+  );
+}
+
+/*
+ * Fail closed: if the shared limiter cannot be consulted we refuse the request
+ * with a generic 500 rather than letting it through unmetered, and we never
+ * echo the underlying error.
+ */
+function rateLimitUnavailableResponse() {
+  return json(
+    {
+      ok: false,
+      error: "Rate limit temporarily unavailable. Request refused."
+    },
+    500
+  );
+}
+
+/*
  * Returns null when the request may proceed, otherwise an error Response.
  * Services that are not configured are reported as NOT_CONFIGURED, never
  * silently treated as if a real capability existed.
@@ -1088,14 +1252,17 @@ function buildEarningContext(agent) {
 }
 
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      "cache-control": "no-store"
+function json(data, status = 200, extraHeaders = null) {
+  const headers = {
+    "content-type": "application/json; charset=utf-8",
+    "cache-control": "no-store"
+  };
+  if (extraHeaders) {
+    for (const [key, value] of Object.entries(extraHeaders)) {
+      headers[key] = value;
     }
-  });
+  }
+  return new Response(JSON.stringify(data), { status, headers });
 }
 
 function allowedOrigin(request, env) {
@@ -1500,9 +1667,75 @@ export class MasterMindAgent extends Agent {
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL
       );`;
-      this._dbInitialized = true;
+      this.sql`CREATE TABLE IF NOT EXISTS chat_rate_limit (
+        identity TEXT NOT NULL,
+        window_start INTEGER NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (identity, window_start)
+      );`;
+      this.sql`CREATE INDEX IF NOT EXISTS idx_chat_rate_limit_window ON chat_rate_limit (window_start);`;
+      // V9 section 25/26/27 — append-only lifecycle, payment and follow-up
+      // records. These tables hold evidence-backed business state, so they are
+      // written only through the Owner-authorized routes below.
+      this.sql`CREATE TABLE IF NOT EXISTS opportunity_lifecycle (
+        id TEXT PRIMARY KEY,
+        opportunity_id TEXT NOT NULL,
+        stage TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT '',
+        evidence_id TEXT,
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );`;
+      this.sql`CREATE INDEX IF NOT EXISTS idx_lifecycle_opportunity ON opportunity_lifecycle (opportunity_id, recorded_at);`;
+      this.sql`CREATE TABLE IF NOT EXISTS payment_records (
+        id TEXT PRIMARY KEY,
+        opportunity_id TEXT NOT NULL,
+        status TEXT NOT NULL,
+        amount TEXT NOT NULL DEFAULT '',
+        currency TEXT NOT NULL DEFAULT '',
+        note TEXT NOT NULL DEFAULT '',
+        evidence_id TEXT,
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );`;
+      this.sql`CREATE INDEX IF NOT EXISTS idx_payment_opportunity ON payment_records (opportunity_id, recorded_at);`;
+      this.sql`CREATE TABLE IF NOT EXISTS follow_ups (
+        id TEXT PRIMARY KEY,
+        opportunity_id TEXT NOT NULL,
+        next_action TEXT NOT NULL DEFAULT '',
+        due_at TEXT NOT NULL DEFAULT '',
+        expected_response TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL DEFAULT 'OPEN',
+        note TEXT NOT NULL DEFAULT '',
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );`;
+      this.sql`CREATE INDEX IF NOT EXISTS idx_followup_opportunity ON follow_ups (opportunity_id, recorded_at);`;
+      this.sql`CREATE TABLE IF NOT EXISTS rejection_lessons (
+        id TEXT PRIMARY KEY,
+        opportunity_id TEXT NOT NULL,
+        cause TEXT NOT NULL DEFAULT 'UNKNOWN_REASON',
+        evidence TEXT NOT NULL DEFAULT '',
+        lesson TEXT NOT NULL DEFAULT '',
+        strategy_update TEXT NOT NULL DEFAULT '',
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );`;
+      this.sql`CREATE INDEX IF NOT EXISTS idx_rejection_opportunity ON rejection_lessons (opportunity_id, recorded_at);`;
+      this.sql`CREATE TABLE IF NOT EXISTS opportunity_memory (
+        id TEXT PRIMARY KEY,
+        category TEXT NOT NULL,
+        summary TEXT NOT NULL DEFAULT '',
+        source_ref TEXT NOT NULL DEFAULT '',
+        opportunity_id TEXT NOT NULL DEFAULT '',
+        platform TEXT NOT NULL DEFAULT '',
+        recorded_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );`;
+      this.sql`CREATE INDEX IF NOT EXISTS idx_memory_category ON opportunity_memory (category, recorded_at);`;
+        this._dbInitialized = true;
+      }
     }
-  }
 
   logAudit(entry) {
     this.initDb();
@@ -1518,7 +1751,9 @@ export class MasterMindAgent extends Agent {
     const user_agent = entry.user_agent ? String(entry.user_agent).trim() : null;
     const details = typeof entry.details === "object" ? JSON.stringify(entry.details) : (entry.details ? String(entry.details) : "");
 
-    // Append-only: INSERT statement only. No UPDATE or DELETE SQL query exists anywhere in the codebase.
+    // Append-only: the audit log is written with INSERT only. No UPDATE or DELETE
+    // statement targets audit_logs anywhere in the codebase, so history cannot be
+    // rewritten through this API.
     this.sql`INSERT INTO audit_logs (
       id, timestamp, actor, action, resource_type, resource_id, status, request_ip, user_agent, details, created_at
     ) VALUES (
@@ -2028,6 +2263,411 @@ export class MasterMindAgent extends Agent {
     const list = this.getEvidenceForOpportunity(opportunityId);
     return list.some(e => e.classification === "FACT");
   }
+
+  /*
+   * V9 section 25 — opportunity lifecycle tracking.
+   *
+   * A stage record is append-only: the lifecycle history is never rewritten, so
+   * "how did this record get here" stays answerable. Two rules keep the record
+   * honest:
+   *   1. Stage order is enforced, so a record cannot skip from DISCOVERED
+   *      straight to SUBMITTED without the intervening decisions.
+   *   2. SUBMITTED asserts a real external submission, so it requires FACT
+   *      evidence. A status change alone is not proof (section 24).
+   */
+  validateLifecycleStage(stage) {
+    const normalized = String(stage || "").trim().toUpperCase();
+    if (!LIFECYCLE_STAGES.includes(normalized)) {
+      throw new Error(`Invalid lifecycle stage '${stage}'. Must be one of ${LIFECYCLE_STAGES.join(", ")}.`);
+    }
+    return normalized;
+  }
+
+  getCurrentLifecycleStage(opportunityId) {
+    this.initDb();
+    const rows = [...this.sql`SELECT stage FROM opportunity_lifecycle WHERE opportunity_id = ${opportunityId} ORDER BY recorded_at DESC, created_at DESC`];
+    return rows.length > 0 ? rows[0].stage : "DISCOVERED";
+  }
+
+  recordLifecycleStage(opportunityId, stage, options = {}) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+
+    const normalized = this.validateLifecycleStage(stage);
+    const current = this.getCurrentLifecycleStage(opportunityId);
+    const currentIndex = LIFECYCLE_STAGES.indexOf(current);
+    const targetIndex = LIFECYCLE_STAGES.indexOf(normalized);
+
+    // REJECTED is reachable from any open stage; every other stage must
+    // advance. A repeated stage is allowed and appended as a new observation,
+    // because the log is append-only and never rewrites earlier rows.
+    if (normalized !== "REJECTED" && targetIndex < currentIndex) {
+      throw new Error(`Cannot move lifecycle backwards from ${current} to ${normalized}.`);
+    }
+
+    if (EVIDENCE_GATED_STAGES.includes(normalized) && !this.hasFactEvidence(opportunityId)) {
+      throw new Error(`Cannot record stage ${normalized}: no FACT evidence supports it. A status change alone is not proof of submission.`);
+    }
+
+    const evidenceId = options.evidence_id ? String(options.evidence_id).trim() : null;
+    if (evidenceId && !this.getEvidence(evidenceId)) {
+      throw new Error("Referenced evidence not found");
+    }
+
+    const id = options.id || crypto.randomUUID();
+    const recordedAt = options.recorded_at || new Date().toISOString();
+    const createdAt = recordedAt;
+    const note = String(options.note || "").trim();
+
+    this.sql`INSERT INTO opportunity_lifecycle (
+      id, opportunity_id, stage, note, evidence_id, recorded_at, created_at
+    ) VALUES (
+      ${id}, ${opportunityId}, ${normalized}, ${note}, ${evidenceId}, ${recordedAt}, ${createdAt}
+    );`;
+
+    this.logAudit({
+      actor: "OWNER",
+      action: "LIFECYCLE_STAGE_RECORDED",
+      resource_type: "OPPORTUNITY",
+      resource_id: opportunityId,
+      status: "SUCCESS",
+      details: { from: current, to: normalized, evidence_id: evidenceId }
+    });
+
+    return this.getLifecycleRecord(id);
+  }
+
+  getLifecycleRecord(id) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM opportunity_lifecycle WHERE id = ${id}`];
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  listLifecycle(opportunityId) {
+    this.initDb();
+    return [...this.sql`SELECT * FROM opportunity_lifecycle WHERE opportunity_id = ${opportunityId} ORDER BY recorded_at ASC, created_at ASC`];
+  }
+
+  /*
+   * V9 section 26 — payment tracking. The distinction the section demands is
+   * that an opportunity, a submission and an earning are different facts.
+   * CONFIRMED_PAID is the only status that asserts money arrived, so it requires
+   * FACT evidence; every other status is a record of expectation or failure.
+   */
+  validatePaymentStatus(status) {
+    const normalized = String(status || "").trim().toUpperCase();
+    if (!PAYMENT_STATES.includes(normalized)) {
+      throw new Error(`Invalid payment status '${status}'. Must be one of ${PAYMENT_STATES.join(", ")}.`);
+    }
+    return normalized;
+  }
+
+  recordPayment(opportunityId, status, options = {}) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+
+    const normalized = this.validatePaymentStatus(status);
+    if (EVIDENCE_GATED_PAYMENT_STATES.includes(normalized) && !this.hasFactEvidence(opportunityId)) {
+      throw new Error(`Cannot record payment ${normalized}: no FACT evidence supports it. Only real evidence establishes confirmed payment.`);
+    }
+
+    const evidenceId = options.evidence_id ? String(options.evidence_id).trim() : null;
+    if (evidenceId && !this.getEvidence(evidenceId)) {
+      throw new Error("Referenced evidence not found");
+    }
+
+    const id = options.id || crypto.randomUUID();
+    const recordedAt = options.recorded_at || new Date().toISOString();
+
+    this.sql`INSERT INTO payment_records (
+      id, opportunity_id, status, amount, currency, note, evidence_id, recorded_at, created_at
+    ) VALUES (
+      ${id}, ${opportunityId}, ${normalized}, ${String(options.amount || "").trim()}, ${String(options.currency || "").trim()}, ${String(options.note || "").trim()}, ${evidenceId}, ${recordedAt}, ${recordedAt}
+    );`;
+
+    this.logAudit({
+      actor: "OWNER",
+      action: "PAYMENT_RECORDED",
+      resource_type: "OPPORTUNITY",
+      resource_id: opportunityId,
+      status: "SUCCESS",
+      details: { payment_status: normalized, evidence_id: evidenceId }
+    });
+
+    return this.getPaymentRecord(id);
+  }
+
+  getPaymentRecord(id) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM payment_records WHERE id = ${id}`];
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  listPayments(opportunityId) {
+    this.initDb();
+    return [...this.sql`SELECT * FROM payment_records WHERE opportunity_id = ${opportunityId} ORDER BY recorded_at ASC, created_at ASC`];
+  }
+
+  /*
+   * V9 section 27 — follow-up tracking. A follow-up records an intended next
+   * action and its due time. It never claims a message was sent: sending stays
+   * an Owner action (sections 22/23).
+   */
+  recordFollowUp(opportunityId, options = {}) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+
+    const id = options.id || crypto.randomUUID();
+    const recordedAt = options.recorded_at || new Date().toISOString();
+    const status = String(options.status || "OPEN").trim().toUpperCase();
+    if (!["OPEN", "DONE", "CANCELLED"].includes(status)) {
+      throw new Error(`Invalid follow-up status '${options.status}'. Must be OPEN, DONE, or CANCELLED.`);
+    }
+
+    this.sql`INSERT INTO follow_ups (
+      id, opportunity_id, next_action, due_at, expected_response, status, note, recorded_at, created_at
+    ) VALUES (
+      ${id}, ${opportunityId}, ${String(options.next_action || "").trim()}, ${String(options.due_at || "").trim()}, ${String(options.expected_response || "").trim()}, ${status}, ${String(options.note || "").trim()}, ${recordedAt}, ${recordedAt}
+    );`;
+
+    this.logAudit({
+      actor: "OWNER",
+      action: "FOLLOW_UP_RECORDED",
+      resource_type: "OPPORTUNITY",
+      resource_id: opportunityId,
+      status: "SUCCESS",
+      details: { follow_up_status: status, due_at: String(options.due_at || "").trim() }
+    });
+
+    return this.getFollowUp(id);
+  }
+
+  updateFollowUpStatus(id, status) {
+    this.initDb();
+    const existing = this.getFollowUp(id);
+    if (!existing) {
+      throw new Error("Follow-up not found");
+    }
+    const normalized = String(status || "").trim().toUpperCase();
+    if (!["OPEN", "DONE", "CANCELLED"].includes(normalized)) {
+      throw new Error(`Invalid follow-up status '${status}'. Must be OPEN, DONE, or CANCELLED.`);
+    }
+    this.sql`UPDATE follow_ups SET status = ${normalized} WHERE id = ${id};`;
+    this.logAudit({
+      actor: "OWNER",
+      action: "FOLLOW_UP_STATUS_UPDATED",
+      resource_type: "OPPORTUNITY",
+      resource_id: existing.opportunity_id,
+      status: "SUCCESS",
+      details: { follow_up_id: id, from: existing.status, to: normalized }
+    });
+    return this.getFollowUp(id);
+  }
+
+  getFollowUp(id) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM follow_ups WHERE id = ${id}`];
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  listFollowUps(opportunityId) {
+    this.initDb();
+    return [...this.sql`SELECT * FROM follow_ups WHERE opportunity_id = ${opportunityId} ORDER BY recorded_at ASC, created_at ASC`];
+  }
+
+  /*
+   * V9 section 28 — rejection learning. A rejection is only analysable when the
+   * record has actually reached REJECTED, and a cause must either be evidenced or
+   * explicitly UNKNOWN_REASON. A cause that is neither is refused rather than
+   * recorded as fact, because the source forbids inventing rejection reasons.
+   */
+  recordRejectionLesson(opportunityId, options = {}) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+
+    if (this.getCurrentLifecycleStage(opportunityId) !== "REJECTED") {
+      throw new Error("Rejection learning requires the opportunity to be at lifecycle stage REJECTED.");
+    }
+
+    const cause = String(options.cause || "UNKNOWN_REASON").trim().toUpperCase();
+    if (!REJECTION_CAUSES.includes(cause)) {
+      throw new Error(`Invalid rejection cause '${options.cause}'. Must be one of: ${REJECTION_CAUSES.join(", ")}.`);
+    }
+
+    const evidence = String(options.evidence || "").trim();
+    if (cause !== "UNKNOWN_REASON" && !evidence) {
+      throw new Error("A named rejection cause requires supporting evidence text. Use cause UNKNOWN_REASON when no evidence exists.");
+    }
+
+    const id = options.id || crypto.randomUUID();
+    const recordedAt = options.recorded_at || new Date().toISOString();
+
+    this.sql`INSERT INTO rejection_lessons (
+      id, opportunity_id, cause, evidence, lesson, strategy_update, recorded_at, created_at
+    ) VALUES (
+      ${id}, ${opportunityId}, ${cause}, ${evidence}, ${String(options.lesson || "").trim()}, ${String(options.strategy_update || "").trim()}, ${recordedAt}, ${recordedAt}
+    );`;
+
+    this.logAudit({
+      actor: "OWNER",
+      action: "REJECTION_LESSON_RECORDED",
+      resource_type: "OPPORTUNITY",
+      resource_id: opportunityId,
+      status: "SUCCESS",
+      details: { cause, has_evidence: Boolean(evidence) }
+    });
+
+    return this.getRejectionLesson(id);
+  }
+
+  getRejectionLesson(id) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM rejection_lessons WHERE id = ${id}`];
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  listRejectionLessons(opportunityId) {
+    this.initDb();
+    return [...this.sql`SELECT * FROM rejection_lessons WHERE opportunity_id = ${opportunityId} ORDER BY recorded_at ASC, created_at ASC`];
+  }
+
+  /*
+   * V9 section 29 — opportunity memory. Only evidence-based categories are stored,
+   * and every entry must name a source reference so a memory can never be an
+   * unsupported assertion. Memory is advisory: it is returned as precedent, it
+   * never rewrites a score or a decision on its own.
+   */
+  recordMemoryEntry(options = {}) {
+    this.initDb();
+    const category = String(options.category || "").trim().toUpperCase();
+    if (!MEMORY_CATEGORIES.includes(category)) {
+      throw new Error(`Invalid memory category '${options.category}'. Must be one of: ${MEMORY_CATEGORIES.join(", ")}.`);
+    }
+
+    const summary = String(options.summary || "").trim();
+    if (!summary) {
+      throw new Error("A memory entry requires a summary.");
+    }
+
+    const sourceRef = String(options.source_ref || "").trim();
+    if (!sourceRef) {
+      throw new Error("A memory entry requires a source_ref. Unsupported information must not enter memory.");
+    }
+
+    const opportunityId = String(options.opportunity_id || "").trim();
+    if (opportunityId && !this.getOpportunity(opportunityId)) {
+      throw new Error("Opportunity not found");
+    }
+
+    const id = options.id || crypto.randomUUID();
+    const recordedAt = options.recorded_at || new Date().toISOString();
+
+    this.sql`INSERT INTO opportunity_memory (
+      id, category, summary, source_ref, opportunity_id, platform, recorded_at, created_at
+    ) VALUES (
+      ${id}, ${category}, ${summary}, ${sourceRef}, ${opportunityId}, ${String(options.platform || "").trim()}, ${recordedAt}, ${recordedAt}
+    );`;
+
+    this.logAudit({
+      actor: "OWNER",
+      action: "MEMORY_ENTRY_RECORDED",
+      resource_type: opportunityId ? "OPPORTUNITY" : "MEMORY",
+      resource_id: opportunityId || id,
+      status: "SUCCESS",
+      details: { category, source_ref: sourceRef }
+    });
+
+    return this.getMemoryEntry(id);
+  }
+
+  getMemoryEntry(id) {
+    this.initDb();
+    const rows = [...this.sql`SELECT * FROM opportunity_memory WHERE id = ${id}`];
+    return rows.length > 0 ? rows[0] : null;
+  }
+
+  listMemoryEntries(filters = {}) {
+    this.initDb();
+    const category = String(filters.category || "").trim().toUpperCase();
+    if (category) {
+      if (!MEMORY_CATEGORIES.includes(category)) {
+        throw new Error(`Invalid memory category '${filters.category}'.`);
+      }
+      return [...this.sql`SELECT * FROM opportunity_memory WHERE category = ${category} ORDER BY recorded_at DESC, created_at DESC`];
+    }
+    return [...this.sql`SELECT * FROM opportunity_memory ORDER BY recorded_at DESC, created_at DESC`];
+  }
+
+  /*
+   * V9 section 29 — recall. Returns only entries whose platform or opportunity
+   * matches the query, so a caller sees relevant precedent rather than a dump.
+   * The result is advisory evidence; it does not alter any decision by itself.
+   */
+  recallMemory(query = {}) {
+    this.initDb();
+    const platform = String(query.platform || "").trim();
+    const opportunityId = String(query.opportunity_id || "").trim();
+    const category = String(query.category || "").trim().toUpperCase();
+
+    let rows = [...this.sql`SELECT * FROM opportunity_memory ORDER BY recorded_at DESC, created_at DESC`];
+    if (category) {
+      if (!MEMORY_CATEGORIES.includes(category)) {
+        throw new Error(`Invalid memory category '${query.category}'.`);
+      }
+      rows = rows.filter((r) => r.category === category);
+    }
+    if (platform) {
+      rows = rows.filter((r) => r.platform === platform);
+    }
+    if (opportunityId) {
+      rows = rows.filter((r) => r.opportunity_id === opportunityId);
+    }
+    return rows;
+  }
+
+  /*
+   * V9 sections 25-27 — one Owner-readable tracking summary for a record. This
+   * composes persisted state only; it invents nothing and marks absent sections
+   * as NOT RECORDED rather than implying a default.
+   */
+  buildTrackingSummary(opportunityId) {
+    this.initDb();
+    const opportunity = this.getOpportunity(opportunityId);
+    if (!opportunity) {
+      throw new Error("Opportunity not found");
+    }
+
+    const lifecycle = this.listLifecycle(opportunityId);
+    const payments = this.listPayments(opportunityId);
+    const followUps = this.listFollowUps(opportunityId);
+    const rejections = this.listRejectionLessons(opportunityId);
+
+    return {
+      opportunity_id: opportunityId,
+      current_stage: this.getCurrentLifecycleStage(opportunityId),
+      lifecycle: lifecycle.length > 0 ? lifecycle : "NOT RECORDED",
+      payments: payments.length > 0 ? payments : "NOT RECORDED",
+      follow_ups: followUps.length > 0 ? followUps : "NOT RECORDED",
+      rejection_lessons: rejections.length > 0 ? rejections : "NOT RECORDED",
+      fact_evidence: this.hasFactEvidence(opportunityId),
+      payment_status: payments.length > 0 ? payments[payments.length - 1].status : "UNKNOWN",
+      confirmed_payment: payments.some(p => p.status === "CONFIRMED_PAID"),
+      note: "An opportunity, a submission and an earning are different facts. Only FACT evidence establishes confirmed payment."
+    };
+  }
+
 
   evaluateVerificationStatus(opportunityId) {
     this.initDb();
@@ -2593,6 +3233,50 @@ export class MasterMindAgent extends Agent {
     return true;
   }
 
+  /*
+   * Shared rate-limit authority. Both the /api/chat edge route (via the
+   * /rate-limit/check DO route) and the directly reachable /agents/.../chat
+   * route call this, so one logical request consumes exactly one quota unit.
+   * Every Agent request is pinned to AGENT_INSTANCE_NAME before routing, so
+   * this method always runs against the one counter — a caller cannot obtain a
+   * second bucket by choosing another instance name. Durable Object execution is
+   * serialized per instance and the counter is advanced by a single atomic
+   * UPSERT, so concurrent requests cannot race.
+   */
+  consumeChatQuota(identity) {
+    this.initDb();
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const windowStart =
+      nowSeconds - (nowSeconds % RATE_LIMIT_WINDOW_SECONDS);
+    const key = String(identity || "owner").slice(0, 128);
+
+    // Keep storage bounded: drop windows older than the current one.
+    this.sql`DELETE FROM chat_rate_limit
+      WHERE window_start < ${windowStart};`;
+
+    this.sql`INSERT INTO chat_rate_limit (identity, window_start, count)
+      VALUES (${key}, ${windowStart}, 1)
+      ON CONFLICT (identity, window_start)
+      DO UPDATE SET count = count + 1;`;
+
+    const rows = [
+      ...this.sql`SELECT count FROM chat_rate_limit
+        WHERE identity = ${key} AND window_start = ${windowStart};`
+    ];
+    const count = Number(rows[0]?.count ?? 1);
+
+    return {
+      allowed: count <= RATE_LIMIT_MAX_REQUESTS,
+      count,
+      limit: RATE_LIMIT_MAX_REQUESTS,
+      remaining: Math.max(0, RATE_LIMIT_MAX_REQUESTS - count),
+      retryAfter: Math.max(
+        1,
+        windowStart + RATE_LIMIT_WINDOW_SECONDS - nowSeconds
+      )
+    };
+  }
+
   async onRequest(request) {
     const url = new URL(request.url);
 
@@ -2621,6 +3305,38 @@ export class MasterMindAgent extends Agent {
       request.method === "GET"
     ) {
       return Response.json({ ok: true, data: connectionReport(this.env) });
+    }
+
+    /*
+     * Shared rate-limit check for the /api/chat edge route. The edge calls this
+     * instead of forwarding to /chat, so a single logical request consumes
+     * exactly one quota unit. Owner-gated like every other billed surface, and
+     * the identity is derived here from the verified credential rather than
+     * trusted from the caller. Fails closed with a generic error.
+     */
+    if (
+      url.pathname.includes("/rate-limit/check") &&
+      request.method === "POST"
+    ) {
+      const rlDenied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
+      if (rlDenied) return rlDenied;
+
+      // Only the exact "research" label selects its own bucket; every other
+      // path collapses to the chat bucket. A caller therefore cannot mint a
+      // fresh bucket by naming one, and the set of buckets is fixed server-side.
+      const rawScope = url.pathname.split("/rate-limit/check")[1] || "";
+      const scope = rawScope === "/research" ? "research" : "chat";
+      const key =
+        scope === "chat"
+          ? chatRateLimitIdentity(request)
+          : `${scope}:${chatRateLimitIdentity(request)}`;
+
+      try {
+        const info = this.consumeChatQuota(key);
+        return Response.json({ ok: true, ...info });
+      } catch {
+        return rateLimitUnavailableResponse();
+      }
     }
 
     if (
@@ -2781,17 +3497,16 @@ export class MasterMindAgent extends Agent {
       const parts = url.pathname.split("/opportunities");
       const subpath = parts[1] || "";
 
-      // Declared public READ surface: COMPARE, discovery status, and GET on the
-      // three evaluation routes (let through so the route itself answers 405;
-      // they are POST-only and never mutate on GET). The opportunity LIST and a
-      // SINGLE opportunity record carry private business data (title, source
-      // URL, platform, score, decision), so they are Owner-only, as are evidence
-      // reads. Everything else is MUTATE and requires the Owner credential.
+      // Declared public READ surface: discovery status, and GET on the three
+      // evaluation routes (let through so the route itself answers 405; they
+      // are POST-only and never mutate on GET). The opportunity LIST, a SINGLE
+      // opportunity record and COMPARE all carry the same private business data
+      // (title, source URL, platform, score, decision), so they are Owner-only,
+      // as are evidence reads. Everything else is MUTATE and requires the Owner
+      // credential.
       const isPublicRead =
         request.method === "GET" &&
-        (subpath === "/compare" ||
-          subpath.startsWith("/compare?") ||
-          subpath === "/discover" ||
+        (subpath === "/discover" ||
           subpath.startsWith("/discover?") ||
           /^\/[^\/]+\/decision$/.test(subpath) ||
           /^\/[^\/]+\/eligibility$/.test(subpath) ||
@@ -3016,6 +3731,188 @@ export class MasterMindAgent extends Agent {
         }
       }
 
+      // Routes: tracking surface (V9 sections 25-27). These read and write
+      // private business state (payment amounts, lifecycle history, follow-up
+      // plans), so they are deliberately absent from the public-read allowlist
+      // above and fall through to the MUTATE authorization boundary.
+      const trackingMatch = subpath.match(/^\/([^\/]+)\/tracking$/);
+      if (trackingMatch) {
+        if (request.method === "GET") {
+          try {
+            return Response.json({ ok: true, data: this.buildTrackingSummary(trackingMatch[1]) });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 404 });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      const lifecycleMatch = subpath.match(/^\/([^\/]+)\/lifecycle$/);
+      if (lifecycleMatch) {
+        const targetId = lifecycleMatch[1];
+        if (request.method === "GET") {
+          try {
+            return Response.json({ ok: true, data: this.listLifecycle(targetId) });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 404 });
+          }
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+          try {
+            const created = this.recordLifecycleStage(targetId, body.stage, body);
+            return Response.json({ ok: true, data: created }, { status: 201 });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      const paymentMatch = subpath.match(/^\/([^\/]+)\/payment$/);
+      if (paymentMatch) {
+        const targetId = paymentMatch[1];
+        if (request.method === "GET") {
+          try {
+            return Response.json({ ok: true, data: this.listPayments(targetId) });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 404 });
+          }
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+          try {
+            const created = this.recordPayment(targetId, body.status, body);
+            return Response.json({ ok: true, data: created }, { status: 201 });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      const followUpMatch = subpath.match(/^\/([^\/]+)\/follow-up$/);
+      if (followUpMatch) {
+        const targetId = followUpMatch[1];
+        if (request.method === "GET") {
+          try {
+            return Response.json({ ok: true, data: this.listFollowUps(targetId) });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 404 });
+          }
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+          try {
+            const created = this.recordFollowUp(targetId, body);
+            return Response.json({ ok: true, data: created }, { status: 201 });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed" }, { status: 405 });
+      }
+
+      const followUpStatusMatch = subpath.match(/^\/([^\/]+)\/follow-up\/([^\/]+)$/);
+      if (followUpStatusMatch && (request.method === "PUT" || request.method === "PATCH")) {
+        let body = {};
+        try {
+          body = await request.json();
+        } catch {
+          return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+        }
+        try {
+          const updated = this.updateFollowUpStatus(followUpStatusMatch[2], body.status);
+          return Response.json({ ok: true, data: updated });
+        } catch (err) {
+          return Response.json({ ok: false, error: err.message }, { status: 400 });
+        }
+      }
+
+      // Route: GET/POST /opportunities/:id/rejection-lessons (V9 section 28)
+      const rejectionMatch = subpath.match(/^\/([^\/]+)\/rejection-lessons$/);
+      if (rejectionMatch) {
+        const targetId = rejectionMatch[1];
+        if (request.method === "GET") {
+          return Response.json({ ok: true, data: this.listRejectionLessons(targetId) });
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+          try {
+            const created = this.recordRejectionLesson(targetId, body);
+            return Response.json({ ok: true, data: created }, { status: 201 });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed." }, { status: 405 });
+      }
+
+      // Route: GET/POST /opportunities/memory (V9 section 29)
+      if (subpath === "/memory" || subpath.startsWith("/memory?")) {
+        if (request.method === "GET") {
+          try {
+            const entries = this.listMemoryEntries(Object.fromEntries(url.searchParams.entries()));
+            return Response.json({ ok: true, data: entries });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+        if (request.method === "POST") {
+          let body = {};
+          try {
+            body = await request.json();
+          } catch {
+            return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+          }
+          try {
+            const created = this.recordMemoryEntry(body);
+            return Response.json({ ok: true, data: created }, { status: 201 });
+          } catch (err) {
+            return Response.json({ ok: false, error: err.message }, { status: 400 });
+          }
+        }
+        return Response.json({ ok: false, error: "Method not allowed." }, { status: 405 });
+      }
+
+      // Route: POST /opportunities/memory/recall — advisory precedent lookup
+      if (subpath === "/memory/recall") {
+        if (request.method !== "POST") {
+          return Response.json({ ok: false, error: "Method not allowed. Memory recall is POST-only." }, { status: 405 });
+        }
+        let body = {};
+        try {
+          body = await request.json();
+        } catch {
+          return Response.json({ ok: false, error: "Invalid JSON" }, { status: 400 });
+        }
+        try {
+          return Response.json({ ok: true, data: this.recallMemory(body) });
+        } catch (err) {
+          return Response.json({ ok: false, error: err.message }, { status: 400 });
+        }
+      }
+
       const idMatch = subpath.match(/^\/([^\/]+)$/);
       const targetId = idMatch ? idMatch[1] : null;
 
@@ -3159,6 +4056,16 @@ export class MasterMindAgent extends Agent {
       // /agents/<name>/<instance>).
       const chatDenied = authorizeRequest(request, this.env, RISK.OWNER_CONTROLLED);
       if (chatDenied) return chatDenied;
+
+      // Rate limit after authorization so denials never consume quota, and
+      // before the billed model call so an over-limit request costs nothing.
+      let quota;
+      try {
+        quota = this.consumeChatQuota(chatRateLimitIdentity(request));
+      } catch {
+        return rateLimitUnavailableResponse();
+      }
+      if (!quota.allowed) return rateLimitExceededResponse(quota);
 
       let body;
 
@@ -3327,13 +4234,40 @@ async function buildEarningContextForEnv(env, request) {
       stub.fetch(new Request("http://agent/agents/master-mind-agent/default/owner/profile", { headers: forwardHeaders }))
     ]);
 
-    const oppsJson = await oppsRes.json();
-    const profileJson = await profileRes.json();
-    const rows = Array.isArray(oppsJson.data) ? oppsJson.data : [];
+    // Parse defensively: a 200 with an unreadable body is "unavailable", not
+    // an empty list, so it must not be reported as a genuine 0.
+    let oppsJson = null;
+    if (oppsRes.ok) {
+      try {
+        oppsJson = await oppsRes.json();
+      } catch {
+        oppsJson = null;
+      }
+    }
+    let profileJson = null;
+    if (profileRes.ok) {
+      try {
+        profileJson = await profileRes.json();
+      } catch {
+        profileJson = null;
+      }
+    }
+    const rows = Array.isArray(oppsJson?.data) ? oppsJson.data : [];
+    // A failed read must never be reported as a genuine zero-opportunity
+    // result: "0" means "the source answered and holds none", so an
+    // authorization failure, internal error or unreadable payload is surfaced
+    // as DATA NOT AVAILABLE with its read status instead.
+    const opportunitiesReadable = oppsRes.ok && Array.isArray(oppsJson?.data);
+    const ownerProfileReadable = profileRes.ok && !!profileJson?.data;
 
     return {
       ...base,
-      opportunityCount: rows.length,
+      opportunityCount: opportunitiesReadable ? rows.length : "DATA NOT AVAILABLE",
+      opportunitiesReadStatus: opportunitiesReadable
+        ? "RETRIEVED"
+        : oppsRes.ok
+          ? "UNREADABLE"
+          : "FAILED",
       opportunities: rows.slice(0, 20).map((o) => ({
         id: o.id,
         title: o.title,
@@ -3343,10 +4277,74 @@ async function buildEarningContextForEnv(env, request) {
         score: typeof o.score === "number" ? o.score : 0,
         decision: normalizeDecision(o.decision)
       })),
-      ownerProfile: profileJson.data || null
+      ownerProfile: ownerProfileReadable ? profileJson.data : null,
+      ownerProfileReadStatus: ownerProfileReadable
+        ? "RETRIEVED"
+        : profileRes.ok
+          ? "EMPTY"
+          : "FAILED"
     };
   } catch {
-    return { ...base, opportunityCount: "DATA NOT AVAILABLE", opportunities: [], ownerProfile: null };
+    return {
+      ...base,
+      opportunityCount: "DATA NOT AVAILABLE",
+      opportunitiesReadStatus: "FAILED",
+      opportunities: [],
+      ownerProfile: null,
+      ownerProfileReadStatus: "FAILED"
+    };
+  }
+}
+
+/*
+ * Edge-side wrapper around the Durable Object's shared rate-limit authority.
+ * Returns null when the request may proceed, a 429 when the limit is hit, or a
+ * generic 500 when the authority cannot be consulted (fail closed). It never
+ * trusts a caller-supplied identity: the DO derives the bucket from the
+ * verified credential.
+ */
+async function enforceChatRateLimit(env, request, scope = "chat") {
+  if (
+    !env ||
+    !env.MasterMindAgent ||
+    typeof env.MasterMindAgent.idFromName !== "function"
+  ) {
+    return rateLimitUnavailableResponse();
+  }
+  // Only a fixed server-side label reaches the DO path; anything unexpected
+  // collapses to "chat" so a caller cannot name a fresh bucket.
+  const safeScope = scope === "research" ? "research" : "chat";
+  try {
+    const id = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(id);
+    const res = await stub.fetch(
+      new Request(
+        `http://agent/agents/master-mind-agent/default/rate-limit/check/${safeScope}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: "Bearer " + (extractOwnerToken(request) || "")
+          }
+        }
+      )
+    );
+    if (res.status === 429) {
+      let info = null;
+      try {
+        info = await res.json();
+      } catch {
+        info = null;
+      }
+      return rateLimitExceededResponse(info || {});
+    }
+    if (!res.ok) return rateLimitUnavailableResponse();
+    const info = await res.json();
+    if (info && info.allowed === false) {
+      return rateLimitExceededResponse(info);
+    }
+    return null;
+  } catch {
+    return rateLimitUnavailableResponse();
   }
 }
 
@@ -3368,17 +4366,16 @@ async function handleAPI(request, env) {
     }
 
     /*
-     * The opportunity LIST and a SINGLE record expose private business data
-     * (title, source URL, platform, score, decision), so those GETs are
-     * Owner-only at the edge as well as in the Durable Object. COMPARE,
-     * discovery status and the POST-only evaluation routes stay public.
+     * The opportunity LIST, a SINGLE record and COMPARE all expose the same
+     * private business data (title, source URL, platform, score, decision), so
+     * those GETs are Owner-only at the edge as well as in the Durable Object.
+     * Only discovery status and GET on the POST-only evaluation routes stay
+     * public; those answer 405 and never expose a record.
      */
     const oppSubpath = url.pathname.replace(/^\/api\/opportunities/, "");
     const oppPublicRead =
       request.method === "GET" &&
-      (oppSubpath === "/compare" ||
-        oppSubpath.startsWith("/compare?") ||
-        oppSubpath === "/discover" ||
+      (oppSubpath === "/discover" ||
         oppSubpath.startsWith("/discover?") ||
         /^\/[^\/]+\/decision$/.test(oppSubpath) ||
         /^\/[^\/]+\/eligibility$/.test(oppSubpath) ||
@@ -3596,6 +4593,12 @@ async function handleAPI(request, env) {
     const researchDenied = authorizeRequest(request, env, RISK.OWNER_CONTROLLED);
     if (researchDenied) return cors(researchDenied);
 
+    // Same shared DO authority as chat, but a distinct bucket so the two
+    // billable surfaces cannot starve each other. Auth runs first, so denials
+    // never consume quota, and the check runs before the billed browser call.
+    const researchLimited = await enforceChatRateLimit(env, request, "research");
+    if (researchLimited) return cors(researchLimited);
+
     let body;
 
     try {
@@ -3670,6 +4673,13 @@ async function handleAPI(request, env) {
     // before any model call is made.
     const chatDenied = authorizeRequest(request, env, RISK.OWNER_CONTROLLED);
     if (chatDenied) return cors(chatDenied);
+
+    // Consult the shared DO rate-limit authority after authorization so
+    // denials never consume quota. One logical request consumes exactly one
+    // unit: the legacy inline handler below is NOT forwarded to the DO /chat
+    // route, which would otherwise count the same request twice.
+    const rateLimited = await enforceChatRateLimit(env, request);
+    if (rateLimited) return cors(rateLimited);
 
     let body;
 
@@ -3811,10 +4821,14 @@ export default {
      * Route real Agent requests.
      *
      * /agents/master-mind-agent/<instance>
+     *
+     * The instance segment is caller-controlled, so it is pinned to the single
+     * authoritative instance first. Without this, a caller could address a fresh
+     * Durable Object per name and get a fresh rate-limit bucket each time.
      */
     const agentResponse =
       await routeAgentRequest(
-        request,
+        canonicalAgentRequest(request),
         env,
         { cors: true }
       );

@@ -1939,7 +1939,13 @@
       add("REQUEST_OWNER_APPROVAL", "OWNER_REQUIRED", "Every high-impact action requires an explicit single-use Owner approval.");
       add("EXECUTE_WHEN_AUTHORIZED", "OWNER_REQUIRED", "Execution runs only with a valid single-use approval and a CONNECTED target service.");
       add("VERIFY_RESULT", "OWNER_REQUIRED", "Result verification requires real execution evidence, which no connected service can currently supply.");
-      add("TRACK_FOLLOW_UP", "OWNER_REQUIRED", "Follow-up tracking is Owner-controlled and not automatic.");
+      add("TRACK_FOLLOW_UP",
+        listKnown && count > 0 ? "READY" : (listKnown ? "NOT_STARTED" : "OWNER_REQUIRED"),
+        listKnown
+          ? (count > 0
+              ? "Per-opportunity tracking is wired to the tracking API. Each card's Track control records a lifecycle stage, a payment status (CONFIRMED_PAID needs evidence) and a follow-up. Nothing is recorded without an Owner action."
+              : "Tracking is available once an opportunity is persisted.")
+          : "Tracking is Owner-controlled. Authorize this session to read and record tracking state.");
 
       return { stages, count, listKnown, verified, scored, decided, approvable, discoveryConnected };
     }
@@ -2236,6 +2242,7 @@
           '<button class="btn sm" type="button" data-act="evaluate" data-id="' + id + '">Evaluate</button>' +
           '<button class="btn sm" type="button" data-act="prepare" data-id="' + id + '">Prepare</button>' +
           '<button class="btn sm" type="button" data-act="approval" data-id="' + id + '">Request Approval</button>' +
+          '<button class="btn sm" type="button" data-act="track" data-id="' + id + '">Track</button>' +
         "</div>" +
         '<div class="stack tight" data-out="' + id + '"></div>' +
       "</article>";
@@ -2333,6 +2340,109 @@
           node.className = "pill muted";
         }
       }
+    }
+
+    /*
+     * V9 sections 25-27 — tracking surface. The Owner records lifecycle stages,
+     * payment status and follow-ups. Every write is Owner-authorized by the
+     * backend; the UI only renders what the backend confirms, and it never
+     * upgrades a state on its own. Reaching SUBMITTED or CONFIRMED_PAID needs
+     * recorded FACT evidence, so those controls explain the requirement instead
+     * of pretending the write succeeded.
+     */
+    const LIFECYCLE_STAGE_OPTIONS = [
+      "DISCOVERED", "VERIFIED", "ELIGIBILITY_CHECKED", "SELECTED", "PREPARING",
+      "APPROVAL_PENDING", "APPROVED", "SUBMITTED", "ASSESSMENT", "INTERVIEW",
+      "OFFER", "ACCEPTED", "REJECTED"
+    ];
+
+    const TRACK_INPUT_STYLE = "width:100%;padding:8px 10px;border-radius:10px;border:1px solid rgba(148,163,184,0.25);background:rgba(4,8,18,0.62);color:inherit;font:inherit;";
+
+    function trackSelect(options, attrs) {
+      return '<select ' + attrs + ' style="' + TRACK_INPUT_STYLE + '">' +
+        options.map((o) => '<option value="' + escapeHtml(o) + '">' + escapeHtml(o) + "</option>").join("") +
+        "</select>";
+    }
+
+    function trackTextInput(placeholder, attrs) {
+      return '<input type="text" placeholder="' + escapeHtml(placeholder) + '" ' + attrs + ' style="' + TRACK_INPUT_STYLE + '">';
+    }
+
+    function trackBlock(id) {
+      return '<div class="divider"></div>' +
+        '<div class="row"><span class="k">Lifecycle stage</span><span class="v">' +
+          trackSelect(LIFECYCLE_STAGE_OPTIONS, 'data-track-stage="' + id + '"') + "</span></div>" +
+        '<div class="row"><span class="k">Stage note</span><span class="v">' +
+          trackTextInput("optional note", 'data-track-note="' + id + '"') + "</span></div>" +
+        '<div class="btn-row"><button class="btn sm" type="button" data-act="track-stage" data-id="' + id + '">Record Stage</button></div>' +
+        '<div class="row"><span class="k">Payment status</span><span class="v">' +
+          trackSelect(["PENDING", "CONFIRMED_PAID", "FAILED", "UNKNOWN"], 'data-track-payment="' + id + '"') + "</span></div>" +
+        '<div class="tiny-note" data-track-payment-hint="' + id + '">CONFIRMED_PAID requires a FACT evidence record on this opportunity. It is refused otherwise.</div>' +
+        '<div class="btn-row"><button class="btn sm" type="button" data-act="track-payment" data-id="' + id + '">Record Payment</button></div>' +
+        '<div class="row"><span class="k">Follow-up next action</span><span class="v">' +
+          trackTextInput("e.g. Follow up in 7 days", 'data-track-next="' + id + '"') + "</span></div>" +
+        '<div class="btn-row"><button class="btn sm" type="button" data-act="track-followup" data-id="' + id + '">Add Follow-up</button></div>';
+    }
+
+    function renderTrackingSummary(id, data) {
+      const out = document.querySelector('[data-out="' + id + '"]');
+      if (!out) return;
+      const lifecycle = Array.isArray(data.lifecycle) ? data.lifecycle : [];
+      const payments = Array.isArray(data.payments) ? data.payments : [];
+      const followUps = Array.isArray(data.follow_ups) ? data.follow_ups : [];
+      const rejections = Array.isArray(data.rejection_lessons) ? data.rejection_lessons : [];
+
+      const rows = [];
+      rows.push('<div class="row"><span class="k">Current stage</span><span class="v">' + pill(data.current_stage || "NOT RECORDED") + "</span></div>");
+      rows.push('<div class="row"><span class="k">Payment</span><span class="v">' + pill(data.payment_status || "UNKNOWN") + "</span></div>");
+      rows.push('<div class="row"><span class="k">FACT evidence</span><span class="v">' + (data.fact_evidence ? "RECORDED" : "NONE") + "</span></div>");
+      rows.push('<div class="row"><span class="k">Confirmed payment</span><span class="v">' + (data.confirmed_payment ? "YES (evidence recorded)" : "NO EVIDENCE") + "</span></div>");
+      rows.push('<div class="row"><span class="k">Lifecycle entries</span><span class="v">' + lifecycle.length + "</span></div>");
+      rows.push('<div class="row"><span class="k">Payments recorded</span><span class="v">' + payments.length + "</span></div>");
+      rows.push('<div class="row"><span class="k">Follow-ups</span><span class="v">' + followUps.length + "</span></div>");
+      rows.push('<div class="row"><span class="k">Rejection lessons</span><span class="v">' + rejections.length + "</span></div>");
+
+      const history = lifecycle.slice(-6).map((e) => e.stage + " @ " + e.recorded_at).join("\n");
+      out.innerHTML = '<div class="divider"></div>' +
+        '<div class="stack tight">' + rows.join("") + "</div>" +
+        (history ? '<div class="opp-output">' + escapeHtml("LIFECYCLE HISTORY\n" + history) + "</div>" : "") +
+        trackBlock(id);
+    }
+
+    async function loadTracking(id) {
+      const out = document.querySelector('[data-out="' + id + '"]');
+      if (out) out.innerHTML = loadingBox("Reading tracking state…");
+      const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/tracking");
+      if (!result.ok) {
+        if (out) out.innerHTML = stateBox("error", "TRACKING NOT AVAILABLE", result.error);
+        return;
+      }
+      renderTrackingSummary(id, result.data || {});
+    }
+
+    async function recordLifecycleStage(id) {
+      const stage = text(document.querySelector('[data-track-stage="' + id + '"]') && document.querySelector('[data-track-stage="' + id + '"]').value);
+      const note = text(document.querySelector('[data-track-note="' + id + '"]') && document.querySelector('[data-track-note="' + id + '"]').value);
+      const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/lifecycle", { method: "POST", body: { stage, note } });
+      if (!result.ok) { toast(result.error, "error"); return; }
+      toast("Stage " + stage + " recorded.", "ok");
+      await loadTracking(id);
+    }
+
+    async function recordPayment(id) {
+      const status = text(document.querySelector('[data-track-payment="' + id + '"]') && document.querySelector('[data-track-payment="' + id + '"]').value);
+      const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/payment", { method: "POST", body: { status } });
+      if (!result.ok) { toast(result.error, "error"); return; }
+      toast("Payment status " + status + " recorded.", "ok");
+      await loadTracking(id);
+    }
+
+    async function recordFollowUp(id) {
+      const nextAction = text(document.querySelector('[data-track-next="' + id + '"]') && document.querySelector('[data-track-next="' + id + '"]').value);
+      const result = await api("/api/opportunities/" + encodeURIComponent(id) + "/follow-up", { method: "POST", body: { next_action: nextAction } });
+      if (!result.ok) { toast(result.error, "error"); return; }
+      toast("Follow-up recorded.", "ok");
+      await loadTracking(id);
     }
 
     async function evaluateOpportunity(id) {
@@ -2474,9 +2584,26 @@
 
     async function runCompare() {
       const list = $("earning-list");
+      // COMPARE ranks the same private business records as the opportunity
+      // list, so it is Owner-only too. Ask for the credential instead of
+      // rendering a ranking the server would refuse.
+      if (!isOwnerAuthorized()) {
+        if (list) {
+          list.innerHTML = stateBox(
+            "error",
+            "OWNER AUTHORIZATION REQUIRED",
+            "COMPARE ranks persisted opportunities, which is Owner-only data. Open Owner Authorization in the top bar to read it. The token stays in memory only."
+          );
+        }
+        return;
+      }
       const result = await api("/api/opportunities/compare");
       if (!result.ok) {
-        if (list) list.innerHTML = stateBox("error", "COMPARE FAILED", result.error);
+        if (list) {
+          list.innerHTML = result.denied
+            ? stateBox("error", "OWNER AUTHORIZATION REQUIRED", "COMPARE is Owner-only. Open Owner Authorization in the top bar and paste the owner token for this session.")
+            : stateBox("error", "COMPARE FAILED", result.error);
+        }
         return;
       }
       const ranked = result.data && Array.isArray(result.data.ranked) ? result.data.ranked : [];
@@ -2830,6 +2957,10 @@
           else if (act === "evaluate") evaluateOpportunity(id);
           else if (act === "prepare") prepareOpportunity(id);
           else if (act === "approval") requestApproval(id);
+          else if (act === "track") loadTracking(id);
+          else if (act === "track-stage") recordLifecycleStage(id);
+          else if (act === "track-payment") recordPayment(id);
+          else if (act === "track-followup") recordFollowUp(id);
         });
       }
 
