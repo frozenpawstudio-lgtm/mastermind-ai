@@ -2,7 +2,8 @@ import assert from "node:assert";
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:8787";
 // Mutations require the Owner credential when the permission foundation is
-// configured (OWNER_API_TOKEN set on the worker). Reads stay public.
+// configured (OWNER_API_TOKEN set on the worker). Public reads (runtime and
+// foundation status) stay public; private reads and mutations fail closed.
 const OWNER_TOKEN = process.env.OWNER_API_TOKEN;
 const authHeaders = OWNER_TOKEN ? { Authorization: `Bearer ${OWNER_TOKEN}` } : {};
 

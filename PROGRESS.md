@@ -13,21 +13,21 @@ No Production API call was made. Production behaviour is **NOT VERIFIED**.
 - Workspace: `/workspace/aira-secpr` (linked worktree; common git dir
   `/workspace/project/mastermind-ai/.git`)
 - Branch: `fix/earning-context-owner-credential`
-- HEAD: `83a7786d6b599c48d51072e7bc8965846eb82185`
+- HEAD: `8b13cb64be4dc9ac85832a4e4081bd25a0f9053b`
 - `origin/main`: `9ce413aeb1e485780a1fa384f2d0b3a25c500fc7`
-- Nothing staged. No commit, push, merge, branch or deploy was made.
+- Committed and pushed on this branch (PR #22). Working tree clean.
 
-Working-tree changes (all uncommitted):
+Commits on this branch (newest first):
 
-| File | State |
+| Commit | Message |
 | --- | --- |
-| `worker.js` | modified — rate limiting, scope allowlist, V9 §25-27 tracking surface |
-| `test/test_chat_rate_limit.js` | untracked — 32 tests |
-| `test/test_opportunity_tracking.mjs` | untracked — 23 tests |
-| `test/run_all_tests.mjs` | modified — test isolation preflight + tracking suite |
-| `test/test_chat_earning_context.mjs` | modified |
-| `AGENTS.md` | modified — corrected security status + tracking surface |
-| `PROGRESS.md` | untracked — this file |
+| `8b13cb6` | test(phase1): verify security and earning workflow |
+| `e05ea0a` | feat(phase1): add owner security, rate limiting and earning tracking |
+| `ab0f200` | fix(assets): exclude workspace and source files from served assets |
+| `83a7786` | fix(chat): forward Owner credential to earning-context reads and await builder |
+| `df54729` | fix(security): require the Owner credential for private reads and billed AI routes |
+
+The last two pre-date this work and were already on the branch.
 
 Second worktree `/workspace/project/mastermind-ai` @ `b5026f1` was **not
 modified** (worker.js blob unchanged at `ce649ac2e169299c8d138c7392b901861cb67b18`).
@@ -39,9 +39,11 @@ modified** (worker.js blob unchanged at `ce649ac2e169299c8d138c7392b901861cb67b1
   `GET /api/owner/profile`. `origin/main:worker.js` gates the profile with
   `RISK.READ` for GET (i.e. public) and has **no** gate at all on `/api/chat`
   or `/api/research` — verified by reading `git show origin/main:worker.js`.
-- **Uncommitted (working tree)**: all rate limiting, the scope allowlist, the
-  agent-instance pinning, the test-isolation preflight, the V9 §25-27 tracking
-  surface, and doc updates.
+- **Uncommitted (working tree)**: none — everything below is committed on this
+  branch and pushed to `origin/fix/earning-context-owner-credential` (PR #22).
+  Rate limiting, the scope allowlist, the agent-instance pinning, the
+  test-isolation preflight and the V9 §25-27 tracking surface are all in
+  `e05ea0a`; their tests and the doc updates are in `8b13cb6`.
 
 ## Canonical specification
 
@@ -242,13 +244,18 @@ label must leave the research counter untouched.
   `run_all_tests.mjs` restores the preconditions. This is intentional — it keeps
   each suite's own assertions honest.
 - **`GET /api/owner/profile`** is public on `main` and is a documented Owner
-  decision there; this branch makes it Owner-only (committed). README line ~44
-  ("Reads stay public") is stale for this route once this branch merges.
-- **Rate limiting is uncommitted**, so it is not deployed and not in `main`.
-- **V9 §25-27 tracking is uncommitted.** The tracking surface is reachable both
-  through the API and through the UI: each opportunity card renders a `Track`
-  control that reads `GET .../tracking` and records lifecycle, payment and
-  follow-up state. It is not yet merged to `main` and not deployed.
+  decision there; this branch makes it Owner-only (committed). README now
+  documents the exact public read surface (runtime/foundation status plus
+  discovery status), so the older "Reads stay public" wording no longer
+  contradicts the implementation on this branch.
+- **Rate limiting is committed** on this branch (commit `e05ea0a`), so it is in
+  `origin/fix/earning-context-owner-credential` but **not** in `main` and **not
+  deployed**.
+- **V9 §25-27 tracking is committed** on this branch (`e05ea0a`). The tracking
+  surface is reachable both through the API and through the UI: each opportunity
+  card renders a `Track` control that reads `GET .../tracking` and records
+  lifecycle, payment and follow-up state. It is **not** merged to `main` and
+  **not** deployed.
 - **V9 §28 (rejection learning) and §29 (opportunity memory): storage and
   validation are implemented; decision influence is NOT implemented.** Stored
   lessons and memory entries are never read by `evaluateDecision` or
@@ -260,7 +267,7 @@ label must leave the research counter untouched.
 
 ## Next permitted task
 
-Land the rate limiting, scope allowlist, agent-instance pinning,
-test-isolation preflight, the V9 §25-27 tracking surface and doc updates as one
-focused commit on this branch, then re-run the full protocol. Commit, push, merge
-and deploy each require separate Owner authorization.
+PR #22 (`fix/earning-context-owner-credential` → `main`) carries the rate
+limiting, scope allowlist, agent-instance pinning, test-isolation preflight, the
+V9 §25-27 tracking surface and the doc updates. Merging PR #22 and any Cloudflare
+deployment each require separate Owner authorization.

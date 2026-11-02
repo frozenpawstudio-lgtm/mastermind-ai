@@ -83,9 +83,9 @@ There is no `npm test`; run the scripts directly.
 - `GET /api/owner/profile` is **Owner-only on this branch** (committed here, not
   on `main`, where the GET is still public). The profile holds the Owner's
   personal business criteria, so this branch fails the unauthenticated read
-  closed and `test_security_surface.js` asserts 401 for it. README line ~44
-  ("Reads stay public") is no longer accurate for this route and should be
-  updated when this branch merges.
+  closed and `test_security_surface.js` asserts 401 for it. README now documents
+  the public read surface precisely (runtime/foundation status plus discovery
+  status); `main` still carries the older "Reads stay public" wording.
 
 ## Security work on this branch (not yet merged to `main`)
 

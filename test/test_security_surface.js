@@ -15,9 +15,9 @@ import assert from "node:assert";
  *
  * The final section measures the unauthenticated read surface of the AI and
  * owner-data routes and prints WARN lines for anything reachable without a
- * credential. Those are reported, not asserted, because whether an owner
- * profile read is public is a product decision (README: "Reads stay public"),
- * not something this test should silently redefine.
+ * credential. Those are reported, not asserted, because the exact public read
+ * set is a product decision (README: public reads are runtime/foundation status
+ * plus discovery status), not something this test should silently redefine.
  */
 
 const BASE_URL = process.env.TEST_BASE_URL || "http://127.0.0.1:8787";
