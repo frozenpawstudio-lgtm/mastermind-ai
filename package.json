@@ -9,6 +9,8 @@
     "deploy": "wrangler deploy",
     "test:api": "node test/run_all_tests.mjs",
     "test:upwork": "node test/test_upwork_adapter.mjs",
+    "test:upwork:regression": "node test/test_upwork_regression.mjs",
+    "test:assets": "node test/test_asset_exposure.js",
     "test:ui": "node test/test_ui_console.mjs",
     "test:workflow": "node test/test_earning_workflow_e2e.mjs",
     "test:layout": "node test/layout_audit.mjs home chat tools research profile",
