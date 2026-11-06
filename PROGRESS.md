@@ -262,8 +262,10 @@ label must leave the research counter untouched.
   `comparePersistedOpportunities`, and V9 defines no algorithm for that
   influence, so none was invented.
 - **GPT-6 Astra: NOT VERIFIED** (not configured). **Voice:
-  `VOICE_NOT_CONFIGURED`.** **Upwork/Fiverr: `supported: false`.** No dedicated
-  Builder Agent exists.
+  `VOICE_NOT_CONFIGURED`.** The prior main-branch snapshot reported
+  **Upwork/Fiverr: `supported: false`**; this repair worktree now contains an
+  Upwork-only read-only adapter, still disabled and not deployed. Fiverr remains
+  unsupported. No dedicated Builder Agent exists.
 
 ## Next permitted task
 
@@ -271,3 +273,21 @@ PR #22 (`fix/earning-context-owner-credential` → `main`) carries the rate
 limiting, scope allowlist, agent-instance pinning, test-isolation preflight, the
 V9 §25-27 tracking surface and the doc updates. Merging PR #22 and any Cloudflare
 deployment each require separate Owner authorization.
+
+
+## Upwork-only repair work (2026-11-05)
+
+- Added an opt-in Upwork OAuth/PKCE connector and public job search to this local
+  worktree only. Owner-only routes start OAuth and search; public status exposes
+  only a sanitized connection state. Credentials are AES-GCM encrypted in the
+  existing Durable Object SQLite database; search results are transient,
+  `UNVERIFIED`, and are not copied into opportunities or tracking.
+- No Upwork variables are set in this worktree. No Upwork account/API call,
+  Cloudflare secret change, deployment, Git push or merge was performed;
+  production Cloudflare secrets were not inspected.
+- `pnpm test:upwork` passes offline mocks and fail-closed route checks. The local
+  static-asset exposure suite passes, including checks that server-side Upwork
+  helpers and internal notes are not served publicly.
+- Production enablement requires a separately approved Upwork OAuth app, its
+  read-only public-job permission, Owner-provided runtime secrets, and separate
+  explicit authorization before any Cloudflare configuration/deployment.

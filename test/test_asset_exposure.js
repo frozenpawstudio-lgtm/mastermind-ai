@@ -48,6 +48,9 @@ function resolveWranglerEntry() {
 // Files that must never be reachable as public assets.
 const MUST_BE_EXCLUDED = [
   "worker.js",
+  "upwork.js",
+  "upwork-agent.js",
+  "UPWORK_API_NOTES.md",
   "wrangler.jsonc",
   "package.json",
   "package-lock.json",
@@ -160,6 +163,34 @@ async function run() {
         );
       });
     }
+
+    console.log("");
+    console.log("4. Upwork public status is sanitized and consistent");
+    await check("GET /api/upwork/status reports NOT_CONFIGURED without credentials", async () => {
+      const res = await fetch(`${BASE_URL}/api/upwork/status`);
+      assert.equal(res.status, 200);
+      assert.match(res.headers.get("cache-control") || "", /no-store/i);
+      const payload = await res.json();
+      assert.equal(payload?.data?.service, "upwork");
+      assert.equal(payload?.data?.state, "NOT_CONFIGURED");
+      assert.equal(payload?.data?.verified, false);
+    });
+    await check("GET /api/connections uses the same Upwork status", async () => {
+      const res = await fetch(`${BASE_URL}/api/connections`);
+      assert.equal(res.status, 200);
+      const payload = await res.json();
+      const upwork = payload?.data?.services?.find((service) => service.service === "upwork");
+      assert.equal(upwork?.state, "NOT_CONFIGURED");
+      assert.equal(upwork?.verified, false);
+    });
+    await check("GET /api/self-check uses the same Upwork status", async () => {
+      const res = await fetch(`${BASE_URL}/api/self-check`);
+      assert.equal(res.status, 200);
+      const payload = await res.json();
+      const upwork = payload?.connections?.find((service) => service.service === "upwork");
+      assert.equal(upwork?.state, "NOT_CONFIGURED");
+      assert.equal(upwork?.verified, false);
+    });
   } finally {
     server.kill("SIGTERM");
     await delay(1500);

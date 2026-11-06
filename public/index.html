@@ -1138,6 +1138,24 @@
           </div>
         </div>
 
+        <div class="card">
+          <div class="divider"></div>
+          <div class="row"><span class="k">Upwork official read-only discovery</span><span class="pill muted" id="upwork-status">CHECKING</span></div>
+          <div class="tiny-note" id="upwork-status-note">AIRA only searches public listings after the Owner connects Upwork. Search results are temporary, UNVERIFIED, and never saved to tracking.</div>
+          <div class="stack tight">
+            <div class="field">
+              <label for="upwork-query">Search Upwork public jobs</label>
+              <input type="text" id="upwork-query" maxlength="120" placeholder="e.g. Cloudflare Workers, React, translation">
+            </div>
+            <div class="btn-row">
+              <button class="btn sm" type="button" id="upwork-connect">Connect Upwork</button>
+              <button class="btn sm primary" type="button" id="upwork-search">Search public jobs</button>
+            </div>
+          </div>
+          <div class="tiny-note" id="upwork-message" role="status" aria-live="polite"></div>
+          <div class="list" id="upwork-results" aria-live="polite"></div>
+        </div>
+
         <div class="card" id="earning-form-card" hidden>
           <div class="card-head">
             <span class="card-title">New Opportunity</span>
@@ -1783,6 +1801,8 @@
       voice: null,
       opportunities: null,
       discovery: null,
+      upworkStatus: null,
+      approvals: null,
       approvals: null,
       audit: null,
       loadedAt: null
@@ -2258,10 +2278,144 @@
       }
       setText("earning-count", String(rows.length));
       if (rows.length === 0) {
-        list.innerHTML = stateBox("", "NO OPPORTUNITIES", "No opportunity is persisted. Live marketplace discovery reports NOT_CONNECTED, so records must be added with real evidence.");
+        list.innerHTML = stateBox("", "NO OPPORTUNITIES", "No opportunity is persisted. Use the Upwork public search above; results are transient until the Owner verifies and records an opportunity with evidence.");
         return;
       }
       list.innerHTML = rows.map(opportunityCard).join("");
+    }
+
+    let upworkSearchResults = [];
+    let upworkSearchInFlight = false;
+    let upworkConnectInFlight = false;
+
+    function renderUpworkResults() {
+      const list = $("upwork-results");
+      if (!list) return;
+      if (!upworkSearchResults.length) {
+        list.innerHTML = "";
+        return;
+      }
+      list.innerHTML = upworkSearchResults.map((job) => {
+        let href = "";
+        try {
+          const parsed = new URL(String(job.url || ""));
+          if (parsed.protocol === "https:" && parsed.origin === "https://www.upwork.com") href = parsed.toString();
+        } catch { href = ""; }
+        const title = escapeHtml(orNA(job.title));
+        const link = href
+          ? '<a class="opp-link" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>"
+          : title;
+        const skills = Array.isArray(job.skills) ? job.skills.map((skill) => escapeHtml(skill)).join(", ") : "";
+        const budget = [job.amount, job.currency].filter(Boolean).join(" ") || NA;
+        return '<article class="list-item"><div class="li-top"><span class="li-name">' + link + '</span><span class="pill muted">UNVERIFIED</span></div>' +
+          '<div class="li-sub">' + escapeHtml(orNA(job.job_type)) + ' · ' + escapeHtml(orNA(job.published_at)) + '</div>' +
+          '<div class="row"><span class="k">Budget</span><span class="v">' + escapeHtml(budget) + '</span></div>' +
+          (skills ? '<div class="row"><span class="k">Skills</span><span class="v">' + skills + '</span></div>' : '') +
+          (job.description ? '<div class="opp-output">' + escapeHtml(job.description) + '</div>' : '') +
+          '<div class="tiny-note">Eligibility UNKNOWN. Not saved to AIRA tracking. Review the original Upwork listing; submission is manual Owner-only.</div></article>';
+      }).join("");
+    }
+
+    function renderUpworkPanel() {
+      const status = AIRA.upworkStatus;
+      const pillNode = $("upwork-status");
+      const noteNode = $("upwork-status-note");
+      const connectButton = $("upwork-connect");
+      const searchButton = $("upwork-search");
+      if (pillNode) {
+        pillNode.textContent = status && status.state ? status.state : "UNAVAILABLE";
+        pillNode.className = "pill " + stateClass(status && status.state);
+      }
+      if (noteNode) {
+        const ownerNote = !isOwnerAuthorized() ? " Paste the Owner token for this session to connect or search." : "";
+        noteNode.textContent = (status && status.note ? status.note : "Upwork status is unavailable.") + ownerNote + " Results are temporary and are not saved to tracking.";
+      }
+      if (connectButton) {
+        connectButton.textContent = status && status.state === "CONNECTED" ? "Reconnect Upwork" : "Connect Upwork";
+        connectButton.disabled = upworkConnectInFlight || !isOwnerAuthorized() || !status || status.enabled !== true;
+      }
+      if (searchButton) {
+        const searchable = status && status.enabled === true && ["CONNECTED", "PARTIALLY_CONNECTED"].includes(status.state);
+        searchButton.disabled = upworkSearchInFlight || !isOwnerAuthorized() || !searchable;
+        searchButton.textContent = upworkSearchInFlight ? "Searching…" : "Search public jobs";
+      }
+      renderUpworkResults();
+    }
+
+    async function loadUpworkStatus() {
+      const result = await api("/api/upwork/status", { cache: "no-store" });
+      AIRA.upworkStatus = result.ok ? result.data : null;
+      renderUpworkPanel();
+      return AIRA.upworkStatus;
+    }
+
+    async function connectUpwork() {
+      if (!isOwnerAuthorized()) {
+        toast("Owner authorization required.", "error");
+        return;
+      }
+      if (upworkConnectInFlight) return;
+      const popup = window.open("about:blank", "_blank");
+      if (!popup) {
+        toast("Allow pop-ups for this AIRA site, then tap Connect Upwork again.", "error");
+        return;
+      }
+      upworkConnectInFlight = true;
+      renderUpworkPanel();
+      setText("upwork-message", "Preparing the official Upwork authorization page…");
+      const result = await api("/api/upwork/connect", { method: "POST", cache: "no-store", body: {} });
+      upworkConnectInFlight = false;
+      if (!result.ok) {
+        popup.close();
+        setText("upwork-message", result.raw && result.raw.message ? result.raw.message : (result.error || "Upwork connection is not configured."));
+        renderUpworkPanel();
+        return;
+      }
+      let authUrl;
+      try {
+        authUrl = new URL(result.data && result.data.authorization_url);
+      } catch { authUrl = null; }
+      if (!authUrl || authUrl.protocol !== "https:" || authUrl.origin !== "https://www.upwork.com" || authUrl.pathname !== "/ab/account-security/oauth2/authorize") {
+        popup.close();
+        setText("upwork-message", "The authorization destination did not pass AIRA's safety check.");
+        renderUpworkPanel();
+        return;
+      }
+      popup.opener = null;
+      popup.location.replace(authUrl.toString());
+      setText("upwork-message", "Complete Upwork approval in the opened tab. Return here and refresh the status afterward.");
+      renderUpworkPanel();
+    }
+
+    async function searchUpwork() {
+      if (!isOwnerAuthorized()) {
+        toast("Owner authorization required.", "error");
+        return;
+      }
+      if (upworkSearchInFlight) return;
+      const input = $("upwork-query");
+      const query = text(input && input.value);
+      if (query.length < 2 || query.length > 120) {
+        setText("upwork-message", "Enter a search phrase between 2 and 120 characters.");
+        return;
+      }
+      upworkSearchInFlight = true;
+      upworkSearchResults = [];
+      setText("upwork-message", "Searching Upwork's public marketplace through its official read-only API…");
+      renderUpworkPanel();
+      const result = await api("/api/upwork/search", { method: "POST", cache: "no-store", body: { query } });
+      upworkSearchInFlight = false;
+      if (!result.ok) {
+        setText("upwork-message", result.raw && result.raw.message ? result.raw.message : (result.error || "Upwork search did not complete."));
+        await loadUpworkStatus();
+        renderUpworkPanel();
+        return;
+      }
+      const data = result.data || {};
+      upworkSearchResults = Array.isArray(data.jobs) ? data.jobs.slice(0, 10) : [];
+      setText("upwork-message", "Fetched " + upworkSearchResults.length + " listing(s). Results are UNVERIFIED, transient, and were not added to tracking.");
+      await loadUpworkStatus();
+      renderUpworkPanel();
     }
 
     async function loadEarning() {
@@ -2274,7 +2428,10 @@
       // The opportunity list is Owner-only. Only fetch it when this session
       // holds an accepted credential; otherwise say so explicitly rather than
       // firing a request that would just return 401.
-      const discovery = await api("/api/opportunities/discover");
+      const [discovery] = await Promise.all([
+        api("/api/opportunities/discover"),
+        loadUpworkStatus()
+      ]);
       AIRA.discovery = discovery.ok ? discovery.data : null;
 
       const conn = $("earning-connectivity");
@@ -2793,7 +2950,7 @@
       }
       list.innerHTML = report.services.map((s) => (
         '<div class="list-item"><div class="li-top"><span class="li-name">' + escapeHtml(orNA(s.name || s.service)) + "</span>" + pill(s.state) + "</div>" +
-        '<div class="li-sub">' + escapeHtml(orNA(s.reason)) + "</div></div>"
+        '<div class="li-sub">' + escapeHtml(orNA(s.reason || s.note)) + "</div></div>"
       )).join("");
     }
 
@@ -2934,6 +3091,12 @@
 
       const refresh = $("earning-refresh");
       if (refresh) refresh.addEventListener("click", loadEarning);
+      const upworkConnect = $("upwork-connect");
+      if (upworkConnect) upworkConnect.addEventListener("click", connectUpwork);
+      const upworkSearch = $("upwork-search");
+      if (upworkSearch) upworkSearch.addEventListener("click", searchUpwork);
+      const upworkQuery = $("upwork-query");
+      if (upworkQuery) upworkQuery.addEventListener("keydown", (event) => { if (event.key === "Enter") searchUpwork(); });
       const compare = $("earning-compare");
       if (compare) compare.addEventListener("click", runCompare);
       const newBtn = $("earning-new");
@@ -2978,10 +3141,24 @@
     /* ======================================================================
        BOOT
        ====================================================================== */
+    function handleUpworkReturn() {
+      const current = new URL(window.location.href);
+      const result = current.searchParams.get("upwork");
+      if (!result) return;
+      current.searchParams.delete("upwork");
+      window.history.replaceState(null, "", current.pathname + current.search + current.hash);
+      if (result === "authorized") {
+        toast("Upwork OAuth authorization was saved. Run a read-only search to verify the approved job-search scope.", "ok");
+      } else {
+        toast("Upwork authorization did not complete. No application was submitted.", "error");
+      }
+    }
+
     function boot() {
       initAura();
       initNeuralCore();
       wire();
+      handleUpworkReturn();
       loadHome();
     }
 

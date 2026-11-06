@@ -25,10 +25,9 @@ byte-identical; the worker serves the root copy, and the public copy exists so
 both asset paths agree.
 
 Screens: Home (real status, the eleven-stage earning pipeline, next recommended
-action), Chat (one request per tap), Earning (opportunity cards with source URL,
-evidence, eligibility, owner fit, estimated cost, risk and status), Research,
-Tasks, Audit and Profile. Tasks reports `TASK TRACKING UNAVAILABLE` because no
-task store is connected.
+action), Chat (one request per tap), Earning (opportunity cards plus an opt-in,
+read-only Upwork public-job search), Research, Tasks, Audit and Profile. Tasks
+reports `TASK TRACKING UNAVAILABLE` because no task store is connected.
 
 The earning pipeline is rendered from persisted engine state, not from a module
 label. A stage reads COMPLETE only when the backend record proves it. Execution,
@@ -41,19 +40,20 @@ unavailable values read `DATA NOT AVAILABLE` or `NOT CONFIGURED`.
 The owner token is held in a module-scoped JavaScript variable for the lifetime
 of the page. It is never written to `localStorage`, `sessionStorage`, cookies,
 the URL or the console, and never rendered into the DOM. Closing the tab
-discards it. Public reads stay public; private reads and every mutation fail
-closed with HTTP 401 without the credential. The public read surface is exactly
-`/api/health`, `/api/self-check`, `/api/permissions`, `/api/connections`,
-`/api/voice` and discovery status (`GET /api/opportunities/discover`). Owner
-data — the opportunity list, a single opportunity, COMPARE, evidence, the Owner
-profile, audit logs and approvals — is Owner-only.
+discards it. Owner-controlled actions fail closed with HTTP 401 without the
+credential; if the server-side Owner token is missing, authorization is also
+fail-closed. The public read surface is `/api/health`, `/api/self-check`,
+`/api/permissions`, `/api/connections`, `/api/voice`, the sanitized
+`/api/upwork/status`, and discovery status (`GET /api/opportunities/discover`).
+Owner data — the opportunity list, a single opportunity, COMPARE, evidence, the
+Owner profile, audit logs and approvals — is Owner-only.
 
 ## Environment configuration
 
 Never commit secrets. `OWNER_API_TOKEN` must be supplied through Cloudflare
 runtime secrets (`wrangler secret put OWNER_API_TOKEN` or an uncommitted
 `.dev.vars`). When it is absent, the permission foundation reports
-`NOT_CONFIGURED` and authorization is not enforced.
+`NOT_CONFIGURED` and Owner-controlled actions fail closed.
 
 `.dev.vars` and `.dev.vars.*` are listed in `.gitignore` and `.assetsignore` so
 local secrets are neither committed nor served as static assets.
@@ -61,6 +61,27 @@ local secrets are neither committed nor served as static assets.
 `ALLOWED_ORIGINS` is an optional comma-separated allow-list of extra browser
 origins permitted to call the mutation APIs. Same-origin requests are always
 allowed.
+
+## Upwork read-only integration (opt-in)
+
+This repair worktree adds Upwork as the only live earning-source connector. It
+remains disabled until the Owner registers an Upwork OAuth app and supplies
+`UPWORK_CLIENT_ID`, `UPWORK_CLIENT_SECRET`, an exact HTTPS
+`UPWORK_REDIRECT_URI` (`/api/upwork/callback`), and a 32-byte
+`UPWORK_TOKEN_ENCRYPTION_KEY`. Keep the client secret, encryption key and
+`OWNER_API_TOKEN` in Cloudflare runtime secrets, never in HTML, Git or a browser
+store. Set `UPWORK_ENABLED=true` only after the Upwork app has approved the
+read-only public job-posting permission and the Owner separately authorizes
+production configuration.
+
+OAuth tokens are encrypted before Durable Object storage. Each search is an
+explicit Owner action against Upwork's official public-marketplace API; results
+are returned with no-store headers, labelled `UNVERIFIED`, not written into
+AIRA's opportunity/tracking database, and never submitted or messaged. The
+Owner must review the original Upwork listing and manually decide what to record
+or submit. This connector does not support Fiverr or promise/guarantee earnings.
+Until the Owner provides the approved OAuth configuration, the honest state is
+`NOT_CONFIGURED`; no live Upwork API request has been made.
 
 ## API surface
 
@@ -72,6 +93,10 @@ allowed.
 | `/api/permissions` | GET | Permission model and authorization state |
 | `/api/voice` | GET | Voice foundation state |
 | `/api/voice/command` | POST | Voice command intake (requires VOICE_ACTIVE) |
+| `/api/upwork/status` | GET | Sanitized Upwork connection state; no credentials or job data |
+| `/api/upwork/connect` | POST | Owner-only OAuth start; returns a fixed Upwork authorization URL |
+| `/api/upwork/callback` | GET | Single-use state-checked OAuth callback; never submits a proposal |
+| `/api/upwork/search` | POST | Owner-only official public-job search; results are transient and UNVERIFIED |
 | `/api/opportunities` | GET/POST | Owner-only opportunity list / create |
 | `/api/opportunities/:id` | GET/PATCH/DELETE | Owner-only opportunity record |
 | `/api/opportunities/discover` | GET/POST | Discovery intake (truthful NOT_CONNECTED state). GET is the one public opportunity read |
@@ -92,11 +117,14 @@ Opportunity list, a single opportunity and COMPARE all return the same private
 business records (title, source URL, platform, score, decision), so all three are
 Owner-only. The public read surface is exactly runtime/foundation status —
 `/api/health`, `/api/self-check`, `/api/permissions`, `/api/connections`,
-`/api/voice` — plus discovery status (`GET /api/opportunities/discover`). Every
+`/api/voice`, `/api/upwork/status` — plus discovery status
+(`GET /api/opportunities/discover`). Every
 other endpoint — including the Owner profile, audit logs, approval records,
 evidence reads, and all state-changing evaluations — requires a valid Owner
-credential. `POST /api/chat` and `POST /api/research` are Owner-only and rate
-limited.
+credential, with one OAuth protocol exception: the fixed `/api/upwork/callback`
+GET validates a pending single-use OAuth state and then calls the Durable Object
+using the server-side Owner credential; arbitrary callback requests fail.
+`POST /api/chat` and `POST /api/research` are Owner-only and rate limited.
 State-changing evaluations are POST-only and never mutate state through GET.
 
 Decision score and decision are owned by the deterministic decision engine.
@@ -108,7 +136,16 @@ spends money silently.
 
 ## Tests
 
-The suites under `test/` expect a locally running worker:
+The Upwork adapter has a standalone offline suite that uses mocked API responses
+and needs neither credentials nor a running server. The asset/status integration
+suite starts Wrangler locally and performs only localhost GET checks:
+
+```bash
+pnpm test:upwork
+node test/test_asset_exposure.js
+```
+
+The broader API suites under `test/` expect a locally running worker:
 
 ```bash
 npx wrangler dev --local --port 8787
