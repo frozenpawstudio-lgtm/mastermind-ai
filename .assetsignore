@@ -13,8 +13,12 @@ test/
 package.json
 package-lock.json
 worker.js
+upwork.js
+upwork-agent.js
+UPWORK_API_NOTES.md
 wrangler.jsonc
 README.md
 pnpm-workspace.yaml
 pnpm-lock.yaml
 AGENTS.md
+PROGRESS.md

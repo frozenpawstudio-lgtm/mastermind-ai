@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#04070f">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='29' fill='%23060e20' stroke='%2300dfff' stroke-width='2'/%3E%3Ccircle cx='32' cy='32' r='23' fill='%23146aeb' opacity='.82'/%3E%3Cpath d='M20 45 30 18h4l10 27h-6l-2-7h-9l-2 7z' fill='%23031627' stroke='%238cf7ff' stroke-width='1'/%3E%3C/svg%3E">
   <meta name="description" content="AIRA Master Mind AI — Phase 1 Earning Operator and Research Core.">
   <title>AIRA — Master Mind AI Operator Console</title>
   <style>
@@ -940,6 +941,263 @@
       .core-frame { width: 104px; height: 104px; flex-basis: 104px; }
       .hero-state { font-size: 16px; }
     }
+
+    /* ---------------- HOLOGRAPHIC 3D GLASS — reference-matched layer ------- */
+    :root {
+      --bg-panel: rgba(8, 17, 39, 0.88);
+      --bg-inset: rgba(3, 8, 22, 0.82);
+      --stroke: rgba(61, 173, 255, 0.30);
+      --stroke-soft: rgba(93, 166, 255, 0.18);
+      --stroke-cyan: rgba(0, 225, 255, 0.58);
+      --stroke-violet: rgba(135, 75, 255, 0.48);
+      --cyan: #12d7ff;
+      --cyan-bright: #8cf7ff;
+      --blue: #278cff;
+      --violet: #7954ff;
+      --r-lg: 22px;
+    }
+
+    body {
+      background:
+        radial-gradient(ellipse at 14% 12%, rgba(0, 183, 255, 0.15), transparent 35%),
+        radial-gradient(ellipse at 88% 8%, rgba(100, 58, 255, 0.16), transparent 36%),
+        radial-gradient(ellipse at 50% 92%, rgba(0, 229, 255, 0.08), transparent 38%),
+        repeating-linear-gradient(0deg, rgba(44, 149, 230, 0.025) 0 1px, transparent 1px 36px),
+        repeating-linear-gradient(90deg, rgba(44, 149, 230, 0.022) 0 1px, transparent 1px 36px),
+        linear-gradient(180deg, #050b19 0%, #040815 56%, #02050c 100%);
+      background-attachment: fixed;
+    }
+
+    #aura-canvas { opacity: 0.40; filter: drop-shadow(0 0 18px rgba(0, 151, 255, 0.14)); }
+
+    .app { perspective: 1200px; }
+
+    .topbar {
+      background: linear-gradient(180deg, rgba(3, 8, 21, 0.97) 62%, rgba(3, 8, 21, 0.72));
+      border-bottom: 1px solid rgba(66, 185, 255, 0.16);
+      box-shadow: 0 10px 26px rgba(0, 0, 0, 0.22);
+      backdrop-filter: blur(18px) saturate(145%);
+    }
+
+    .brand-mark {
+      position: relative;
+      width: 38px;
+      height: 38px;
+      flex-basis: 38px;
+      border-radius: 50%;
+      border: 1px solid rgba(141, 246, 255, 0.72);
+      color: #9dfaff;
+      background: radial-gradient(circle at 34% 25%, rgba(29, 92, 160, 0.76), rgba(6, 20, 47, 0.98) 68%, #030917 100%);
+      box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.08), 0 0 22px rgba(0, 195, 255, 0.44), inset 0 2px 7px rgba(128, 236, 255, 0.22), inset 0 -7px 12px rgba(16, 31, 111, 0.55);
+      transform: perspective(360px) rotateX(7deg);
+    }
+
+    .brand-mark svg {
+      position: relative;
+      z-index: 1;
+      display: block;
+      width: 24px;
+      height: 24px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 1.35;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 0 4px rgba(0, 229, 255, 0.88));
+    }
+
+    .brand-mark::before {
+      content: "";
+      position: absolute;
+      inset: 3px;
+      border: 1px solid rgba(0, 229, 255, 0.34);
+      border-radius: 50%;
+      transform: rotateX(66deg);
+      box-shadow: 0 0 12px rgba(0, 229, 255, 0.20);
+      pointer-events: none;
+    }
+
+    .brand-sub { color: rgba(140, 247, 255, 0.88); }
+
+    .subnav {
+      background: linear-gradient(180deg, rgba(12, 25, 52, 0.92), rgba(4, 9, 23, 0.94));
+      border-color: rgba(69, 166, 255, 0.28);
+      box-shadow: 0 8px 22px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(16px) saturate(145%);
+    }
+
+    .subnav button[aria-selected="true"] {
+      color: #03131f;
+      background: linear-gradient(135deg, #91faff 0%, #22d8ff 48%, #3289ff 100%);
+      box-shadow: 0 0 20px rgba(0, 201, 255, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.68), inset 0 -2px 5px rgba(13, 83, 202, 0.24);
+    }
+
+    .card {
+      background: linear-gradient(145deg, rgba(14, 29, 60, 0.91), rgba(6, 12, 28, 0.92) 56%, rgba(8, 17, 42, 0.92));
+      border-color: rgba(65, 175, 255, 0.30);
+      border-radius: var(--r-lg);
+      box-shadow: 0 18px 36px rgba(0, 0, 0, 0.42), 0 0 24px rgba(0, 153, 255, 0.075), inset 0 1px 0 rgba(210, 250, 255, 0.11), inset 0 -16px 32px rgba(0, 101, 255, 0.035);
+      backdrop-filter: blur(16px) saturate(150%);
+      transform-style: preserve-3d;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+
+    .card-title { text-shadow: 0 0 12px rgba(47, 190, 255, 0.16); }
+    .card-title::before { width: 4px; height: 16px; flex-basis: 4px; box-shadow: 0 0 12px rgba(0, 229, 255, 0.92); }
+
+    .tile,
+    .opp,
+    .list-item,
+    .mod,
+    .status-strip,
+    .state-box {
+      background-image: linear-gradient(145deg, rgba(24, 48, 91, 0.44), rgba(4, 10, 25, 0.78));
+      border-color: rgba(65, 166, 255, 0.22);
+      box-shadow: inset 0 1px 0 rgba(215, 250, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.20);
+      backdrop-filter: blur(10px) saturate(135%);
+    }
+
+    .tile .t-value { text-shadow: 0 0 12px rgba(0, 205, 255, 0.28); }
+    .status-strip { border-color: rgba(0, 210, 255, 0.26); }
+    .pill { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 0 10px rgba(30, 140, 255, 0.06); }
+    .pill.ok { text-shadow: 0 0 9px rgba(0, 230, 118, 0.25); }
+    .pill.cyan { box-shadow: 0 0 14px rgba(0, 229, 255, 0.13), inset 0 1px 0 rgba(255, 255, 255, 0.10); }
+
+    .mod,
+    .opp,
+    .list-item {
+      border-radius: 14px;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    .mod { background: linear-gradient(120deg, rgba(8, 35, 67, 0.84), rgba(11, 16, 41, 0.82)); }
+    .opp { background: linear-gradient(145deg, rgba(12, 35, 63, 0.90), rgba(5, 12, 27, 0.92)); }
+    .list-item { background: linear-gradient(145deg, rgba(13, 28, 56, 0.84), rgba(4, 10, 23, 0.90)); }
+
+    .btn,
+    .icon-btn,
+    .send-btn {
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.10), 0 7px 16px rgba(0, 0, 0, 0.24);
+    }
+
+    .btn {
+      background: linear-gradient(145deg, rgba(25, 43, 77, 0.92), rgba(8, 15, 32, 0.96));
+      border-color: rgba(73, 166, 255, 0.32);
+      border-radius: 13px;
+    }
+
+    .btn.primary,
+    .send-btn {
+      background: linear-gradient(135deg, #a7fbff 0%, #29d8ff 42%, #3281ff 100%);
+      color: #03111d;
+      border: 1px solid rgba(180, 252, 255, 0.72);
+      box-shadow: 0 8px 24px rgba(0, 183, 255, 0.30), inset 0 1px 0 rgba(255, 255, 255, 0.78), inset 0 -3px 7px rgba(20, 80, 190, 0.22);
+    }
+
+    .btn.violet {
+      color: #fff;
+      background: linear-gradient(135deg, #9d75ff, #5630d7 66%, #321678);
+      box-shadow: 0 8px 22px rgba(111, 62, 255, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+    }
+
+    .btn.danger { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 0 18px rgba(255, 59, 92, 0.10); }
+
+    .icon-btn {
+      border-radius: 50%;
+      border-color: rgba(80, 181, 255, 0.36);
+      color: var(--cyan-bright);
+      background: radial-gradient(circle at 35% 25%, rgba(41, 136, 255, 0.42), rgba(7, 16, 37, 0.94) 68%);
+      box-shadow: 0 0 15px rgba(0, 163, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.13);
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="url"],
+    textarea,
+    select {
+      background: linear-gradient(145deg, rgba(2, 8, 22, 0.96), rgba(8, 17, 38, 0.90));
+      border-color: rgba(61, 166, 255, 0.32);
+      box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.30), 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    input:focus,
+    textarea:focus,
+    select:focus {
+      border-color: rgba(0, 229, 255, 0.76);
+      box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.14), 0 0 22px rgba(0, 178, 255, 0.16), inset 0 2px 8px rgba(0, 0, 0, 0.22);
+    }
+
+    .bubble { box-shadow: 0 8px 20px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.07); }
+    .msg.owner .bubble { background: linear-gradient(135deg, rgba(0, 190, 255, 0.20), rgba(17, 73, 150, 0.15)); }
+    .msg.aira .bubble { background: linear-gradient(135deg, rgba(80, 54, 165, 0.25), rgba(16, 23, 57, 0.82)); }
+
+    .dock {
+      border-color: rgba(71, 180, 255, 0.34);
+      background: linear-gradient(180deg, rgba(11, 24, 51, 0.96), rgba(3, 7, 19, 0.98));
+      box-shadow: 0 -5px 24px rgba(0, 153, 255, 0.11), 0 16px 36px rgba(0, 0, 0, 0.60), inset 0 1px 0 rgba(212, 250, 255, 0.10);
+    }
+
+    .dock button[aria-current="true"] {
+      color: #aafaff;
+      background: linear-gradient(160deg, rgba(0, 200, 255, 0.24), rgba(37, 97, 242, 0.20));
+      box-shadow: inset 0 0 0 1px rgba(0, 229, 255, 0.38), 0 0 18px rgba(0, 166, 255, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.10);
+      text-shadow: 0 0 10px rgba(0, 229, 255, 0.34);
+    }
+
+    .core-stack { perspective: 900px; }
+
+    .core-frame {
+      width: 168px;
+      height: 168px;
+      flex-basis: 168px;
+      border-color: rgba(87, 228, 255, 0.42);
+      background:
+        radial-gradient(circle at 50% 44%, rgba(41, 212, 255, 0.18), rgba(3, 11, 27, 0.80) 67%),
+        radial-gradient(circle at 50% 50%, rgba(79, 68, 255, 0.18), transparent 74%);
+      box-shadow: 0 0 0 5px rgba(0, 229, 255, 0.035), 0 0 38px rgba(0, 177, 255, 0.24), 0 18px 36px rgba(0, 0, 0, 0.40), inset 0 0 26px rgba(0, 229, 255, 0.14), inset 0 2px 10px rgba(255, 255, 255, 0.10);
+      transform: perspective(720px) rotateX(6deg);
+      transform-style: preserve-3d;
+    }
+
+    #neural-core { filter: saturate(1.25) drop-shadow(0 0 10px rgba(0, 213, 255, 0.42)); }
+    .core-caption { text-shadow: 0 0 14px rgba(0, 229, 255, 0.54); }
+    .hero-state { text-shadow: 0 0 16px rgba(0, 175, 255, 0.24); }
+
+    .screen.active { animation: screen-rise 0.34s ease-out both; }
+
+    @keyframes screen-rise {
+      from { opacity: 0.70; transform: perspective(900px) translateY(7px) rotateX(0.45deg); }
+      to { opacity: 1; transform: perspective(900px) translateY(0) rotateX(0); }
+    }
+
+    :is(.btn, .icon-btn, .send-btn, .mod, .subnav button, .dock button):focus-visible {
+      outline: 2px solid rgba(125, 245, 255, 0.95);
+      outline-offset: 3px;
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .card:hover {
+        transform: perspective(1200px) translateY(-2px) rotateX(0.35deg);
+        border-color: rgba(83, 206, 255, 0.48);
+        box-shadow: 0 22px 42px rgba(0, 0, 0, 0.46), 0 0 26px rgba(0, 165, 255, 0.12), inset 0 1px 0 rgba(220, 250, 255, 0.14);
+      }
+
+      .mod:hover,
+      .opp:hover,
+      .list-item:hover {
+        transform: translateY(-1px);
+        border-color: rgba(65, 210, 255, 0.50);
+        box-shadow: 0 10px 22px rgba(0, 0, 0, 0.26), 0 0 16px rgba(0, 166, 255, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.11);
+      }
+    }
+
+    @media (min-width: 520px) {
+      .core-frame { width: 190px; height: 190px; flex-basis: 190px; }
+    }
+
+    @media (max-width: 359px) {
+      .core-frame { width: 144px; height: 144px; flex-basis: 144px; }
+    }
   </style>
 </head>
 <body>
@@ -949,7 +1207,15 @@
     <!-- ============================== TOP BAR ============================== -->
     <header class="topbar">
       <div class="brand">
-        <div class="brand-mark" aria-hidden="true">A</div>
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 40 40" role="presentation" focusable="false">
+            <path d="M20 8c-1.7-3.1-6.1-2.6-7.4.5-3.6-.1-5.3 4-3 6.5-2.6 2.8-.9 6.9 2.1 7.5-.6 3.3 2.5 5.6 5.7 4.4 1.1 1.8 3.7 2.2 5.1.6V8" />
+            <path d="M20 8c1.7-3.1 6.1-2.6 7.4.5 3.6-.1 5.3 4 3 6.5 2.6 2.8.9 6.9-2.1 7.5.6 3.3-2.5 5.6-5.7 4.4-1.1 1.8-3.7 2.2-5.1.6" />
+            <path d="M12 14h4l2 3h2m-7 3h5l2-2m7-4h-4l-2 3h-2m7 3h-5l-2-2" />
+            <circle cx="12" cy="14" r="1" /><circle cx="13" cy="20" r="1" />
+            <circle cx="28" cy="14" r="1" /><circle cx="27" cy="20" r="1" />
+          </svg>
+        </div>
         <div class="brand-text">
           <span class="brand-name">AIRA</span>
           <span class="brand-sub">Master Mind AI</span>
@@ -1136,6 +1402,24 @@
             <button class="btn sm" type="button" id="earning-compare">Run COMPARE</button>
             <button class="btn sm" type="button" id="earning-new">Add Opportunity</button>
           </div>
+        </div>
+
+        <div class="card">
+          <div class="divider"></div>
+          <div class="row"><span class="k">Upwork official read-only discovery</span><span class="pill muted" id="upwork-status">CHECKING</span></div>
+          <div class="tiny-note" id="upwork-status-note">AIRA only searches public listings after the Owner connects Upwork. Search results are temporary, UNVERIFIED, and never saved to tracking.</div>
+          <div class="stack tight">
+            <div class="field">
+              <label for="upwork-query">Search Upwork public jobs</label>
+              <input type="text" id="upwork-query" maxlength="120" placeholder="e.g. Cloudflare Workers, React, translation">
+            </div>
+            <div class="btn-row">
+              <button class="btn sm" type="button" id="upwork-connect">Connect Upwork</button>
+              <button class="btn sm primary" type="button" id="upwork-search">Search public jobs</button>
+            </div>
+          </div>
+          <div class="tiny-note" id="upwork-message" role="status" aria-live="polite"></div>
+          <div class="list" id="upwork-results" aria-live="polite"></div>
         </div>
 
         <div class="card" id="earning-form-card" hidden>
@@ -1698,7 +1982,7 @@
           const r = Math.max(0.5, p.r * (0.7 + depth * 0.7));
           ctx.beginPath();
           ctx.arc(p.px, p.py, r, 0, Math.PI * 2);
-          ctx.fillStyle = p.violet ? "rgba(255, 45, 149, 0.95)" : "rgba(125, 245, 255, 0.95)";
+          ctx.fillStyle = p.violet ? "rgba(151, 127, 255, 0.98)" : "rgba(145, 250, 255, 0.98)";
           ctx.fill();
         }
 
@@ -1783,6 +2067,7 @@
       voice: null,
       opportunities: null,
       discovery: null,
+      upworkStatus: null,
       approvals: null,
       audit: null,
       loadedAt: null
@@ -2258,10 +2543,144 @@
       }
       setText("earning-count", String(rows.length));
       if (rows.length === 0) {
-        list.innerHTML = stateBox("", "NO OPPORTUNITIES", "No opportunity is persisted. Live marketplace discovery reports NOT_CONNECTED, so records must be added with real evidence.");
+        list.innerHTML = stateBox("", "NO OPPORTUNITIES", "No opportunity is persisted. Use the Upwork public search above; results are transient until the Owner verifies and records an opportunity with evidence.");
         return;
       }
       list.innerHTML = rows.map(opportunityCard).join("");
+    }
+
+    let upworkSearchResults = [];
+    let upworkSearchInFlight = false;
+    let upworkConnectInFlight = false;
+
+    function renderUpworkResults() {
+      const list = $("upwork-results");
+      if (!list) return;
+      if (!upworkSearchResults.length) {
+        list.innerHTML = "";
+        return;
+      }
+      list.innerHTML = upworkSearchResults.map((job) => {
+        let href = "";
+        try {
+          const parsed = new URL(String(job.url || ""));
+          if (parsed.protocol === "https:" && parsed.origin === "https://www.upwork.com") href = parsed.toString();
+        } catch { href = ""; }
+        const title = escapeHtml(orNA(job.title));
+        const link = href
+          ? '<a class="opp-link" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>"
+          : title;
+        const skills = Array.isArray(job.skills) ? job.skills.map((skill) => escapeHtml(skill)).join(", ") : "";
+        const budget = [job.amount, job.currency].filter(Boolean).join(" ") || NA;
+        return '<article class="list-item"><div class="li-top"><span class="li-name">' + link + '</span><span class="pill muted">UNVERIFIED</span></div>' +
+          '<div class="li-sub">' + escapeHtml(orNA(job.job_type)) + ' · ' + escapeHtml(orNA(job.published_at)) + '</div>' +
+          '<div class="row"><span class="k">Budget</span><span class="v">' + escapeHtml(budget) + '</span></div>' +
+          (skills ? '<div class="row"><span class="k">Skills</span><span class="v">' + skills + '</span></div>' : '') +
+          (job.description ? '<div class="opp-output">' + escapeHtml(job.description) + '</div>' : '') +
+          '<div class="tiny-note">Eligibility UNKNOWN. Not saved to AIRA tracking. Review the original Upwork listing; submission is manual Owner-only.</div></article>';
+      }).join("");
+    }
+
+    function renderUpworkPanel() {
+      const status = AIRA.upworkStatus;
+      const pillNode = $("upwork-status");
+      const noteNode = $("upwork-status-note");
+      const connectButton = $("upwork-connect");
+      const searchButton = $("upwork-search");
+      if (pillNode) {
+        pillNode.textContent = status && status.state ? status.state : "UNAVAILABLE";
+        pillNode.className = "pill " + stateClass(status && status.state);
+      }
+      if (noteNode) {
+        const ownerNote = !isOwnerAuthorized() ? " Paste the Owner token for this session to connect or search." : "";
+        noteNode.textContent = (status && status.note ? status.note : "Upwork status is unavailable.") + ownerNote + " Results are temporary and are not saved to tracking.";
+      }
+      if (connectButton) {
+        connectButton.textContent = status && status.state === "CONNECTED" ? "Reconnect Upwork" : "Connect Upwork";
+        connectButton.disabled = upworkConnectInFlight || !isOwnerAuthorized() || !status || status.enabled !== true;
+      }
+      if (searchButton) {
+        const searchable = status && status.enabled === true && ["CONNECTED", "PARTIALLY_CONNECTED"].includes(status.state);
+        searchButton.disabled = upworkSearchInFlight || !isOwnerAuthorized() || !searchable;
+        searchButton.textContent = upworkSearchInFlight ? "Searching…" : "Search public jobs";
+      }
+      renderUpworkResults();
+    }
+
+    async function loadUpworkStatus() {
+      const result = await api("/api/upwork/status", { cache: "no-store" });
+      AIRA.upworkStatus = result.ok ? result.data : null;
+      renderUpworkPanel();
+      return AIRA.upworkStatus;
+    }
+
+    async function connectUpwork() {
+      if (!isOwnerAuthorized()) {
+        toast("Owner authorization required.", "error");
+        return;
+      }
+      if (upworkConnectInFlight) return;
+      const popup = window.open("about:blank", "_blank");
+      if (!popup) {
+        toast("Allow pop-ups for this AIRA site, then tap Connect Upwork again.", "error");
+        return;
+      }
+      upworkConnectInFlight = true;
+      renderUpworkPanel();
+      setText("upwork-message", "Preparing the official Upwork authorization page…");
+      const result = await api("/api/upwork/connect", { method: "POST", cache: "no-store", body: {} });
+      upworkConnectInFlight = false;
+      if (!result.ok) {
+        popup.close();
+        setText("upwork-message", result.raw && result.raw.message ? result.raw.message : (result.error || "Upwork connection is not configured."));
+        renderUpworkPanel();
+        return;
+      }
+      let authUrl;
+      try {
+        authUrl = new URL(result.data && result.data.authorization_url);
+      } catch { authUrl = null; }
+      if (!authUrl || authUrl.protocol !== "https:" || authUrl.origin !== "https://www.upwork.com" || authUrl.pathname !== "/ab/account-security/oauth2/authorize") {
+        popup.close();
+        setText("upwork-message", "The authorization destination did not pass AIRA's safety check.");
+        renderUpworkPanel();
+        return;
+      }
+      popup.opener = null;
+      popup.location.replace(authUrl.toString());
+      setText("upwork-message", "Complete Upwork approval in the opened tab. Return here and refresh the status afterward.");
+      renderUpworkPanel();
+    }
+
+    async function searchUpwork() {
+      if (!isOwnerAuthorized()) {
+        toast("Owner authorization required.", "error");
+        return;
+      }
+      if (upworkSearchInFlight) return;
+      const input = $("upwork-query");
+      const query = text(input && input.value);
+      if (query.length < 2 || query.length > 120) {
+        setText("upwork-message", "Enter a search phrase between 2 and 120 characters.");
+        return;
+      }
+      upworkSearchInFlight = true;
+      upworkSearchResults = [];
+      setText("upwork-message", "Searching Upwork's public marketplace through its official read-only API…");
+      renderUpworkPanel();
+      const result = await api("/api/upwork/search", { method: "POST", cache: "no-store", body: { query } });
+      upworkSearchInFlight = false;
+      if (!result.ok) {
+        setText("upwork-message", result.raw && result.raw.message ? result.raw.message : (result.error || "Upwork search did not complete."));
+        await loadUpworkStatus();
+        renderUpworkPanel();
+        return;
+      }
+      const data = result.data || {};
+      upworkSearchResults = Array.isArray(data.jobs) ? data.jobs.slice(0, 10) : [];
+      setText("upwork-message", "Fetched " + upworkSearchResults.length + " listing(s). Results are UNVERIFIED, transient, and were not added to tracking.");
+      await loadUpworkStatus();
+      renderUpworkPanel();
     }
 
     async function loadEarning() {
@@ -2274,7 +2693,10 @@
       // The opportunity list is Owner-only. Only fetch it when this session
       // holds an accepted credential; otherwise say so explicitly rather than
       // firing a request that would just return 401.
-      const discovery = await api("/api/opportunities/discover");
+      const [discovery] = await Promise.all([
+        api("/api/opportunities/discover"),
+        loadUpworkStatus()
+      ]);
       AIRA.discovery = discovery.ok ? discovery.data : null;
 
       const conn = $("earning-connectivity");
@@ -2793,7 +3215,7 @@
       }
       list.innerHTML = report.services.map((s) => (
         '<div class="list-item"><div class="li-top"><span class="li-name">' + escapeHtml(orNA(s.name || s.service)) + "</span>" + pill(s.state) + "</div>" +
-        '<div class="li-sub">' + escapeHtml(orNA(s.reason)) + "</div></div>"
+        '<div class="li-sub">' + escapeHtml(orNA(s.reason || s.note)) + "</div></div>"
       )).join("");
     }
 
@@ -2934,6 +3356,12 @@
 
       const refresh = $("earning-refresh");
       if (refresh) refresh.addEventListener("click", loadEarning);
+      const upworkConnect = $("upwork-connect");
+      if (upworkConnect) upworkConnect.addEventListener("click", connectUpwork);
+      const upworkSearch = $("upwork-search");
+      if (upworkSearch) upworkSearch.addEventListener("click", searchUpwork);
+      const upworkQuery = $("upwork-query");
+      if (upworkQuery) upworkQuery.addEventListener("keydown", (event) => { if (event.key === "Enter") searchUpwork(); });
       const compare = $("earning-compare");
       if (compare) compare.addEventListener("click", runCompare);
       const newBtn = $("earning-new");
@@ -2978,10 +3406,24 @@
     /* ======================================================================
        BOOT
        ====================================================================== */
+    function handleUpworkReturn() {
+      const current = new URL(window.location.href);
+      const result = current.searchParams.get("upwork");
+      if (!result) return;
+      current.searchParams.delete("upwork");
+      window.history.replaceState(null, "", current.pathname + current.search + current.hash);
+      if (result === "authorized") {
+        toast("Upwork OAuth authorization was saved. Run a read-only search to verify the approved job-search scope.", "ok");
+      } else {
+        toast("Upwork authorization did not complete. No application was submitted.", "error");
+      }
+    }
+
     function boot() {
       initAura();
       initNeuralCore();
       wire();
+      handleUpworkReturn();
       loadHome();
     }
 

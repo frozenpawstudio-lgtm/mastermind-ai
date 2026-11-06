@@ -2,7 +2,9 @@ import assert from "node:assert";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
-import { statSync } from "node:fs";
+import { statSync, rmSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { setTimeout as delay } from "node:timers/promises";
 
 /*
@@ -26,6 +28,19 @@ const repoRoot = resolve(here, "..");
 const PORT = Number(process.env.ASSET_TEST_PORT || 8862);
 const BASE_URL = `http://127.0.0.1:${PORT}`;
 
+// The server and its state directory are removed on SIGINT/SIGTERM too, so a
+// Ctrl-C leaves no orphaned `wrangler dev` process or temp directory behind.
+let activeServer = null;
+let activePersistDir = null;
+const onSignal = (signal) => {
+  if (activeServer) activeServer.kill("SIGKILL");
+  if (activePersistDir) rmSync(activePersistDir, { recursive: true, force: true });
+  console.error(`asset exposure test: interrupted by ${signal}`);
+  process.exit(130);
+};
+process.once("SIGINT", () => onSignal("SIGINT"));
+process.once("SIGTERM", () => onSignal("SIGTERM"));
+
 /*
  * `node_modules/.bin/wrangler` is a POSIX shell shim, not a JS entry point, so
  * it cannot be spawned with process.execPath. Use the package's real JS entry.
@@ -48,6 +63,9 @@ function resolveWranglerEntry() {
 // Files that must never be reachable as public assets.
 const MUST_BE_EXCLUDED = [
   "worker.js",
+  "upwork.js",
+  "upwork-agent.js",
+  "UPWORK_API_NOTES.md",
   "wrangler.jsonc",
   "package.json",
   "package-lock.json",
@@ -55,6 +73,7 @@ const MUST_BE_EXCLUDED = [
   "pnpm-lock.yaml",
   "README.md",
   "AGENTS.md",
+  "PROGRESS.md",
   ".assetsignore",
   ".gitignore",
   ".dev.vars",
@@ -104,6 +123,17 @@ async function run() {
   console.log(`Repository: ${repoRoot}`);
   console.log("");
 
+  // Durable Object state must live OUTSIDE the repository. `assets.directory`
+  // is ".", so a `.wrangler/` write inside the repo is itself a watched-asset
+  // change and puts `wrangler dev` into a reload loop that never opens the
+  // port. A per-run temp dir also keeps runs isolated from each other.
+  const persistDir = await mkdtemp(join(tmpdir(), "aira-asset-test-"));
+  activePersistDir = persistDir;
+  const cleanupPersist = async () => {
+    await rm(persistDir, { recursive: true, force: true }).catch(() => {});
+    activePersistDir = null;
+  };
+
   const server = spawn(
     process.execPath,
     [
@@ -111,10 +141,13 @@ async function run() {
       "dev",
       "--local",
       "--port",
-      String(PORT)
+      String(PORT),
+      "--persist-to",
+      persistDir
     ],
     { cwd: repoRoot, stdio: ["ignore", "pipe", "pipe"] }
   );
+  activeServer = server;
 
   let serverLog = "";
   server.stdout.on("data", (d) => (serverLog += d.toString()));
@@ -160,10 +193,39 @@ async function run() {
         );
       });
     }
+
+    console.log("");
+    console.log("4. Upwork public status is sanitized and consistent");
+    await check("GET /api/upwork/status reports NOT_CONFIGURED without credentials", async () => {
+      const res = await fetch(`${BASE_URL}/api/upwork/status`);
+      assert.equal(res.status, 200);
+      assert.match(res.headers.get("cache-control") || "", /no-store/i);
+      const payload = await res.json();
+      assert.equal(payload?.data?.service, "upwork");
+      assert.equal(payload?.data?.state, "NOT_CONFIGURED");
+      assert.equal(payload?.data?.verified, false);
+    });
+    await check("GET /api/connections uses the same Upwork status", async () => {
+      const res = await fetch(`${BASE_URL}/api/connections`);
+      assert.equal(res.status, 200);
+      const payload = await res.json();
+      const upwork = payload?.data?.services?.find((service) => service.service === "upwork");
+      assert.equal(upwork?.state, "NOT_CONFIGURED");
+      assert.equal(upwork?.verified, false);
+    });
+    await check("GET /api/self-check uses the same Upwork status", async () => {
+      const res = await fetch(`${BASE_URL}/api/self-check`);
+      assert.equal(res.status, 200);
+      const payload = await res.json();
+      const upwork = payload?.connections?.find((service) => service.service === "upwork");
+      assert.equal(upwork?.state, "NOT_CONFIGURED");
+      assert.equal(upwork?.verified, false);
+    });
   } finally {
     server.kill("SIGTERM");
     await delay(1500);
     if (!server.killed) server.kill("SIGKILL");
+    await cleanupPersist();
   }
 
   console.log("");

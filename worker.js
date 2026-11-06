@@ -1,4 +1,6 @@
 import { Agent, routeAgentRequest } from "agents";
+import { getUpworkConfiguration } from "./upwork.js";
+import { withUpworkStore } from "./upwork-agent.js";
 
 const MODEL = "@cf/meta/llama-3.1-8b-instruct-fp8";
 
@@ -894,7 +896,7 @@ const SERVICE_REGISTRY = {
   email: { name: "Email", kind: "communication", supported: false, binding: null },
   calendar: { name: "Calendar", kind: "communication", supported: false, binding: null },
   youtube: { name: "YouTube", kind: "media", supported: false, binding: null },
-  upwork: { name: "Upwork", kind: "earning_platform", supported: false, binding: null },
+  upwork: { name: "Upwork", kind: "earning_platform", supported: true, binding: null },
   fiverr: { name: "Fiverr", kind: "earning_platform", supported: false, binding: null },
   voice_provider: {
     name: "Voice Provider",
@@ -912,6 +914,26 @@ function resolveServiceState(env, key) {
   const entry = SERVICE_REGISTRY[key];
   if (!entry) {
     return { service: key, state: "UNAVAILABLE", verified: false, reason: "Unknown service" };
+  }
+
+  if (key === "upwork") {
+    const config = getUpworkConfiguration(env || {});
+    if (!config.enabled || !config.configured) {
+      return {
+        service: key,
+        name: entry.name,
+        state: "NOT_CONFIGURED",
+        verified: false,
+        reason: "Upwork OAuth is disabled or required server-side setup is incomplete."
+      };
+    }
+    return {
+      service: key,
+      name: entry.name,
+      state: "NOT_CONNECTED",
+      verified: false,
+      reason: "OAuth configuration exists, but the Owner account has not yet completed a verified read-only search."
+    };
   }
 
   if (!entry.supported || !entry.binding) {
@@ -959,14 +981,47 @@ function resolveServiceState(env, key) {
   return { service: key, name: entry.name, state: "UNAVAILABLE", verified: false, reason: "No verification routine for this service." };
 }
 
-function connectionReport(env) {
-  const services = Object.keys(SERVICE_REGISTRY).map((key) => resolveServiceState(env, key));
+function connectionReport(env, statusOverrides = {}) {
+  const services = Object.keys(SERVICE_REGISTRY).map((key) =>
+    statusOverrides[key] && statusOverrides[key].service === key
+      ? statusOverrides[key]
+      : resolveServiceState(env, key)
+  );
   return {
     states: TRUTH_STATES,
     services,
     connectedCount: services.filter((s) => s.state === "CONNECTED").length,
-    note: "Listing a service does not mean it is connected. Only a verified runtime binding reports CONNECTED."
+    note: "Listing a service does not mean it is connected. Only a verified runtime binding or source-specific API check reports CONNECTED."
   };
+}
+
+function unavailableUpworkStatus() {
+  return {
+    service: "upwork",
+    name: "Upwork",
+    state: "UNAVAILABLE",
+    verified: false,
+    enabled: false,
+    note: "The Upwork connection state could not be read from the Durable Object."
+  };
+}
+
+async function readUpworkStatusFromEnv(env) {
+  if (!env || !env.MasterMindAgent) {
+    const config = getUpworkConfiguration(env || {});
+    return config.configured ? unavailableUpworkStatus() : resolveServiceState(env, "upwork");
+  }
+  try {
+    const id = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(id);
+    const response = await stub.fetch(new Request("http://agent/agents/master-mind-agent/default/upwork/status", { method: "GET" }));
+    if (!response.ok) return unavailableUpworkStatus();
+    const payload = await response.json();
+    if (payload?.ok === true && payload?.data?.service === "upwork") return payload.data;
+  } catch {
+    return unavailableUpworkStatus();
+  }
+  return unavailableUpworkStatus();
 }
 
 /*
@@ -1224,6 +1279,13 @@ function buildEarningContext(agent) {
   }));
 
   const profile = agent.getOwnerProfile();
+  let upworkStatus = null;
+  try {
+    if (typeof agent.getUpworkStatus === "function") upworkStatus = agent.getUpworkStatus();
+  } catch {
+    upworkStatus = unavailableUpworkStatus();
+  }
+  const connectionOverrides = upworkStatus ? { upwork: upworkStatus } : {};
 
   return {
     authority: "PERSISTED_STATE",
@@ -1239,7 +1301,7 @@ function buildEarningContext(agent) {
           updated_at: profile.updated_at || ""
         }
       : null,
-    connections: connectionReport(agent.env).services.map((s) => ({
+    connections: connectionReport(agent.env, connectionOverrides).services.map((s) => ({
       service: s.service,
       state: s.state,
       verified: s.verified
@@ -1566,7 +1628,7 @@ Instructions:
  * a Durable Object with persistent state.
  */
 
-export class MasterMindAgent extends Agent {
+export class MasterMindAgent extends withUpworkStore(Agent) {
   initialState = {
     messages: [],
     tasksCompleted: 0
@@ -1733,6 +1795,27 @@ export class MasterMindAgent extends Agent {
         created_at TEXT NOT NULL
       );`;
       this.sql`CREATE INDEX IF NOT EXISTS idx_memory_category ON opportunity_memory (category, recorded_at);`;
+      // Upwork credentials are stored only as AES-GCM ciphertext. The singleton
+      // OAuth row stores a state hash and encrypted PKCE verifier; it is updated
+      // in place so callback state is single-use without deleting history/data.
+      this.sql`CREATE TABLE IF NOT EXISTS upwork_credentials (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        encrypted_bundle TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PARTIALLY_CONNECTED',
+        expires_at TEXT NOT NULL DEFAULT '',
+        refresh_expires_at TEXT NOT NULL DEFAULT '',
+        last_verified_at TEXT NOT NULL DEFAULT '',
+        last_search_at INTEGER NOT NULL DEFAULT 0,
+        updated_at TEXT NOT NULL
+      );`;
+      this.sql`CREATE TABLE IF NOT EXISTS upwork_oauth_state (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        state_hash TEXT NOT NULL,
+        verifier_envelope TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        updated_at TEXT NOT NULL
+      );`;
         this._dbInitialized = true;
       }
     }
@@ -3280,6 +3363,9 @@ export class MasterMindAgent extends Agent {
   async onRequest(request) {
     const url = new URL(request.url);
 
+    const upworkResponse = await this.routeUpworkRequest(request, url.pathname);
+    if (upworkResponse) return upworkResponse;
+
     if (
       url.pathname.endsWith("/health") &&
       request.method === "GET"
@@ -3304,7 +3390,7 @@ export class MasterMindAgent extends Agent {
       url.pathname.endsWith("/connections") &&
       request.method === "GET"
     ) {
-      return Response.json({ ok: true, data: connectionReport(this.env) });
+      return Response.json({ ok: true, data: connectionReport(this.env, { upwork: this.getUpworkStatus() }) });
     }
 
     /*
@@ -4196,9 +4282,11 @@ export class MasterMindAgent extends Agent {
  * unavailable rather than guessed.
  */
 async function buildEarningContextForEnv(env, request) {
+  const upworkStatus = await readUpworkStatusFromEnv(env);
+  const connectionOverrides = { upwork: upworkStatus };
   const base = {
     authority: "PERSISTED_STATE",
-    connections: connectionReport(env).services.map((s) => ({
+    connections: connectionReport(env, connectionOverrides).services.map((s) => ({
       service: s.service,
       state: s.state,
       verified: s.verified
@@ -4358,6 +4446,91 @@ async function handleAPI(request, env) {
     );
   }
 
+  if (url.pathname === "/api/upwork" || url.pathname.startsWith("/api/upwork/")) {
+    const redirectToResult = (result) => {
+      let origin = new URL(request.url).origin;
+      const config = getUpworkConfiguration(env || {});
+      if (config.configured) {
+        try { origin = new URL(env.UPWORK_REDIRECT_URI).origin; } catch { /* retain request origin */ }
+      }
+      const destination = new URL("/", origin);
+      destination.searchParams.set("upwork", result);
+      return new Response(null, {
+        status: 303,
+        headers: {
+          Location: destination.toString(),
+          "Cache-Control": "no-store, private, max-age=0",
+          Pragma: "no-cache",
+          "Referrer-Policy": "no-referrer",
+          "X-Content-Type-Options": "nosniff"
+        }
+      });
+    };
+
+    if (!env.MasterMindAgent) {
+      if (url.pathname === "/api/upwork/callback") return redirectToResult("error");
+      return cors(json({ ok: false, error: "MasterMindAgent binding is missing" }, 500));
+    }
+    const agentId = env.MasterMindAgent.idFromName("default");
+    const stub = env.MasterMindAgent.get(agentId);
+
+    if (url.pathname === "/api/upwork/callback") {
+      if (request.method !== "GET") return redirectToResult("error");
+      const config = getUpworkConfiguration(env || {});
+      let callbackMatches = false;
+      try {
+        const configured = new URL(env.UPWORK_REDIRECT_URI);
+        const incoming = new URL(request.url);
+        callbackMatches = configured.protocol === "https:" && configured.origin === incoming.origin && configured.pathname === incoming.pathname;
+      } catch {
+        callbackMatches = false;
+      }
+      if (!config.configured || !hasOwnerToken(env) || !callbackMatches) return redirectToResult("error");
+
+      const state = url.searchParams.get("state") || "";
+      const code = url.searchParams.get("code") || "";
+      const denied = url.searchParams.has("error");
+      if (state.length > 256 || code.length > 4_096) return redirectToResult("error");
+      const callbackRequest = new Request("http://agent/agents/master-mind-agent/default/upwork/callback", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + env.OWNER_API_TOKEN,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ state, code, error: denied ? "denied" : "" })
+      });
+      try {
+        const callbackResponse = await stub.fetch(callbackRequest);
+        let payload = null;
+        try { payload = await callbackResponse.json(); } catch { payload = null; }
+        return redirectToResult(callbackResponse.ok && payload?.ok === true ? "authorized" : "error");
+      } catch {
+        return redirectToResult("error");
+      }
+    }
+
+    if (url.pathname === "/api/upwork/status" && request.method === "GET") {
+      const statusResponse = await stub.fetch(new Request("http://agent/agents/master-mind-agent/default/upwork/status", { method: "GET" }));
+      return cors(statusResponse);
+    }
+
+    if (url.pathname !== "/api/upwork/connect" && url.pathname !== "/api/upwork/search") {
+      return cors(json({ ok: false, error: "Not found" }, 404));
+    }
+    if (url.pathname === "/api/upwork/connect" && request.method !== "POST") {
+      return cors(json({ ok: false, error: "Method not allowed" }, 405, { Allow: "POST" }));
+    }
+    if (url.pathname === "/api/upwork/search" && request.method !== "POST") {
+      return cors(json({ ok: false, error: "Method not allowed" }, 405, { Allow: "POST" }));
+    }
+    const denied = authorizeRequest(request, env, RISK.OWNER_CONTROLLED);
+    if (denied) return cors(denied);
+    const endpoint = url.pathname.endsWith("/connect") ? "connect" : "search";
+    const agentRequest = new Request(`http://agent/agents/master-mind-agent/default/upwork/${endpoint}`, request);
+    const agentResponse = await stub.fetch(agentRequest);
+    return cors(agentResponse);
+  }
+
   if (url.pathname.startsWith("/api/opportunities")) {
     if (!env.MasterMindAgent) {
       return cors(
@@ -4427,7 +4600,8 @@ async function handleAPI(request, env) {
   }
 
   if (url.pathname === "/api/connections" && request.method === "GET") {
-    return cors(json({ ok: true, data: connectionReport(env) }));
+    const upworkStatus = await readUpworkStatusFromEnv(env);
+    return cors(json({ ok: true, data: connectionReport(env, { upwork: upworkStatus }) }));
   }
 
   if (url.pathname === "/api/voice" && request.method === "GET") {
@@ -4771,6 +4945,7 @@ async function handleAPI(request, env) {
     url.pathname === "/api/self-check" &&
     request.method === "GET"
   ) {
+    const upworkStatus = await readUpworkStatusFromEnv(env);
     return cors(
       json({
         ok: true,
@@ -4806,7 +4981,7 @@ async function handleAPI(request, env) {
 
           api: "PASS"
         },
-        connections: connectionReport(env).services
+        connections: connectionReport(env, { upwork: upworkStatus }).services
       })
     );
   }
