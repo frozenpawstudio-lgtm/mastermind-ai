@@ -1198,6 +1198,124 @@
     @media (max-width: 359px) {
       .core-frame { width: 144px; height: 144px; flex-basis: 144px; }
     }
+
+    /* ----------------------- UPWORK DISCOVERY PANEL ------------------------ */
+    .upwork-card {
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse at 92% 0%, rgba(0, 205, 255, 0.13), transparent 42%),
+        linear-gradient(148deg, rgba(13, 31, 64, 0.97), rgba(5, 12, 28, 0.98) 64%, rgba(18, 17, 54, 0.94));
+      border-color: rgba(67, 195, 255, 0.42);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.42), 0 0 28px rgba(0, 168, 255, 0.12), inset 0 1px 0 rgba(220, 250, 255, 0.14);
+    }
+
+    .upwork-card::before {
+      content: "";
+      position: absolute;
+      inset: 0 18% auto 18%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(137, 248, 255, 0.76), transparent);
+      pointer-events: none;
+    }
+
+    .upwork-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .upwork-logo {
+      width: 38px;
+      height: 38px;
+      flex: 0 0 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(105, 232, 255, 0.56);
+      border-radius: 12px;
+      color: #b9fbff;
+      font-size: 15px;
+      font-weight: 900;
+      background: radial-gradient(circle at 28% 20%, rgba(23, 185, 224, 0.38), rgba(4, 14, 34, 0.97) 70%);
+      box-shadow: 0 0 18px rgba(0, 207, 255, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.16), inset 0 -5px 10px rgba(24, 76, 190, 0.18);
+    }
+    .upwork-head-copy { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .upwork-head-title { font-size: 13px; font-weight: 900; letter-spacing: 0.85px; color: #f4fbff; text-transform: uppercase; overflow-wrap: break-word; }
+    .upwork-head-subtitle { font-size: 11px; color: #a9c4e5; line-height: 1.4; }
+    .upwork-card > .card-head { align-items: center; margin-bottom: 12px; }
+    .upwork-status-box {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 10px 11px;
+      border: 1px solid rgba(67, 164, 255, 0.25);
+      border-radius: 13px;
+      background: linear-gradient(110deg, rgba(10, 37, 71, 0.72), rgba(7, 14, 33, 0.78));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .upwork-status-light { width: 8px; height: 8px; flex: 0 0 8px; margin-top: 5px; border-radius: 50%; background: #8ca2bd; box-shadow: 0 0 9px currentColor; }
+    .upwork-status-light.ok { color: #00e676; background: #00e676; }
+    .upwork-status-light.warn { color: #ffc857; background: #ffc857; }
+    .upwork-status-light.err { color: #ff5472; background: #ff5472; }
+    .upwork-status-light.cyan { color: #35e8ff; background: #35e8ff; }
+    .upwork-status-light.muted { color: #8ca2bd; background: #8ca2bd; }
+    .upwork-status-copy { min-width: 0; flex: 1 1 auto; }
+    .upwork-status-copy .tiny-note { margin: 3px 0 0; line-height: 1.5; }
+    .upwork-search-area { display: flex; flex-direction: column; gap: 9px; padding-top: 2px; }
+    .upwork-search-label { color: #b8d1ec; font-size: 10px; font-weight: 900; letter-spacing: 1.1px; text-transform: uppercase; }
+    .upwork-searchbox { position: relative; }
+    .upwork-searchbox svg { position: absolute; left: 13px; top: 50%; width: 18px; height: 18px; transform: translateY(-50%); fill: none; stroke: #69eaff; stroke-width: 1.8; pointer-events: none; filter: drop-shadow(0 0 5px rgba(0, 229, 255, 0.55)); }
+    #upwork-query { padding-left: 40px; border-radius: 14px; min-height: 50px; }
+    .upwork-suggestions { display: flex; flex-wrap: wrap; gap: 6px; }
+    .upwork-suggestion {
+      min-height: 44px;
+      padding: 5px 10px;
+      border: 1px solid rgba(78, 177, 255, 0.27);
+      border-radius: 999px;
+      background: linear-gradient(145deg, rgba(14, 38, 72, 0.82), rgba(5, 12, 29, 0.88));
+      color: #b8d8fa;
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: border-color 0.16s ease, color 0.16s ease, transform 0.16s ease;
+    }
+    .upwork-suggestion:hover { border-color: rgba(0, 229, 255, 0.64); color: #e5fcff; transform: translateY(-1px); }
+    .upwork-actions { display: grid; grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr); gap: 8px; }
+    .upwork-actions .btn { min-width: 0; }
+    .upwork-connect-btn { color: #c9e7ff; }
+    .upwork-message { min-height: 0; margin: 0; padding: 0; color: #a9c4e5; line-height: 1.45; }
+    .upwork-message:empty { display: none; }
+    .upwork-results { gap: 10px; }
+    .upwork-results-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 2px 1px; }
+    .upwork-results-title { display: flex; flex-direction: column; gap: 2px; }
+    .upwork-results-title span { color: #8eabd0; font-size: 9px; font-weight: 900; letter-spacing: 1.2px; }
+    .upwork-results-title strong { color: #e9faff; font-size: 12px; letter-spacing: 0.3px; }
+    .upwork-job { position: relative; padding: 12px; gap: 9px; border-color: rgba(69, 176, 255, 0.30); background: linear-gradient(148deg, rgba(16, 38, 73, 0.90), rgba(5, 12, 28, 0.96) 74%, rgba(24, 22, 62, 0.83)); }
+    .upwork-job-top { display: flex; align-items: flex-start; gap: 9px; min-width: 0; }
+    .upwork-job-icon { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border-radius: 9px; color: #a8fcff; font-size: 11px; font-weight: 900; border: 1px solid rgba(79, 211, 255, 0.36); background: linear-gradient(145deg, rgba(0, 188, 221, 0.28), rgba(20, 48, 119, 0.48)); box-shadow: inset 0 1px 0 rgba(255,255,255,0.13), 0 0 14px rgba(0, 190, 255, 0.10); }
+    .upwork-job-main { flex: 1 1 auto; min-width: 0; }
+    .upwork-job-title { display: block; color: #f1fbff; font-size: 13px; font-weight: 800; line-height: 1.4; overflow-wrap: anywhere; text-decoration: none; }
+    .upwork-job-title:hover { color: #84f5ff; text-decoration: underline; text-underline-offset: 3px; }
+    .upwork-job-meta { margin-top: 4px; color: #9db5d5; font-size: 10.5px; line-height: 1.4; overflow-wrap: break-word; }
+    .upwork-job-details { border-top: 1px solid rgba(92, 163, 230, 0.15); padding-top: 7px; }
+    .upwork-job-details summary { color: #a8d7f3; font-size: 11px; font-weight: 700; cursor: pointer; min-height: 24px; }
+    .upwork-job-details p { margin: 7px 0 0; color: #c4d3e8; font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .upwork-job-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; border-top: 1px solid rgba(92, 163, 230, 0.15); padding-top: 8px; }
+    .upwork-budget { color: #a4f5ff; font-size: 12px; font-weight: 900; text-shadow: 0 0 10px rgba(0, 204, 255, 0.20); }
+    .upwork-job-link { display: inline-flex; align-items: center; gap: 5px; min-height: 38px; padding: 6px 10px; border: 1px solid rgba(0, 220, 255, 0.36); border-radius: 10px; color: #a9f8ff; font-size: 11px; font-weight: 800; text-decoration: none; background: rgba(0, 188, 255, 0.08); }
+    .upwork-job-link:hover { background: rgba(0, 188, 255, 0.16); border-color: rgba(0, 229, 255, 0.68); }
+    .upwork-skills { display: flex; flex-wrap: wrap; gap: 5px; }
+    .upwork-skill { max-width: 100%; padding: 4px 7px; border: 1px solid rgba(119, 134, 255, 0.22); border-radius: 7px; color: #d3d5ff; background: rgba(89, 76, 194, 0.12); font-size: 10px; line-height: 1.3; overflow-wrap: anywhere; }
+    .upwork-safety-note { color: #9fb3ce; font-size: 10px; line-height: 1.45; }
+    .upwork-empty { padding: 16px 12px; text-align: center; border: 1px dashed rgba(67, 166, 255, 0.25); border-radius: 13px; color: #9eb4d2; font-size: 12px; background: rgba(4, 12, 28, 0.54); }
+
+    :is(.upwork-suggestion, .upwork-job-link):focus-visible { outline: 2px solid rgba(125, 245, 255, 0.95); outline-offset: 3px; }
+
+    @media (max-width: 359px) {
+      .upwork-actions { grid-template-columns: 1fr; }
+      .upwork-head-subtitle { font-size: 10px; }
+      .upwork-job-foot { align-items: flex-start; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .upwork-suggestion { transition: none; }
+    }
   </style>
 </head>
 <body>
@@ -1404,22 +1522,50 @@
           </div>
         </div>
 
-        <div class="card">
-          <div class="divider"></div>
-          <div class="row"><span class="k">Upwork official read-only discovery</span><span class="pill muted" id="upwork-status">CHECKING</span></div>
-          <div class="tiny-note" id="upwork-status-note">AIRA only searches public listings after the Owner connects Upwork. Search results are temporary, UNVERIFIED, and never saved to tracking.</div>
-          <div class="stack tight">
-            <div class="field">
-              <label for="upwork-query">Search Upwork public jobs</label>
-              <input type="text" id="upwork-query" maxlength="120" placeholder="e.g. Cloudflare Workers, React, translation">
+        <div class="card upwork-card" id="upwork-card">
+          <div class="card-head">
+            <div class="upwork-head">
+              <span class="upwork-logo" aria-hidden="true">U</span>
+              <span class="upwork-head-copy">
+                <span class="upwork-head-title">Upwork Discovery</span>
+                <span class="upwork-head-subtitle">Official public listings · read-only</span>
+              </span>
             </div>
-            <div class="btn-row">
-              <button class="btn sm" type="button" id="upwork-connect">Connect Upwork</button>
-              <button class="btn sm primary" type="button" id="upwork-search">Search public jobs</button>
+            <span class="pill muted" id="upwork-status" role="status" aria-live="polite">CHECKING</span>
+          </div>
+
+          <div class="upwork-status-box">
+            <span class="upwork-status-light" id="upwork-status-light" aria-hidden="true"></span>
+            <div class="upwork-status-copy">
+              <div class="upwork-head-title" id="upwork-status-heading">Connection status</div>
+              <div class="tiny-note" id="upwork-status-note">AIRA only searches public listings after the Owner connects Upwork. Search results are temporary, UNVERIFIED, and never saved to tracking.</div>
             </div>
           </div>
-          <div class="tiny-note" id="upwork-message" role="status" aria-live="polite"></div>
-          <div class="list" id="upwork-results" aria-live="polite"></div>
+
+          <div class="divider"></div>
+
+          <div class="upwork-search-area">
+            <label class="upwork-search-label" for="upwork-query">Find public jobs by skill or phrase</label>
+            <div class="upwork-searchbox">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.4"></circle><path d="m16 16 4.5 4.5"></path></svg>
+              <input type="text" id="upwork-query" maxlength="120" placeholder="Try React, design, translation…" autocomplete="off" enterkeyhint="search">
+            </div>
+            <div class="upwork-suggestions" aria-label="Suggested searches">
+              <button class="upwork-suggestion" type="button" data-upwork-query="React">React</button>
+              <button class="upwork-suggestion" type="button" data-upwork-query="Cloudflare Workers">Cloudflare Workers</button>
+              <button class="upwork-suggestion" type="button" data-upwork-query="Translation">Translation</button>
+            </div>
+            <div class="upwork-actions">
+              <button class="btn sm upwork-connect-btn" type="button" id="upwork-connect">Connect Upwork</button>
+              <button class="btn sm primary" type="button" id="upwork-search">
+                <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" style="fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round"><circle cx="10.8" cy="10.8" r="6.4"></circle><path d="m16 16 4.5 4.5"></path></svg>
+                Search jobs
+              </button>
+            </div>
+          </div>
+
+          <div class="tiny-note upwork-message" id="upwork-message" role="status" aria-live="polite"></div>
+          <div class="list upwork-results" id="upwork-results" aria-live="polite"></div>
         </div>
 
         <div class="card" id="earning-form-card" hidden>
@@ -2552,32 +2698,44 @@
     let upworkSearchResults = [];
     let upworkSearchInFlight = false;
     let upworkConnectInFlight = false;
+    let upworkSearchCompleted = false;
 
     function renderUpworkResults() {
       const list = $("upwork-results");
       if (!list) return;
-      if (!upworkSearchResults.length) {
+      if (!upworkSearchCompleted) {
         list.innerHTML = "";
         return;
       }
-      list.innerHTML = upworkSearchResults.map((job) => {
+      const header = '<div class="upwork-results-head"><div class="upwork-results-title"><span>LIVE SEARCH</span><strong>' +
+        upworkSearchResults.length + (upworkSearchResults.length === 1 ? ' listing found' : ' listings found') +
+        '</strong></div><span class="pill cyan">TEMPORARY</span></div>';
+      if (!upworkSearchResults.length) {
+        list.innerHTML = header + '<div class="upwork-empty">No listings returned for this phrase. Try a broader skill or shorter search.</div>';
+        return;
+      }
+      list.innerHTML = header + upworkSearchResults.map((job) => {
         let href = "";
         try {
           const parsed = new URL(String(job.url || ""));
           if (parsed.protocol === "https:" && parsed.origin === "https://www.upwork.com") href = parsed.toString();
         } catch { href = ""; }
         const title = escapeHtml(orNA(job.title));
-        const link = href
-          ? '<a class="opp-link" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>"
-          : title;
-        const skills = Array.isArray(job.skills) ? job.skills.map((skill) => escapeHtml(skill)).join(", ") : "";
+        const titleContent = href
+          ? '<a class="upwork-job-title" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">' + title + "</a>"
+          : '<span class="upwork-job-title">' + title + "</span>";
+        const skills = Array.isArray(job.skills) ? job.skills.filter(Boolean).slice(0, 6).map((skill) => '<span class="upwork-skill">' + escapeHtml(skill) + '</span>').join("") : "";
+        const extraSkills = Array.isArray(job.skills) && job.skills.length > 6 ? '<span class="upwork-skill">+' + (job.skills.length - 6) + ' more</span>' : "";
         const budget = [job.amount, job.currency].filter(Boolean).join(" ") || NA;
-        return '<article class="list-item"><div class="li-top"><span class="li-name">' + link + '</span><span class="pill muted">UNVERIFIED</span></div>' +
-          '<div class="li-sub">' + escapeHtml(orNA(job.job_type)) + ' · ' + escapeHtml(orNA(job.published_at)) + '</div>' +
-          '<div class="row"><span class="k">Budget</span><span class="v">' + escapeHtml(budget) + '</span></div>' +
-          (skills ? '<div class="row"><span class="k">Skills</span><span class="v">' + skills + '</span></div>' : '') +
-          (job.description ? '<div class="opp-output">' + escapeHtml(job.description) + '</div>' : '') +
-          '<div class="tiny-note">Eligibility UNKNOWN. Not saved to AIRA tracking. Review the original Upwork listing; submission is manual Owner-only.</div></article>';
+        const meta = [job.job_type, job.published_at].filter(Boolean).map((value) => escapeHtml(value)).join(' · ') || 'Public marketplace listing';
+        const description = text(job.description);
+        return '<article class="list-item upwork-job"><div class="upwork-job-top"><span class="upwork-job-icon" aria-hidden="true">U</span>' +
+          '<div class="upwork-job-main">' + titleContent + '<div class="upwork-job-meta">' + meta + '</div></div><span class="pill muted">UNVERIFIED</span></div>' +
+          (skills ? '<div class="upwork-skills" aria-label="Required skills">' + skills + extraSkills + '</div>' : '') +
+          (description ? '<details class="upwork-job-details"><summary>Read listing summary</summary><p>' + escapeHtml(description) + '</p></details>' : '') +
+          '<div class="upwork-job-foot"><span class="upwork-budget">' + escapeHtml(budget) + '</span>' +
+          (href ? '<a class="upwork-job-link" href="' + escapeHtml(href) + '" target="_blank" rel="noopener noreferrer">Open on Upwork <span aria-hidden="true">↗</span></a>' : '') + '</div>' +
+          '<div class="upwork-safety-note">Eligibility is UNKNOWN. Not saved to tracking; review the original listing. Applying is manual.</div></article>';
       }).join("");
     }
 
@@ -2585,11 +2743,28 @@
       const status = AIRA.upworkStatus;
       const pillNode = $("upwork-status");
       const noteNode = $("upwork-status-note");
+      const headingNode = $("upwork-status-heading");
+      const lightNode = $("upwork-status-light");
       const connectButton = $("upwork-connect");
       const searchButton = $("upwork-search");
+      const currentState = status && status.state ? status.state : "UNAVAILABLE";
       if (pillNode) {
-        pillNode.textContent = status && status.state ? status.state : "UNAVAILABLE";
-        pillNode.className = "pill " + stateClass(status && status.state);
+        pillNode.textContent = currentState;
+        pillNode.className = "pill " + stateClass(currentState);
+      }
+      if (headingNode) {
+        const headings = {
+          CONNECTED: "Connection verified",
+          PARTIALLY_CONNECTED: "Authorization saved · verify with search",
+          NOT_CONNECTED: "Connect your Upwork account",
+          NOT_CONFIGURED: "Upwork setup needed",
+          NEEDS_REAUTH: "Reconnect to continue",
+          UNAVAILABLE: "Connection status unavailable"
+        };
+        headingNode.textContent = headings[currentState] || "Connection status";
+      }
+      if (lightNode) {
+        lightNode.className = "upwork-status-light " + stateClass(currentState);
       }
       if (noteNode) {
         const ownerNote = !isOwnerAuthorized() ? " Paste the Owner token for this session to connect or search." : "";
@@ -2602,7 +2777,10 @@
       if (searchButton) {
         const searchable = status && status.enabled === true && ["CONNECTED", "PARTIALLY_CONNECTED"].includes(status.state);
         searchButton.disabled = upworkSearchInFlight || !isOwnerAuthorized() || !searchable;
-        searchButton.textContent = upworkSearchInFlight ? "Searching…" : "Search public jobs";
+        const label = upworkSearchInFlight ? "Searching…" : "Search jobs";
+        searchButton.setAttribute("aria-label", upworkSearchInFlight ? "Searching Upwork jobs" : "Search public Upwork jobs");
+        const textNode = searchButton.lastChild;
+        if (textNode && textNode.nodeType === Node.TEXT_NODE) textNode.textContent = " " + label;
       }
       renderUpworkResults();
     }
@@ -2666,6 +2844,7 @@
       }
       upworkSearchInFlight = true;
       upworkSearchResults = [];
+      upworkSearchCompleted = false;
       setText("upwork-message", "Searching Upwork's public marketplace through its official read-only API…");
       renderUpworkPanel();
       const result = await api("/api/upwork/search", { method: "POST", cache: "no-store", body: { query } });
@@ -2678,6 +2857,7 @@
       }
       const data = result.data || {};
       upworkSearchResults = Array.isArray(data.jobs) ? data.jobs.slice(0, 10) : [];
+      upworkSearchCompleted = true;
       setText("upwork-message", "Fetched " + upworkSearchResults.length + " listing(s). Results are UNVERIFIED, transient, and were not added to tracking.");
       await loadUpworkStatus();
       renderUpworkPanel();
@@ -3362,6 +3542,13 @@
       if (upworkSearch) upworkSearch.addEventListener("click", searchUpwork);
       const upworkQuery = $("upwork-query");
       if (upworkQuery) upworkQuery.addEventListener("keydown", (event) => { if (event.key === "Enter") searchUpwork(); });
+      document.querySelectorAll("[data-upwork-query]").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!upworkQuery) return;
+          upworkQuery.value = button.getAttribute("data-upwork-query") || "";
+          upworkQuery.focus();
+        });
+      });
       const compare = $("earning-compare");
       if (compare) compare.addEventListener("click", runCompare);
       const newBtn = $("earning-new");
